@@ -187,6 +187,9 @@ def enable_pra_settings(session: Session, tenant_id: int) -> None:
     """Turn on sandbox PRA flags when the pra module is installed."""
     _set_setting(session, tenant_id, "pra_enabled", "true")
     _set_setting(session, tenant_id, "pra_sandbox_mode", "true")
+    _set_setting(session, tenant_id, "pra_business_activity", "Retailer")
+    _set_setting(session, tenant_id, "pra_sector", "Wholesale / Retails")
+    _set_setting(session, tenant_id, "pra_seller_province", "Punjab")
     session.commit()
 
 

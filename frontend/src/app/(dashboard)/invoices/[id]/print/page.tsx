@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import { QRCodeSVG } from "qrcode.react"
 
 interface InvoiceLine {
   id: number
@@ -99,14 +100,17 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ id: str
             <h1 className="text-lg sm:text-2xl font-bold">Invoice {inv.number}</h1>
             <p className="text-sm text-[var(--text-primary)]/60">Issued {fmtDate(inv.issue_date)} · Due {fmtDate(inv.due_date)}</p>
             {inv.pra_fiscal_number && (
-              <p className="text-xs text-[var(--text-primary)]/60 mt-0.5">PRA Fiscal Invoice No: <span className="font-mono">{inv.pra_fiscal_number}</span></p>
+              <p className="text-xs text-[var(--text-primary)]/60 mt-0.5">FBR Invoice No: <span className="font-mono">{inv.pra_fiscal_number}</span></p>
             )}
           </header>
-          {/* PRA Fiscal Invoice Number badge */}
           {inv.pra_fiscal_number && (
-            <div className="mb-4 border border-[var(--primary)]/40 rounded-lg px-4 py-2 bg-[var(--bg-page)]">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-0.5">Fiscal Invoice No (PRA)</p>
-              <p className="text-sm font-bold font-mono text-[var(--primary)]">{inv.pra_fiscal_number}</p>
+            <div className="mb-4 border border-[var(--primary)]/40 rounded-lg px-4 py-3 bg-[var(--bg-page)] flex items-center gap-4">
+              <img src="/fbr-di-logo.svg" alt="FBR Digital Invoicing" className="h-10 print:h-[0.55in]" />
+              <div className="flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-0.5">FBR Invoice Number</p>
+                <p className="text-sm font-bold font-mono text-[var(--primary)]">{inv.pra_fiscal_number}</p>
+              </div>
+              <QRCodeSVG value={inv.pra_fiscal_number} size={96} style={{ width: "1in", height: "1in" }} />
             </div>
           )}
 
@@ -141,7 +145,7 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ id: str
                 <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-20">Qty</th>
                 <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-28">Rate</th>
                 <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-28">{t('col.amount', 'Amount')}</th>
-                <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-20 hidden print:table-cell">PCT Code</th>
+                <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-20 hidden print:table-cell">HS Code</th>
                 <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-16 hidden print:table-cell">Tax %</th>
               </tr>
             </thead>
@@ -155,7 +159,7 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ id: str
                   <td className="px-3 py-2 text-right font-mono">{fmt(ln.qty)} {ln.unit ?? ""}</td>
                   <td className="px-3 py-2 text-right font-mono">{fmt(ln.rate)}</td>
                   <td className="px-3 py-2 text-right font-mono">{fmt(ln.amount)}</td>
-                  <td className="px-3 py-2 text-right font-mono text-xs hidden print:table-cell">{ln.pct_code ?? "—"}</td>
+                  <td className="px-3 py-2 text-right font-mono text-xs hidden print:table-cell">{ln.hs_code ?? ln.pct_code ?? "—"}</td>
                   <td className="px-3 py-2 text-right font-mono text-xs hidden print:table-cell">{ln.tax_rate != null ? `${ln.tax_rate}%` : "—"}</td>
                 </tr>
               ))}

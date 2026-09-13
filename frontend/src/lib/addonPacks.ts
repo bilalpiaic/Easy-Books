@@ -38,10 +38,10 @@ export const ADDON_PACKS: AddonPack[] = [
   },
   {
     id: "pra",
-    label: "PRA e-Invoice",
+    label: "FBR Digital Invoicing",
     tagline: "Pakistani retail",
     modules: ["inventory", "pos", "pra"],
-    features: ["Fiscal invoice numbers", "POS counter sales", "PRA Sales home dashboard"],
+    features: ["FBR invoice number + QR", "POS counter sales", "FBR DI / PRA Sales home"],
   },
   {
     id: "uae_vat",

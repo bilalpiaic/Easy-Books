@@ -172,7 +172,7 @@ export default function PRADashboardPage() {
                   <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/40 hidden sm:table-cell">Payment</th>
                   <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/40">Amount ({currency})</th>
                   <th className="text-center px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/40">PRA</th>
-                  <th className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/40 hidden md:table-cell">FIN</th>
+                  <th className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/40 hidden md:table-cell">FBR No</th>
                 </tr>
               </thead>
               <tbody>

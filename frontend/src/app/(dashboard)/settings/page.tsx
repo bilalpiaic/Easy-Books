@@ -21,6 +21,7 @@ import { useLocale } from '@/context/LocaleContext'
 import { LANGUAGES, type Language } from '@/i18n/config'
 import { useTranslation } from "react-i18next"
 import { useMessages } from "@/context/MessageContext"
+import { DI_ACTIVITIES, DI_PROVINCES, DI_SECTORS } from "@/lib/diConstants"
 
 interface PaymentTerm {
   id: number
@@ -1273,11 +1274,11 @@ export default function SettingsPage() {
       </section>
       )}
 
-      {/* ── PRA e-Invoice (Pakistan) — compliance switch once the PRA add-on is installed ── */}
+      {/* ── FBR Digital Invoicing (PRAL DI API v1.12) — add-on key remains pra ── */}
       {installedModules.has("pra") && (
       <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">PRA e-Invoice <span className="text-sm font-sans font-normal text-[var(--text-primary)]/50">(Punjab Revenue Authority, Pakistan)</span></h2>
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">FBR Digital Invoicing <span className="text-sm font-sans font-normal text-[var(--text-primary)]/50">(PRAL DI API v1.12)</span></h2>
           <label className="flex items-center gap-2 cursor-pointer">
             <span className="text-sm text-[var(--text-primary)]/70">{form.pra_enabled === "true" ? "Enabled" : "Disabled"}</span>
             <div
@@ -1289,30 +1290,54 @@ export default function SettingsPage() {
           </label>
         </div>
         <p className="text-xs text-[var(--text-primary)]/50">
-          When enabled, every new sales invoice is submitted to PRA eIMS in real-time and a Fiscal Invoice Number (FIN) is printed on the invoice.
-          Register at <span className="font-mono">reg.pra.punjab.gov.pk</span> to obtain your POS ID and production token.
+          When enabled, every new sales invoice is validated then posted to FBR Digital Invoicing in real time.
+          The FBR invoice number and QR code print on the invoice. Obtain a Bearer token from PRAL.
+          The add-on key remains <span className="font-mono">pra</span>.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">PNTN / NTN</label>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Seller NTN / CNIC</label>
             <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
-              placeholder="e.g. 1234567-8"
+              placeholder="7, 9 or 13 digits"
               autoComplete="off"
               value={form.pra_ntn} onChange={e => handleChange("pra_ntn", e.target.value)} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">POS ID</label>
-            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
-              placeholder="6-digit POS ID from PRA portal"
-              autoComplete="off"
-              value={form.pra_pos_id} onChange={e => handleChange("pra_pos_id", e.target.value)} />
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Seller province</label>
+            <select className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+              value={form.pra_seller_province || "Punjab"}
+              onChange={e => handleChange("pra_seller_province", e.target.value)}>
+              {DI_PROVINCES.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Business activity</label>
+            <select className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+              value={form.pra_business_activity || "Retailer"}
+              onChange={e => handleChange("pra_business_activity", e.target.value)}>
+              {DI_ACTIVITIES.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Sector</label>
+            <select className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+              value={form.pra_sector || "Wholesale / Retails"}
+              onChange={e => handleChange("pra_sector", e.target.value)}>
+              {DI_SECTORS.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
           </div>
           <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Production API Token</label>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">PRAL Bearer token</label>
             <div className="flex gap-2">
               <input className="flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
                 type={praShowToken ? "text" : "password"}
-                placeholder="Bearer token from POS Details tab"
+                placeholder="Token issued by PRAL (sandbox or production)"
                 autoComplete="new-password"
                 value={form.pra_api_token} onChange={e => handleChange("pra_api_token", e.target.value)} />
               <button type="button" onClick={() => setPraShowToken(v => !v)}
@@ -1327,21 +1352,25 @@ export default function SettingsPage() {
             checked={form.pra_sandbox_mode === "true"}
             onChange={e => handleChange("pra_sandbox_mode", e.target.checked ? "true" : "false")} />
           <span className="text-[var(--text-primary)]/70">Use Sandbox (test) environment</span>
-          <span className="text-xs text-[var(--text-primary)]/40 font-mono">ims.pral.com.pk/ims/sandbox/…</span>
+          <span className="text-xs text-[var(--text-primary)]/40 font-mono">gw.fbr.gov.pk/di_data/…_sb</span>
         </label>
         <div className="flex items-center gap-3">
           <button
             onClick={async () => {
               setPraTesting(true); setPraTestResult(null)
               try {
-                const r = await apiFetch<{ pra_code: string; pra_response: string; sandbox: boolean }>("/api/pra/test", { method: "POST" })
-                const ok = r.pra_code === "100"
-                setPraTestResult({ ok, msg: `Code ${r.pra_code}: ${r.pra_response}${r.sandbox ? " (sandbox)" : " (production)"}` })
+                const r = await apiFetch<{ ok: boolean; status_code?: string; error?: string; sandbox: boolean }>("/api/pra/test", { method: "POST" })
+                setPraTestResult({
+                  ok: r.ok,
+                  msg: r.ok
+                    ? `Valid (${r.status_code || "00"})${r.sandbox ? " — sandbox" : " — production"}`
+                    : `${r.status_code || "error"}: ${r.error || "Validation failed"}${r.sandbox ? " (sandbox)" : ""}`,
+                })
               } catch (e: unknown) {
                 setPraTestResult({ ok: false, msg: String((e as Error).message ?? e) })
               } finally { setPraTesting(false) }
             }}
-            disabled={praTesting || !form.pra_pos_id}
+            disabled={praTesting || !form.pra_ntn}
             className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--text-primary)] text-white hover:bg-[var(--text-primary)]/80 disabled:opacity-50 transition-colors"
           >
             {praTesting ? "Testing…" : "Test Connection"}

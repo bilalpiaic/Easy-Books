@@ -212,7 +212,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 **Business-model tracks**
 - **Manufacturing (V2):** multi-location inventory, Bills of Material, Rate Plans, GRN, Production Order lifecycle (draft→started→completed→delivered→billed) with full GL postings
 - **Telecom Franchise (V3):** 56-account franchise CoA, Tracker wallet & load orders, MSR→RSO→Retail chain, SIM inventory, FCA targets, Mobile Money agency, Postpaid billing, Commission reconciliation, 9 telecom reports
-- **PRA e-Invoice (Pakistan):** real-time invoice submission to Punjab Revenue Authority (PRA eIMS); FIN (Fiscal Invoice Number) returned and printed on invoices; `pra_status` badge (pending/submitted/failed) with retry; Payment Mode field; customer NTN/CNIC fields; product PCT codes; Settings card with Test Connection; non-blocking `BackgroundTasks` submission so invoice save is never delayed
+- **FBR Digital Invoicing (PRAL DI API v1.12, add-on `pra`):** validate-then-post to `gw.fbr.gov.pk`; sandbox `scenarioId` SN001–SN028; FBR `invoiceNumber` + 1-inch QR on print; buyer registration/province; HS/`saleType`/MRP/SRO line fields; debit notes with `invoiceRefNo`; Settings Test Connection uses `validateinvoicedata`
 - **Yarn Spinning:** cotton bale receipt → multi-stage lot tracking (carding/drawing/roving/spinning/winding) → cone output → yarn dispatch with full GL costing (`1200`–`1204` WIP chain, waste accounts `5901`–`5904`, COGS at dispatch)
 - **Textile Processing:** grey inward → mending → kachi/pakki parchi → PPC stages → dispatch (`demo.processing@easy-books.app`)
 - **Weighbridge:** public Marketplace overlay (Gate pass + Lot ref on **sales invoices**, Studio data, no extra GL) plus first-party ticket workspace (pre-installed for mills; Optional for other segments)
@@ -331,7 +331,7 @@ npm run dev
 | `demo.trader@easy-books.app` | Inventory |
 | `demo.manufacturing@easy-books.app` | Manufacturing + Purchases/Store + Weaving; Marketplace **Weighbridge** (For you) |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
-| `demo.pra@easy-books.app` | PRA e-Invoice |
+| `demo.pra@easy-books.app` | FBR Digital Invoicing (PRA add-on) |
 | `demo.hospital@easy-books.app` | Healthcare |
 | `demo.spinning@easy-books.app` | Yarn Spinning (full GL production chain); Marketplace **Weighbridge** (For you) |
 | `demo.processing@easy-books.app` | Textile Processing (grey inward / processing floor) |

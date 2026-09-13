@@ -319,7 +319,7 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "payroll",       label: "Payroll",       forModule: "hrm"         },
   { key: "healthcare",    label: "Healthcare",    forModule: "healthcare"  },
   { key: "telecom",       label: "Telecom",       forModule: "telecom"     },
-  { key: "pra",           label: "PRA e-Invoice", shortLabel: "PRA", forModule: "pra" },
+  { key: "pra",           label: "FBR Digital Invoicing", shortLabel: "FBR", forModule: "pra" },
   { key: "uae",           label: "UAE VAT",       shortLabel: "UAE", forModule: "uae_vat" },
   { key: "zatca",         label: "ZATCA",         shortLabel: "ZATCA", forModule: "sa_zatca" },
   { key: "peppol",        label: "Peppol",        shortLabel: "Peppol", forModule: "eu_peppol" },

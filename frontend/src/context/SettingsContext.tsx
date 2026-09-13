@@ -72,12 +72,16 @@ export interface AppSettings {
   app_theme: string
   color_theme: string
   app_language: string
-  // PRA e-Invoice (Punjab Revenue Authority) — Pakistan tax compliance
+  // FBR Digital Invoicing (PRAL DI API v1.12) — add-on key: pra
   pra_enabled: string
   pra_ntn: string
   pra_pos_id: string
   pra_api_token: string
   pra_sandbox_mode: string
+  pra_seller_province: string
+  pra_seller_address: string
+  pra_business_activity: string
+  pra_sector: string
   // UAE VAT e-Invoice
   uae_vat_enabled: string
   uae_trn: string
@@ -171,6 +175,10 @@ const defaults: AppSettings = {
   pra_pos_id: "",
   pra_api_token: "",
   pra_sandbox_mode: "true",
+  pra_seller_province: "Punjab",
+  pra_seller_address: "",
+  pra_business_activity: "Retailer",
+  pra_sector: "Wholesale / Retails",
   uae_vat_enabled: "false",
   uae_trn: "",
   uae_legal_name: "",

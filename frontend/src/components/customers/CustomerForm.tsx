@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useModules } from '@/context/ModuleContext'
+import { DI_PROVINCES } from '@/lib/diConstants'
 import { CustomFieldsInputs, type CustomFieldValues } from '@/components/studio/CustomFieldsInputs'
 
 export interface CustomerFull {
@@ -16,6 +17,8 @@ export interface CustomerFull {
   payment_term_id: number | null
   ntn?: string | null
   cnic?: string | null
+  registration_type?: string | null
+  province?: string | null
   gstin?: string | null
   state_code?: string | null
   custom_fields?: CustomFieldValues
@@ -30,15 +33,17 @@ interface FormState {
   address: string
   opening_balance: string
   payment_term_id: string
-  ntn: string    // PRA BuyerPNTN (7-digit NTN)
-  cnic: string   // PRA BuyerCNIC (13 digits)
+  ntn: string
+  cnic: string
+  registration_type: string
+  province: string
   gstin: string
   state_code: string
 }
 
 const emptyForm: FormState = {
   name: '', email: '', phone: '', address: '', opening_balance: '0', payment_term_id: '',
-  ntn: '', cnic: '', gstin: '', state_code: '',
+  ntn: '', cnic: '', registration_type: 'Unregistered', province: 'Punjab', gstin: '', state_code: '',
 }
 
 interface Props {
@@ -56,6 +61,8 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
   const [saving, setSaving]     = useState(false)
   const [formError, setFormError] = useState('')
   const [customFields, setCustomFields] = useState<CustomFieldValues>({})
+  const [lookupBusy, setLookupBusy] = useState(false)
+  const [lookupMsg, setLookupMsg] = useState('')
 
   useEffect(() => {
     apiFetch<PaymentTerm[]>('/api/payment-terms').then(setTerms).catch(() => {})
@@ -72,6 +79,8 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
         payment_term_id: customer.payment_term_id ? String(customer.payment_term_id) : '',
         ntn: customer.ntn ?? '',
         cnic: customer.cnic ?? '',
+        registration_type: customer.registration_type ?? (customer.ntn ? 'Registered' : 'Unregistered'),
+        province: customer.province ?? 'Punjab',
         gstin: customer.gstin ?? '',
         state_code: customer.state_code ?? '',
       })
@@ -92,6 +101,8 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
         payment_term_id: form.payment_term_id ? parseInt(form.payment_term_id) : null,
         ntn: form.ntn || null,
         cnic: form.cnic || null,
+        registration_type: form.registration_type || null,
+        province: form.province || null,
         gstin: form.gstin || null,
         state_code: form.state_code || null,
         custom_fields: customFields,
@@ -166,16 +177,16 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
             Applied to new invoices for this customer when no term is chosen on the invoice.
           </p>
         </div>
-        {/* PRA e-Invoice identification (optional) */}
+        {/* FBR Digital Invoicing buyer identification */}
         <div className="border-t border-[var(--border)] pt-4 space-y-3">
-          <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/40">PRA e-Invoice (optional)</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/40">FBR Digital Invoicing</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">NTN / PNTN</label>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">NTN</label>
               <input
                 value={form.ntn}
                 onChange={e => setForm(p => ({ ...p, ntn: e.target.value }))}
-                placeholder="e.g. 1234567-8"
+                placeholder="7 or 9 digits"
                 className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
               />
             </div>
@@ -188,6 +199,62 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
                 className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
               />
             </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Registration type</label>
+              <select
+                value={form.registration_type}
+                onChange={e => setForm(p => ({ ...p, registration_type: e.target.value }))}
+                className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              >
+                <option value="Registered">Registered</option>
+                <option value="Unregistered">Unregistered</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Province</label>
+              <select
+                value={form.province}
+                onChange={e => setForm(p => ({ ...p, province: e.target.value }))}
+                className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              >
+                {DI_PROVINCES.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={lookupBusy || !(form.ntn || form.cnic)}
+              onClick={async () => {
+                setLookupBusy(true); setLookupMsg('')
+                try {
+                  const r = await apiFetch<{ REGISTRATION_TYPE?: string; statuscode?: string }>(
+                    '/api/pra/lookup-reg',
+                    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ registration_no: form.ntn || form.cnic }) },
+                  )
+                  const raw = String(r.REGISTRATION_TYPE || '')
+                  if (/unreg/i.test(raw)) {
+                    setForm(p => ({ ...p, registration_type: 'Unregistered' }))
+                    setLookupMsg('FBR: Unregistered')
+                  } else if (/reg/i.test(raw)) {
+                    setForm(p => ({ ...p, registration_type: 'Registered' }))
+                    setLookupMsg('FBR: Registered')
+                  } else {
+                    setLookupMsg(raw || 'No registration type returned (token or sandbox required)')
+                  }
+                } catch (e) {
+                  setLookupMsg((e as Error).message || 'Lookup failed')
+                } finally {
+                  setLookupBusy(false)
+                }
+              }}
+              className="px-3 py-1.5 text-xs font-semibold border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] disabled:opacity-40"
+            >
+              {lookupBusy ? 'Looking up…' : 'Get FBR registration type'}
+            </button>
+            {lookupMsg && <span className="text-xs text-[var(--text-muted)]">{lookupMsg}</span>}
           </div>
         </div>
 

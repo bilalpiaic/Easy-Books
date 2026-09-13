@@ -248,32 +248,32 @@ PRA_CUSTOMER_NAMES = [
     "Vision Retail", "Western Goods", "Xpert Traders",
     "Zahid Enterprises",
 ]
-# (NTN, CNIC) pairs — dummy but realistic-format
+# (NTN 7-digit, CNIC) pairs — dummy but FBR-format
 PRA_CUSTOMER_IDS = [
-    ("1234567-8", "3520112345671"), ("2345678-9", "3520223456782"),
-    ("3456789-0", "3510334567893"), ("4567890-1", "3520445678904"),
-    ("5678901-2", "3510556789015"), ("6789012-3", "3520667890126"),
-    ("7890123-4", "3510778901237"), ("8901234-5", "3520889012348"),
-    ("9012345-6", "3510990123459"), ("0123456-7", "3520001234560"),
-    ("1234560-1", "3520112345601"), ("2345671-2", "3520223456712"),
-    ("3456782-3", "3510334567823"), ("4567893-4", "3520445678934"),
-    ("5678904-5", "3510556789045"), ("6789015-6", "3520667890156"),
-    ("7890126-7", "3510778901267"), ("8901237-8", "3520889012378"),
-    ("9012348-9", "3510990123489"), ("0123459-0", "3520001234590"),
-    ("1234561-2", "3520112345612"), ("2345672-3", "3520223456723"),
-    ("3456783-4", "3510334567834"), ("4567894-5", "3520445678945"),
-    ("5678905-6", "3510556789056"),
+    ("1234567", "3520112345671"), ("2345678", "3520223456782"),
+    ("3456789", "3510334567893"), ("4567890", "3520445678904"),
+    ("5678901", "3510556789015"), ("6789012", "3520667890126"),
+    ("7890123", "3510778901237"), ("8901234", "3520889012348"),
+    ("9012345", "3510990123459"), ("0123456", "3520001234560"),
+    ("1234560", "3520112345601"), ("2345671", "3520223456712"),
+    ("3456782", "3510334567823"), ("4567893", "3520445678934"),
+    ("5678904", "3510556789045"), ("6789015", "3520667890156"),
+    ("7890126", "3510778901267"), ("8901237", "3520889012378"),
+    ("9012348", "3510990123489"), ("0123459", "3520001234590"),
+    ("1234561", "3520112345612"), ("2345672", "3520223456723"),
+    ("3456783", "3510334567834"), ("4567894", "3520445678945"),
+    ("5678905", "3510556789056"),
 ]
-# Pakistani retail products with PCT codes
+# Pakistani retail products: unit, rate, cost, pct (legacy), hs_code
 PRA_PRODUCTS = [
-    ("PKR-A1", "Basmati Rice (50kg)",    "bag",  8500, 3800, "10063000"),
-    ("PKR-A2", "Sugar (50kg)",           "bag",  7200, 3200, "17011200"),
-    ("PKR-A3", "Cooking Oil (15L)",      "tin",  5800, 2600, "15071000"),
-    ("PKR-A4", "Wheat Flour (20kg)",     "bag",  2200,  900, "11010000"),
-    ("PKR-A5", "Tea (200g)",             "pkt",   450,  180, "09021000"),
-    ("PKR-A6", "Milk Powder (900g)",     "tin",  2800, 1200, "04021000"),
-    ("PKR-A7", "Laundry Detergent (1kg)","ea",    380,  150, "34012000"),
-    ("PKR-A8", "Soap Bars (6pk)",        "pk",    320,  120, "34011100"),
+    ("PKR-A1", "Basmati Rice (50kg)",    "bag",  8500, 3800, "10063000", "1006.3000"),
+    ("PKR-A2", "Sugar (50kg)",           "bag",  7200, 3200, "17011200", "1701.1200"),
+    ("PKR-A3", "Cooking Oil (15L)",      "tin",  5800, 2600, "15071000", "1507.1000"),
+    ("PKR-A4", "Wheat Flour (20kg)",     "bag",  2200,  900, "11010000", "1101.0000"),
+    ("PKR-A5", "Tea (200g)",             "pkt",   450,  180, "09021000", "0902.1000"),
+    ("PKR-A6", "Milk Powder (900g)",     "tin",  2800, 1200, "04021000", "0402.1000"),
+    ("PKR-A7", "Laundry Detergent (1kg)","ea",    380,  150, "34012000", "3401.2000"),
+    ("PKR-A8", "Soap Bars (6pk)",        "pk",    320,  120, "34011100", "3401.1100"),
 ]
 
 CUSTOMER_NAMES = [
@@ -4437,13 +4437,17 @@ def _seed_pra_settings(s: Session, tenant_id: int) -> None:
     pra_kvs = {
         "currency":        "PKR",
         "pra_enabled":     "true",
-        "pra_ntn":         "1234567-8",          # dummy PNTN matching the business
-        "pra_pos_id":      "100001",              # sandbox POS ID
+        "pra_ntn":         "8885801",
         "pra_sandbox_mode": "true",
-        "pra_api_token":   "",                    # sandbox uses a shared static token
+        "pra_api_token":   "",
+        "pra_seller_province": "Punjab",
+        "pra_business_activity": "Retailer",
+        "pra_sector": "Wholesale / Retails",
         "company_name":    "Lahore Retail Traders (PRA Demo)",
-        "tax_id":          "1234567-8",
-        "business_tagline": "Easy-Books · PRA e-Invoice Demo · Punjab, Pakistan",
+        "tax_id":          "8885801",
+        "city":            "Lahore",
+        "address_line1":   "Mall Road",
+        "business_tagline": "Easy-Books · FBR Digital Invoicing Demo · Punjab, Pakistan",
     }
     for key, value in pra_kvs.items():
         row = s.exec(
@@ -4490,6 +4494,8 @@ def _seed_pra_customers(s: Session, tenant_id: int) -> list[Customer]:
             if not existing.ntn:
                 existing.ntn = ntn
                 existing.cnic = cnic
+                existing.registration_type = "Registered"
+                existing.province = "Punjab"
                 s.add(existing)
             out.append(existing)
             continue
@@ -4500,6 +4506,9 @@ def _seed_pra_customers(s: Session, tenant_id: int) -> list[Customer]:
             phone=f"+92-{random.randint(300,349)}-{random.randint(1000000,9999999)}",
             ntn=ntn,
             cnic=cnic,
+            registration_type="Registered",
+            province="Punjab",
+            address="Lahore",
         )
         s.add(c)
         s.flush()
@@ -4510,14 +4519,18 @@ def _seed_pra_customers(s: Session, tenant_id: int) -> list[Customer]:
 def _seed_pra_products(s: Session, tenant_id: int) -> list[Product]:
     """Seed Pakistani retail stock products with PCT codes for PRA ItemCode mapping."""
     out: list[Product] = []
-    for code, name, unit, rate, cost, pct_code in PRA_PRODUCTS:
+    for code, name, unit, rate, cost, pct_code, hs_code in PRA_PRODUCTS:
         existing = s.exec(
             select(Product).where(Product.tenant_id == tenant_id, Product.code == code)
         ).first()
         if existing:
             if not existing.pct_code:
                 existing.pct_code = pct_code
-                s.add(existing)
+            if not existing.hs_code:
+                existing.hs_code = hs_code
+            if not existing.sale_type:
+                existing.sale_type = "Goods at standard rate (default)"
+            s.add(existing)
             out.append(existing)
             continue
         p = Product(
@@ -4525,6 +4538,9 @@ def _seed_pra_products(s: Session, tenant_id: int) -> list[Product]:
             product_type="stock", default_rate=D(rate), avg_cost=D(cost),
             stock_qty=D(random.randint(50, 500)), reorder_level=D(20),
             pct_code=pct_code,
+            hs_code=hs_code,
+            sale_type="Goods at standard rate (default)",
+            di_uom="Numbers, pieces, units",
         )
         s.add(p)
         s.flush()
@@ -4933,7 +4949,7 @@ def _seed_pra_submission_logs(s: Session, tenant_id: int) -> None:
         ).all()
         if row.invoice_id is not None
     }
-    from services.pra import SANDBOX_URL
+    from services.pra import POST_SANDBOX
     invoices = s.exec(
         select(Invoice).where(
             Invoice.tenant_id == tenant_id,
@@ -4948,32 +4964,37 @@ def _seed_pra_submission_logs(s: Session, tenant_id: int) -> None:
             continue
         submitted_at = inv.pra_submitted_at or datetime.utcnow()
         request_json = _json.dumps({
-            "InvoiceNumber": "", "POSID": 100001, "USIN": inv.pra_usin or inv.number,
-            "DateTime": f"{inv.issue_date} 09:30:00",
-            "TotalBillAmount": float(inv.total),
-            "TotalSaleValue": float(inv.subtotal),
-            "TotalTaxCharged": float(inv.gst_amount),
-            "PaymentMode": inv.payment_mode or 1,
+            "invoiceType": inv.di_invoice_type or "Sale Invoice",
+            "invoiceDate": str(inv.issue_date)[:10],
+            "sellerNTNCNIC": "8885801",
+            "buyerRegistrationType": inv.buyer_registration_type or "Registered",
+            "scenarioId": inv.di_scenario_id or "SN026",
+            "invoiceRefNo": inv.di_invoice_ref_no or "",
         })
         if added < 2 and len(existing_success) == 0:
             # A realistic first-attempt failure, retried successfully 3 min later.
             s.add(PRASubmissionLog(
                 tenant_id=tenant_id, invoice_id=inv.id,
                 attempt_at=submitted_at - timedelta(minutes=3),
-                endpoint=SANDBOX_URL, request_json=request_json,
-                response_code="102",
-                response_json=_json.dumps({"Code": "102", "Response": "Invalid BuyerPNTN format"}),
+                endpoint=POST_SANDBOX, request_json=request_json,
+                response_code="01",
+                response_json=_json.dumps({
+                    "validationResponse": {
+                        "statusCode": "01", "status": "Invalid",
+                        "errorCode": "0002", "error": "Invalid Buyer Registration No or NTN.",
+                    },
+                }),
                 http_status=200, success=False,
-                error_message="Invalid BuyerPNTN format",
+                error_message="0002 Invalid Buyer Registration No or NTN.",
             ))
         s.add(PRASubmissionLog(
             tenant_id=tenant_id, invoice_id=inv.id,
             attempt_at=submitted_at,
-            endpoint=SANDBOX_URL, request_json=request_json,
-            response_code="100",
+            endpoint=POST_SANDBOX, request_json=request_json,
+            response_code="00",
             response_json=_json.dumps({
-                "Code": "100", "Response": "Invoice statement submitted successfully.",
-                "InvoiceNumber": inv.pra_fiscal_number,
+                "invoiceNumber": inv.pra_fiscal_number,
+                "validationResponse": {"statusCode": "00", "status": "Valid"},
             }),
             http_status=200, success=True,
         ))

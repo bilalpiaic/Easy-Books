@@ -24,8 +24,10 @@ class CustomerCreate(BaseModel):
     address: Optional[str] = None
     opening_balance: Decimal = Decimal("0")
     payment_term_id: Optional[int] = None
-    ntn: Optional[str] = None   # PRA BuyerPNTN (7-digit NTN e.g. "1234567-8")
-    cnic: Optional[str] = None  # PRA BuyerCNIC (13 digits)
+    ntn: Optional[str] = None   # FBR buyer NTN (7/9 digits)
+    cnic: Optional[str] = None  # 13-digit CNIC
+    registration_type: Optional[str] = None  # Registered | Unregistered
+    province: Optional[str] = None
     gstin: Optional[str] = None
     state_code: Optional[str] = None
     custom_fields: Optional[dict] = None
@@ -41,6 +43,8 @@ class CustomerUpdate(BaseModel):
     payment_term_id: Optional[int] = None
     ntn: Optional[str] = None
     cnic: Optional[str] = None
+    registration_type: Optional[str] = None
+    province: Optional[str] = None
     gstin: Optional[str] = None
     state_code: Optional[str] = None
     custom_fields: Optional[dict] = None

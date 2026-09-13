@@ -353,7 +353,7 @@ function InvoicesContent() {
                   {isPortal && (
                     <td className="ui-td text-xs">
                       {inv.pra_status === "submitted" && (
-                        <span className="text-emerald-700 font-mono">✓ {inv.pra_fiscal_number ?? "FIN"}</span>
+                        <span className="text-emerald-700 font-mono">✓ {inv.pra_fiscal_number ?? "FBR"}</span>
                       )}
                       {inv.pra_status === "pending" && (
                         <span className="text-amber-600">⏳ Pending</span>

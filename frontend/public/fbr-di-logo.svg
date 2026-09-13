@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80" role="img" aria-label="FBR Digital Invoicing">
+  <rect width="240" height="80" fill="#0b3d2e"/>
+  <circle cx="36" cy="40" r="22" fill="#c9a227"/>
+  <text x="36" y="46" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="700" fill="#0b3d2e">FBR</text>
+  <text x="70" y="34" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#ffffff">Digital Invoicing</text>
+  <text x="70" y="54" font-family="Arial, sans-serif" font-size="11" fill="#e8d48b">Federal Board of Revenue</text>
+</svg>

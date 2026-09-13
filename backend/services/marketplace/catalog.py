@@ -172,16 +172,16 @@ _CURATED: list[dict[str, Any]] = [
         },
     },
     {
-        "summary": "Surface the PRA e-Invoice first-party module from the marketplace.",
+        "summary": "Surface the FBR Digital Invoicing first-party module from the marketplace.",
         "tags": ["pakistan", "tax", "first-party"],
         "first_party_module": "pra",
         "manifest": {
             "id": "partner.easybooks.pra-bridge",
-            "name": "PRA e-Invoice (first-party)",
-            "version": "1.0.0",
+            "name": "FBR Digital Invoicing (first-party)",
+            "version": "1.1.0",
             "description": (
-                "Installs the built-in Punjab Revenue Authority module. "
-                "Listed here so the marketplace can deep-link first-party packs."
+                "Installs the built-in FBR Digital Invoicing module (PRAL DI API v1.12; "
+                "historic add-on key pra). Listed here so the marketplace can deep-link first-party packs."
             ),
             "publisher": "Easy-Books",
             "category": "Industry",
