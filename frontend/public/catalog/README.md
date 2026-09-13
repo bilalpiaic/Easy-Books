@@ -12,4 +12,4 @@ CAPTURE_CATALOG=1 npx playwright test e2e/capture-catalog.spec.ts
 
 Filenames are `{tenant}--{path-slug}.jpg` so several catalog cards can share one snap. `{id}` in a capture path becomes `id` in the filename.
 
-**Ads / email:** do not attach these JPEGs or the HTML. Point campaigns at the hosted explorer (`/catalog-advertisement.html`). Shipping rules: `docs/marketing/CATALOG_AD_SHIP.md`. Offline zip: `python3 docs/marketing/pack_catalog_ad.py`.
+**Ads / email:** do not attach these JPEGs or the HTML. Point campaigns at the hosted explorer (`/catalog-advertisement.html`). Shipping rules: `docs/marketing/CATALOG_AD_SHIP.md`. From the repo root: `./ship-catalog-ad.sh` or `ship-catalog-ad.bat`. Offline zip only: `python3 docs/marketing/pack_catalog_ad.py`.

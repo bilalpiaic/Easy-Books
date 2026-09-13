@@ -16,6 +16,7 @@ Narrated pictograph presentation, voiceover script, and social copy for commerci
 | [`catalog-ad/`](./catalog-ad/) | Optional hero JPEGs (legacy ad stills) |
 | [`build_catalog_ad.py`](./build_catalog_ad.py) | Rebuilds the explorer HTML from `catalog-index.json` |
 | [`pack_catalog_ad.py`](./pack_catalog_ad.py) | Builds `dist/easy-books-catalog-explorer.zip` (HTML + snapshots, gitignored) |
+| [`../../ship-catalog-ad.sh`](../../ship-catalog-ad.sh) · [`.ps1`](../../ship-catalog-ad.ps1) · [`.bat`](../../ship-catalog-ad.bat) | One-click rebuild + zip from the project root (prints every required path) |
 | [`build_presentation.py`](./build_presentation.py) | Regenerates slides, audio, and MP4 |
 
 ## Segments covered (voiceover)
@@ -45,6 +46,10 @@ python3 docs/marketing/build_catalog_ad.py
 
 # Offline USB/booth zip (not committed)
 python3 docs/marketing/pack_catalog_ad.py
+
+# Same two steps, with paths printed (repo root):
+./ship-catalog-ad.sh
+# Windows: ship-catalog-ad.bat
 ```
 
 How ads, email, and social should point at this file: [`CATALOG_AD_SHIP.md`](./CATALOG_AD_SHIP.md).  

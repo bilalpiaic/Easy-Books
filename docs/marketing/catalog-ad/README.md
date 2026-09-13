@@ -12,4 +12,4 @@ Output: `docs/marketing/catalog-advertisement.html` (also copied to `frontend/pu
 
 **Shipping for ads:** do not attach this HTML. Point campaigns at  
 `https://<FRONTEND_ORIGIN>/catalog-advertisement.html`  
-See [`../CATALOG_AD_SHIP.md`](../CATALOG_AD_SHIP.md). Offline zip: `python3 docs/marketing/pack_catalog_ad.py`.
+See [`../CATALOG_AD_SHIP.md`](../CATALOG_AD_SHIP.md). One-click from the repo root: `./ship-catalog-ad.sh` / `ship-catalog-ad.bat`. Offline zip only: `python3 docs/marketing/pack_catalog_ad.py`.
