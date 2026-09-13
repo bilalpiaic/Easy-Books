@@ -39,7 +39,7 @@ from services.permissions import perm_dep, apply_own_filter
 from services.custom_fields import apply_incoming as apply_custom_fields
 from services.form_schema import apply_to_model, skip_custom_required
 from services.pra import get_pra_config, submit_to_pra
-from db import engine as _db_engine
+import db as _db_module
 from sqlmodel import Session as _Session
 from types import SimpleNamespace
 router = APIRouter(tags=["invoices"], dependencies=[perm_dep("invoices")])
@@ -102,6 +102,17 @@ class InvoiceLineCreate(BaseModel):
     tax_code_id: Optional[int] = None
     tax_inclusive: bool = False
     ssp: Optional[Decimal] = None  # IFRS 15 line SSP override (#259)
+    sale_type: Optional[str] = None
+    hs_code: Optional[str] = None
+    di_uom: Optional[str] = None
+    di_rate: Optional[str] = None
+    further_tax: Decimal = Decimal("0")
+    extra_tax: Decimal = Decimal("0")
+    fed_payable: Decimal = Decimal("0")
+    st_withheld: Decimal = Decimal("0")
+    fixed_notified_value: Decimal = Decimal("0")
+    sro_schedule_no: Optional[str] = None
+    sro_item_serial: Optional[str] = None
 
 
 class InvoiceCreate(BaseModel):
@@ -124,9 +135,14 @@ class InvoiceCreate(BaseModel):
     analytic_2_id: Optional[int] = None
     analytic_3_id: Optional[int] = None
     analytic_ids: Optional[List[int]] = None
-    payment_mode: Optional[int] = None   # PRA: 1=Cash 2=Card 3=GiftVoucher 4=Loyalty 5=Mixed 6=Cheque
-    buyer_ntn: Optional[str] = None      # walk-in NTN override for PRA payload
-    buyer_cnic: Optional[str] = None     # walk-in CNIC override for PRA payload
+    payment_mode: Optional[int] = None   # local POS UX — not sent to FBR DI
+    buyer_ntn: Optional[str] = None
+    buyer_cnic: Optional[str] = None
+    buyer_registration_type: Optional[str] = None
+    buyer_province: Optional[str] = None
+    di_invoice_type: Optional[str] = None
+    di_invoice_ref_no: Optional[str] = None
+    di_scenario_id: Optional[str] = None
     # IFRS 15: settle open contract assets (Cr 1140 instead of Revenue) (#259)
     contract_asset_ids: Optional[List[int]] = None
     # Intercompany (#261)
@@ -433,6 +449,11 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         payment_mode=body.payment_mode,
         buyer_ntn=body.buyer_ntn,
         buyer_cnic=body.buyer_cnic,
+        buyer_registration_type=body.buyer_registration_type,
+        buyer_province=body.buyer_province,
+        di_invoice_type=body.di_invoice_type,
+        di_invoice_ref_no=body.di_invoice_ref_no,
+        di_scenario_id=body.di_scenario_id,
         is_intercompany=bool(body.is_intercompany),
         ic_counterparty_tenant_id=(
             body.ic_counterparty_tenant_id if body.is_intercompany else None
@@ -518,6 +539,17 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
                     tax_inclusive=bool(line_data.tax_inclusive),
                     ssp=ssp_val,
                     pre_allocation_amount=pre if _alloc_audit.get("method") == "relative_ssp" else None,
+                    sale_type=line_data.sale_type,
+                    hs_code=line_data.hs_code,
+                    di_uom=line_data.di_uom,
+                    di_rate=line_data.di_rate,
+                    further_tax=D(line_data.further_tax),
+                    extra_tax=D(line_data.extra_tax),
+                    fed_payable=D(line_data.fed_payable),
+                    st_withheld=D(line_data.st_withheld),
+                    fixed_notified_value=D(line_data.fixed_notified_value),
+                    sro_schedule_no=line_data.sro_schedule_no,
+                    sro_item_serial=line_data.sro_item_serial,
                 )
             )
             if line_data.product_id:
@@ -678,8 +710,12 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
     if invoice.pra_status == "pending":
         invoice_id_for_bg = invoice.id
         def _pra_task():
-            with _Session(_db_engine) as bg_session:
-                submit_to_pra(bg_session, invoice_id_for_bg)
+            try:
+                with _Session(_db_module.engine) as bg_session:
+                    submit_to_pra(bg_session, invoice_id_for_bg)
+            except Exception as exc:
+                # Never fail the invoice HTTP response on a DI outage.
+                print(f"[pra] background submit failed: {exc}")
         background_tasks.add_task(_pra_task)
 
     lines_out = session.exec(
@@ -934,6 +970,11 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     inv.payment_mode = body.payment_mode
     inv.buyer_ntn = body.buyer_ntn
     inv.buyer_cnic = body.buyer_cnic
+    inv.buyer_registration_type = body.buyer_registration_type
+    inv.buyer_province = body.buyer_province
+    inv.di_invoice_type = body.di_invoice_type
+    inv.di_invoice_ref_no = body.di_invoice_ref_no
+    inv.di_scenario_id = body.di_scenario_id
     inv.custom_fields = apply_custom_fields(
         session, user.tenant_id, "invoice", body.custom_fields, existing=inv.custom_fields,
         skip_required=skip_custom_required(_schema_hidden),
@@ -974,6 +1015,17 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
                 tax_inclusive=bool(line_data.tax_inclusive),
                 ssp=ssp_val,
                 pre_allocation_amount=pre if _alloc_audit.get("method") == "relative_ssp" else None,
+                sale_type=line_data.sale_type,
+                hs_code=line_data.hs_code,
+                di_uom=line_data.di_uom,
+                di_rate=line_data.di_rate,
+                further_tax=D(line_data.further_tax),
+                extra_tax=D(line_data.extra_tax),
+                fed_payable=D(line_data.fed_payable),
+                st_withheld=D(line_data.st_withheld),
+                fixed_notified_value=D(line_data.fixed_notified_value),
+                sro_schedule_no=line_data.sro_schedule_no,
+                sro_item_serial=line_data.sro_item_serial,
             ))
             if line_data.product_id:
                 prod = session.exec(

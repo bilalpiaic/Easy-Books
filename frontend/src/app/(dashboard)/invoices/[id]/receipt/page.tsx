@@ -79,7 +79,6 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
         {/* Header */}
         <div className="text-center mb-3">
           <p className="font-bold text-sm">{settings.company_name}</p>
-          {settings.pra_pos_id && <p className="text-[10px] text-[var(--text-primary)]/60">POS ID: {settings.pra_pos_id}</p>}
         </div>
 
         <div className="border-t border-dashed border-[var(--text-primary)]/30 my-2" />
@@ -157,10 +156,11 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
           <>
             <div className="border-t border-dashed border-[var(--text-primary)]/30 my-2" />
             <div className="text-center space-y-2">
-              <p className="text-[9px] text-[var(--text-primary)]/55 uppercase tracking-widest">PRA Fiscal Invoice No</p>
+              <img src="/fbr-di-logo.svg" alt="FBR Digital Invoicing" className="h-8 mx-auto" />
+              <p className="text-[9px] text-[var(--text-primary)]/55 uppercase tracking-widest">FBR Invoice Number</p>
               <p className="font-bold text-sm tracking-wider">{inv.pra_fiscal_number}</p>
               <div className="flex justify-center mt-1">
-                <QRCodeSVG value={inv.pra_fiscal_number} size={80} />
+                <QRCodeSVG value={inv.pra_fiscal_number} size={96} style={{ width: "1in", height: "1in" }} />
               </div>
             </div>
           </>

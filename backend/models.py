@@ -578,9 +578,11 @@ class Customer(SQLModel, table=True):
     opening_balance: Money = money_col()
     is_active: bool = Field(default=True)
     payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
-    # PRA e-Invoice buyer identification
-    ntn: Optional[str] = None   # 7-digit NTN e.g. "1234567-8" (maps to BuyerPNTN)
-    cnic: Optional[str] = None  # 13-digit CNIC (maps to BuyerCNIC)
+    # FBR DI / PRA buyer identification
+    ntn: Optional[str] = None   # 7/9-digit NTN (maps to buyerNTNCNIC)
+    cnic: Optional[str] = None  # 13-digit CNIC (maps to buyerNTNCNIC)
+    registration_type: Optional[str] = None  # Registered | Unregistered
+    province: Optional[str] = None           # FBR province description
     dunning_opt_out: bool = Field(default=False)  # #120 — skip automated reminders
     # India GST (#265)
     gstin: Optional[str] = None       # 15-char GSTIN
@@ -647,14 +649,19 @@ class Invoice(SQLModel, table=True):
     analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
     analytic_2_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
     analytic_3_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
-    # PRA e-Invoice fields
-    payment_mode: Optional[int] = None  # 1=Cash 2=Card 3=GiftVoucher 4=Loyalty 5=Mixed 6=Cheque
-    pra_usin: Optional[str] = None          # User Serial Invoice Number sent to PRA (= invoice.number)
-    pra_fiscal_number: Optional[str] = None # Fiscal Invoice Number returned by PRA on success
+    # PRA / FBR DI fields
+    payment_mode: Optional[int] = None  # local POS UX only — not sent to FBR DI
+    pra_usin: Optional[str] = None          # local invoice number stamped at submit
+    pra_fiscal_number: Optional[str] = None # FBR invoiceNumber on success
     pra_status: str = Field(default="not_required")  # not_required|pending|submitted|failed
     pra_submitted_at: Optional[datetime] = None
     pra_response_raw: Optional[str] = None  # raw JSON response for audit trail
     buyer_ntn: Optional[str] = None   # walk-in NTN override (takes priority over customer.ntn)
+    buyer_registration_type: Optional[str] = None  # Registered | Unregistered
+    buyer_province: Optional[str] = None
+    di_invoice_type: Optional[str] = None   # Sale Invoice | Debit Note
+    di_invoice_ref_no: Optional[str] = None  # original FBR invoiceNumber for debit notes
+    di_scenario_id: Optional[str] = None     # SN001–SN028; required in sandbox
     buyer_cnic: Optional[str] = None  # walk-in CNIC override (takes priority over customer.cnic)
     # Saudi ZATCA e-Invoice (#264)
     zatca_status: Optional[str] = Field(default=None, index=True)  # pending|submitted|cleared|reported|rejected|error
@@ -831,8 +838,15 @@ class Product(SQLModel, table=True):
     # IFRS 15: if True, invoice lines for this product post to Deferred Revenue (2300)
     is_deferred: bool = Field(default=False)
     recognition_months: int = Field(default=12)
-    hs_code: Optional[str] = Field(default=None)  # Harmonized System code for FBR / customs
-    pct_code: Optional[str] = Field(default=None)  # 8-digit PRA product classification (PCTCode)
+    hs_code: Optional[str] = Field(default=None)  # Harmonized System code for FBR DI
+    pct_code: Optional[str] = Field(default=None)  # legacy 8-digit PRA PCT (unused by DI)
+    sale_type: Optional[str] = None               # FBR saleType default
+    di_uom: Optional[str] = None                  # FBR UoM description override
+    sro_schedule_no: Optional[str] = None
+    sro_item_serial: Optional[str] = None
+    fixed_notified_value: Optional[Decimal] = Field(
+        default=None, sa_column=Column(Numeric(18, 4), nullable=True)
+    )  # 3rd Schedule MRP / notified value
     hsn_sac: Optional[str] = Field(default=None)  # India GST HSN/SAC (#265)
     # IAS 2.25: per-product cost-flow override. None → inherit from Tenant.cost_method.
     cost_method: Optional[str] = Field(default=None)  # 'wavg' | 'fifo' | None
@@ -1507,6 +1521,18 @@ class InvoiceLine(SQLModel, table=True):
     pre_allocation_amount: Optional[Decimal] = Field(
         default=None, sa_column=Column(Numeric(18, 4), nullable=True)
     )
+    # FBR DI line extras (optional; product defaults fill gaps)
+    sale_type: Optional[str] = None
+    hs_code: Optional[str] = None
+    di_uom: Optional[str] = None
+    di_rate: Optional[str] = None
+    further_tax: Money = money_col()
+    extra_tax: Money = money_col()
+    fed_payable: Money = money_col()
+    st_withheld: Money = money_col()
+    fixed_notified_value: Money = money_col()
+    sro_schedule_no: Optional[str] = None
+    sro_item_serial: Optional[str] = None
 
 
 class BillLine(SQLModel, table=True):
@@ -2448,14 +2474,14 @@ class IdempotencyKey(SQLModel, table=True):
 
 
 class PRASubmissionLog(SQLModel, table=True):
-    """Audit trail of every outbound call to the PRA e-IMS API."""
+    """Audit trail of every outbound call to FBR Digital Invoicing (PRAL DI)."""
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True)
     invoice_id: int = Field(index=True)
     attempt_at: datetime = Field(default_factory=datetime.utcnow)
     endpoint: str
     request_json: str
-    response_code: Optional[str] = None   # PRA code "100" = success
+    response_code: Optional[str] = None   # DI validationResponse.statusCode (00 = valid)
     response_json: Optional[str] = None
     http_status: Optional[int] = None
     success: bool = Field(default=False)

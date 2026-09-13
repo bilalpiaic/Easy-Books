@@ -633,8 +633,8 @@ MODULE_REGISTRY: dict[str, dict] = {
         "nav_sections": ["Telecom"],
     },
     "pra": {
-        "label":       "PRA e-Invoice",
-        "description": "Punjab Revenue Authority real-time invoice submission (Pakistan), Fiscal Invoice Numbers, portal mode, NTN/CNIC fields, and PCT product codes.",
+        "label":       "FBR Digital Invoicing",
+        "description": "FBR Digital Invoicing via PRAL DI API v1.12 (historic add-on key: pra). Validate-then-post sales invoices and debit notes, FBR invoice number + QR, sandbox scenarios SN001–SN028.",
         "category":    "Industry",
         "icon":        "FileCheck",
         "deps":        ["base"],

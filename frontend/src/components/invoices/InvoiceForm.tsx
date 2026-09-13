@@ -10,6 +10,20 @@ import { usePRAPortal } from '@/hooks/usePRAPortal'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
 import { CustomFieldsInputs, type CustomFieldValues } from '@/components/studio/CustomFieldsInputs'
 import { useFormSchema } from '@/components/studio/formSchema'
+import { DI_INVOICE_TYPES, DI_PROVINCES, DI_SALE_TYPES, DI_UOM, namesFromRef } from '@/lib/diConstants'
+
+type DiLine = LineItem & {
+  sale_type?: string | null
+  hs_code?: string | null
+  di_uom?: string | null
+  further_tax?: number
+  extra_tax?: number
+  fed_payable?: number
+  st_withheld?: number
+  fixed_notified_value?: number
+  sro_schedule_no?: string | null
+  sro_item_serial?: string | null
+}
 
 export interface InvoiceFull {
   id: number
@@ -33,13 +47,26 @@ export interface InvoiceFull {
   payment_mode: number | null
   buyer_ntn?: string | null
   buyer_cnic?: string | null
+  buyer_registration_type?: string | null
+  buyer_province?: string | null
+  di_invoice_type?: string | null
+  di_invoice_ref_no?: string | null
+  di_scenario_id?: string | null
   is_intercompany?: boolean
   ic_counterparty_tenant_id?: number | null
   custom_fields?: CustomFieldValues
-  lines: (LineItem & { tax_code_id?: number | null })[]
+  lines: (DiLine & { tax_code_id?: number | null })[]
 }
 
-interface Customer { id: number; name: string; ntn?: string | null; cnic?: string | null }
+interface Customer {
+  id: number
+  name: string
+  ntn?: string | null
+  cnic?: string | null
+  registration_type?: string | null
+  province?: string | null
+}
+interface DiScenario { id: string; label: string; sale_type: string }
 interface StaffUser { id: number; name: string; email: string }
 interface Account { id: number; code: string; name: string; type: string }
 interface AnalyticAccount { id: number; code: string; name: string; type: string }
@@ -66,6 +93,11 @@ interface FormState {
   payment_mode: string   // PRA: 1=Cash 2=Card 3=Gift Voucher 4=Loyalty 5=Mixed 6=Cheque
   buyer_ntn: string
   buyer_cnic: string
+  buyer_registration_type: string
+  buyer_province: string
+  di_invoice_type: string
+  di_invoice_ref_no: string
+  di_scenario_id: string
   is_intercompany: boolean
   ic_counterparty_tenant_id: string
 }
@@ -77,6 +109,8 @@ const emptyForm: FormState = {
   currency: 'PKR', exchange_rate: '1',
   assigned_to_id: '', payment_mode: '1',
   buyer_ntn: '', buyer_cnic: '',
+  buyer_registration_type: 'Unregistered', buyer_province: 'Punjab',
+  di_invoice_type: 'Sale Invoice', di_invoice_ref_no: '', di_scenario_id: '',
   is_intercompany: false, ic_counterparty_tenant_id: '',
 }
 
@@ -94,7 +128,10 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const { settings } = useSettings()
   const isPRAEnabled = settings.pra_enabled === "true"
   const [form, setForm] = useState<FormState>(emptyForm)
-  const [lines, setLines] = useState<LineItem[]>([])
+  const [lines, setLines] = useState<DiLine[]>([])
+  const [scenarios, setScenarios] = useState<DiScenario[]>([])
+  const [provinces, setProvinces] = useState<string[]>([...DI_PROVINCES])
+  const [uoms, setUoms] = useState<string[]>([...DI_UOM])
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -132,12 +169,25 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
       apiFetch<StaffUser[]>('/api/commissions/staff'),
       apiFetch<AnalyticAccount[] | { items: AnalyticAccount[] }>('/api/analytic-accounts'),
       apiFetch<IcCounterparty[]>('/api/intercompany/counterparties').catch(() => [] as IcCounterparty[]),
-    ]).then(([c, a, p, terms, tc, s, an, cps]) => {
+      apiFetch<{ items: DiScenario[]; default?: string }>('/api/pra/scenarios').catch(() => ({ items: [] })),
+      apiFetch<unknown>('/api/pra/ref/provinces').catch(() => []),
+      apiFetch<unknown>('/api/pra/ref/uom').catch(() => []),
+    ]).then(([c, a, p, terms, tc, s, an, cps, sc, prov, uom]) => {
       setCustomers(c.items); setAccounts(a.items); setProducts(p.items)
       setPaymentTerms(terms); setTaxCodes(tc.items); setStaff(s)
       const anItems = Array.isArray(an) ? an : ((an as { items: AnalyticAccount[] }).items ?? [])
       setAnalyticAccounts(anItems)
       setIcCounterparties(Array.isArray(cps) ? cps : [])
+      const scItems = (sc as { items?: DiScenario[] }).items ?? []
+      setScenarios(scItems)
+      const scDefault = (sc as { default?: string }).default
+      const provNames = namesFromRef(prov, ['stateProvinceDesc', 'description', 'name'])
+      if (provNames.length) setProvinces(provNames)
+      const uomNames = namesFromRef(uom, ['description', 'uoM_DESC', 'uom'])
+      if (uomNames.length) setUoms(uomNames)
+      if (mode === 'create' && scDefault) {
+        setForm(f => f.di_scenario_id ? f : { ...f, di_scenario_id: scDefault })
+      }
       if (mode === 'create' && initialCustomerId) {
         const cust = c.items.find((x: Customer) => x.id === initialCustomerId)
         if (cust) setForm(f => ({ ...f, customer_id: String(cust.id), customer_name: cust.name }))
@@ -167,6 +217,11 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         payment_mode: invoice.payment_mode ? String(invoice.payment_mode) : '1',
         buyer_ntn: invoice.buyer_ntn ?? '',
         buyer_cnic: invoice.buyer_cnic ?? '',
+        buyer_registration_type: invoice.buyer_registration_type ?? 'Unregistered',
+        buyer_province: invoice.buyer_province ?? 'Punjab',
+        di_invoice_type: invoice.di_invoice_type ?? 'Sale Invoice',
+        di_invoice_ref_no: invoice.di_invoice_ref_no ?? '',
+        di_scenario_id: invoice.di_scenario_id ?? '',
         is_intercompany: Boolean(invoice.is_intercompany),
         ic_counterparty_tenant_id: invoice.ic_counterparty_tenant_id
           ? String(invoice.ic_counterparty_tenant_id) : '',
@@ -191,6 +246,16 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         amount: Number(l.amount),
         tax_code_id: l.tax_code_id ?? null,
         ssp: (l as LineItem).ssp ?? null,
+        sale_type: l.sale_type ?? '',
+        hs_code: l.hs_code ?? '',
+        di_uom: l.di_uom ?? '',
+        further_tax: Number(l.further_tax ?? 0),
+        extra_tax: Number(l.extra_tax ?? 0),
+        fed_payable: Number(l.fed_payable ?? 0),
+        st_withheld: Number(l.st_withheld ?? 0),
+        fixed_notified_value: Number(l.fixed_notified_value ?? 0),
+        sro_schedule_no: l.sro_schedule_no ?? '',
+        sro_item_serial: l.sro_item_serial ?? '',
       })))
     }
   }, [mode, invoice])
@@ -303,6 +368,16 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         promo_rule_id: l.promo_rule_id ?? null,
         tax_code_id: l.tax_code_id ?? null,
         ssp: l.ssp ?? null,
+        sale_type: l.sale_type || null,
+        hs_code: l.hs_code || null,
+        di_uom: l.di_uom || null,
+        further_tax: l.further_tax ?? 0,
+        extra_tax: l.extra_tax ?? 0,
+        fed_payable: l.fed_payable ?? 0,
+        st_withheld: l.st_withheld ?? 0,
+        fixed_notified_value: l.fixed_notified_value ?? 0,
+        sro_schedule_no: l.sro_schedule_no || null,
+        sro_item_serial: l.sro_item_serial || null,
       })),
       gst_rate: parseFloat(form.gst_rate) || 0,
       ar_account_id: form.ar_account_id ? parseInt(form.ar_account_id) : null,
@@ -314,6 +389,11 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
       payment_mode: form.payment_mode ? parseInt(form.payment_mode) : null,
       buyer_ntn: form.buyer_ntn || null,
       buyer_cnic: form.buyer_cnic || null,
+      buyer_registration_type: form.buyer_registration_type || null,
+      buyer_province: form.buyer_province || null,
+      di_invoice_type: form.di_invoice_type || null,
+      di_invoice_ref_no: form.di_invoice_ref_no || null,
+      di_scenario_id: form.di_scenario_id || null,
       is_intercompany: form.is_intercompany,
       ic_counterparty_tenant_id: form.is_intercompany && form.ic_counterparty_tenant_id
         ? parseInt(form.ic_counterparty_tenant_id) : null,
@@ -353,6 +433,8 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
                   customer_name: c?.name ?? '',
                   buyer_ntn: c?.ntn ?? '',
                   buyer_cnic: c?.cnic ?? '',
+                  buyer_registration_type: c?.registration_type ?? (c?.ntn ? 'Registered' : 'Unregistered'),
+                  buyer_province: c?.province ?? p.buyer_province,
                 }))
                 setCustomerBalance(null)
                 if (e.target.value) {
@@ -447,6 +529,50 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
                 className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm font-mono"
               />
             </div>
+            )}
+          </div>
+        )}
+        {isPRAEnabled && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 border border-[var(--border)] rounded-xl p-3 bg-[var(--bg-page)]">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">FBR document type</label>
+              <select value={form.di_invoice_type} onChange={e => setForm(p => ({ ...p, di_invoice_type: e.target.value }))}
+                className="w-full px-3 py-2 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
+                {DI_INVOICE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Buyer registration</label>
+              <select value={form.buyer_registration_type} onChange={e => setForm(p => ({ ...p, buyer_registration_type: e.target.value }))}
+                className="w-full px-3 py-2 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
+                <option value="Registered">Registered</option>
+                <option value="Unregistered">Unregistered</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Buyer province</label>
+              <select value={form.buyer_province} onChange={e => setForm(p => ({ ...p, buyer_province: e.target.value }))}
+                className="w-full px-3 py-2 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
+                {provinces.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            {settings.pra_sandbox_mode !== "false" && (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Sandbox scenario</label>
+                <select value={form.di_scenario_id} onChange={e => setForm(p => ({ ...p, di_scenario_id: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
+                  <option value="">— select —</option>
+                  {scenarios.map(s => <option key={s.id} value={s.id}>{s.id} — {s.label}</option>)}
+                </select>
+              </div>
+            )}
+            {form.di_invoice_type === "Debit Note" && (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Original FBR invoice number</label>
+                <input value={form.di_invoice_ref_no} onChange={e => setForm(p => ({ ...p, di_invoice_ref_no: e.target.value }))}
+                  placeholder="Required for Debit Note"
+                  className="w-full px-3 py-2 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm font-mono" />
+              </div>
             )}
           </div>
         )}
@@ -574,7 +700,50 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               </button>
             </div>
           </div>
-          <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes.filter(t => t.type === 'output')} showTax showStockHint warnOversell customerId={form.customer_id ? Number(form.customer_id) : null} priceKind="sale" hideDiscount={!vis('discount_pct')} />
+          <LineItemsTable lines={lines} onChange={next => setLines(next as DiLine[])} products={products} taxCodes={taxCodes.filter(t => t.type === 'output')} showTax showStockHint warnOversell customerId={form.customer_id ? Number(form.customer_id) : null} priceKind="sale" hideDiscount={!vis('discount_pct')} />
+          {isPRAEnabled && lines.length > 0 && (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/50">FBR line details</p>
+              {lines.map((ln, idx) => (
+                <div key={idx} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 border border-[var(--border)] rounded-lg p-2 bg-[var(--bg-page)]">
+                  <p className="col-span-2 sm:col-span-4 lg:col-span-6 text-[11px] text-[var(--text-muted)] truncate">{ln.description || `Line ${idx + 1}`}</p>
+                  <select value={ln.sale_type ?? ''} onChange={e => setLines(prev => prev.map((x, i) => i === idx ? { ...x, sale_type: e.target.value } : x))}
+                    className="px-2 py-1 text-xs bg-white rounded-lg outline-none">
+                    <option value="">Sale type</option>
+                    {DI_SALE_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <input value={ln.hs_code ?? ''} placeholder="HS code" onChange={e => setLines(prev => prev.map((x, i) => i === idx ? { ...x, hs_code: e.target.value } : x))}
+                    className="px-2 py-1 text-xs bg-white rounded-lg font-mono outline-none" />
+                  <select value={ln.di_uom ?? ''} onChange={e => setLines(prev => prev.map((x, i) => i === idx ? { ...x, di_uom: e.target.value } : x))}
+                    className="px-2 py-1 text-xs bg-white rounded-lg outline-none">
+                    <option value="">FBR UoM</option>
+                    {uoms.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                  <input type="number" step="0.01" value={ln.fixed_notified_value ?? 0} placeholder="MRP"
+                    onChange={e => setLines(prev => prev.map((x, i) => i === idx ? { ...x, fixed_notified_value: parseFloat(e.target.value) || 0 } : x))}
+                    className="px-2 py-1 text-xs bg-white rounded-lg outline-none" />
+                  <input type="number" step="0.01" value={ln.further_tax ?? 0} placeholder="Further tax"
+                    onChange={e => setLines(prev => prev.map((x, i) => i === idx ? { ...x, further_tax: parseFloat(e.target.value) || 0 } : x))}
+                    className="px-2 py-1 text-xs bg-white rounded-lg outline-none" />
+                  <input type="number" step="0.01" value={ln.fed_payable ?? 0} placeholder="FED"
+                    onChange={e => setLines(prev => prev.map((x, i) => i === idx ? { ...x, fed_payable: parseFloat(e.target.value) || 0 } : x))}
+                    className="px-2 py-1 text-xs bg-white rounded-lg outline-none" />
+                  <input type="number" step="0.01" value={ln.extra_tax ?? 0} placeholder="Extra tax"
+                    onChange={e => setLines(prev => prev.map((x, i) => i === idx ? { ...x, extra_tax: parseFloat(e.target.value) || 0 } : x))}
+                    className="px-2 py-1 text-xs bg-white rounded-lg outline-none" />
+                  <input type="number" step="0.01" value={ln.st_withheld ?? 0} placeholder="ST withheld"
+                    onChange={e => setLines(prev => prev.map((x, i) => i === idx ? { ...x, st_withheld: parseFloat(e.target.value) || 0 } : x))}
+                    className="px-2 py-1 text-xs bg-white rounded-lg outline-none" />
+                  <input value={ln.sro_schedule_no ?? ''} placeholder="SRO schedule"
+                    onChange={e => setLines(prev => prev.map((x, i) => i === idx ? { ...x, sro_schedule_no: e.target.value } : x))}
+                    className="px-2 py-1 text-xs bg-white rounded-lg outline-none" />
+                  <input value={ln.sro_item_serial ?? ''} placeholder="SRO serial"
+                    onChange={e => setLines(prev => prev.map((x, i) => i === idx ? { ...x, sro_item_serial: e.target.value } : x))}
+                    className="px-2 py-1 text-xs bg-white rounded-lg outline-none" />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="bg-[var(--bg-page)] rounded-xl p-4 space-y-1 text-sm">

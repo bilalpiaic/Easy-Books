@@ -33,7 +33,12 @@ class ProductCreate(BaseModel):
     is_deferred: bool = False
     recognition_months: int = 12
     hs_code: Optional[str] = None
-    pct_code: Optional[str] = None     # PRA 8-digit product classification (PCTCode)
+    pct_code: Optional[str] = None     # legacy PRA PCT (unused by FBR DI)
+    sale_type: Optional[str] = None
+    di_uom: Optional[str] = None
+    sro_schedule_no: Optional[str] = None
+    sro_item_serial: Optional[str] = None
+    fixed_notified_value: Optional[Decimal] = None
     hsn_sac: Optional[str] = None      # India GST HSN/SAC (#265)
     cost_method: Optional[str] = None  # 'wavg' | 'fifo' | None (inherit from tenant)
     track_lot: bool = False

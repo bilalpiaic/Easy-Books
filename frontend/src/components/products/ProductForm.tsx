@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useModules } from '@/context/ModuleContext'
+import { DI_SALE_TYPES, DI_UOM } from '@/lib/diConstants'
 import { CustomFieldsInputs, type CustomFieldValues } from '@/components/studio/CustomFieldsInputs'
 
 export interface ProductFull {
@@ -22,6 +23,11 @@ export interface ProductFull {
   recognition_months: number
   hs_code: string | null
   pct_code: string | null
+  sale_type?: string | null
+  di_uom?: string | null
+  sro_schedule_no?: string | null
+  sro_item_serial?: string | null
+  fixed_notified_value?: number | null
   hsn_sac: string | null
   cost_method: string | null
   standalone_selling_price: number | null
@@ -47,7 +53,12 @@ interface FormState {
   opening_qty: string
   opening_cost: string
   hs_code: string
-  pct_code: string    // PRA 8-digit product classification
+  pct_code: string
+  sale_type: string
+  di_uom: string
+  sro_schedule_no: string
+  sro_item_serial: string
+  fixed_notified_value: string
   hsn_sac: string
   cost_method: string  // '' = inherit from tenant, 'wavg', 'fifo'
   standalone_selling_price: string
@@ -62,7 +73,8 @@ const emptyForm: FormState = {
   category_id: '',
   is_deferred: false, recognition_months: '12',
   opening_qty: '0', opening_cost: '0',
-  hs_code: '', pct_code: '', hsn_sac: '',
+  hs_code: '', pct_code: '', sale_type: '', di_uom: '', sro_schedule_no: '', sro_item_serial: '',
+  fixed_notified_value: '', hsn_sac: '',
   cost_method: '',
   standalone_selling_price: '',
 }
@@ -134,6 +146,11 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
       opening_cost: '0',
       hs_code: product.hs_code ?? '',
       pct_code: product.pct_code ?? '',
+      sale_type: product.sale_type ?? '',
+      di_uom: product.di_uom ?? '',
+      sro_schedule_no: product.sro_schedule_no ?? '',
+      sro_item_serial: product.sro_item_serial ?? '',
+      fixed_notified_value: product.fixed_notified_value != null ? String(product.fixed_notified_value) : '',
       hsn_sac: product.hsn_sac ?? '',
       cost_method: product.cost_method ?? '',
       standalone_selling_price: product.standalone_selling_price != null
@@ -161,6 +178,12 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
         recognition_months: parseInt(form.recognition_months) || 12,
         hs_code: form.hs_code.trim() || null,
         pct_code: form.pct_code.trim() || null,
+        sale_type: form.sale_type.trim() || null,
+        di_uom: form.di_uom.trim() || null,
+        sro_schedule_no: form.sro_schedule_no.trim() || null,
+        sro_item_serial: form.sro_item_serial.trim() || null,
+        fixed_notified_value: form.fixed_notified_value.trim()
+          ? parseFloat(form.fixed_notified_value) : null,
         hsn_sac: form.hsn_sac.trim() || null,
         cost_method: form.cost_method || null,
         standalone_selling_price: form.standalone_selling_price.trim()
@@ -209,9 +232,45 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
               className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]" />
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">PCT Code <span className="normal-case font-normal">(PRA)</span></label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">PCT Code <span className="normal-case font-normal">(legacy)</span></label>
             <input value={form.pct_code} onChange={e => setForm(p => ({ ...p, pct_code: e.target.value }))}
-              placeholder="8-digit PRA code"
+              placeholder="unused by FBR DI"
+              className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Sale type <span className="normal-case font-normal">(FBR)</span></label>
+            <select value={form.sale_type} onChange={e => setForm(p => ({ ...p, sale_type: e.target.value }))}
+              className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]">
+              <option value="">Default from scenario</option>
+              {DI_SALE_TYPES.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">FBR UoM</label>
+            <select value={form.di_uom} onChange={e => setForm(p => ({ ...p, di_uom: e.target.value }))}
+              className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]">
+              <option value="">Default from unit</option>
+              {DI_UOM.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Notified / MRP</label>
+            <input type="number" step="0.01" value={form.fixed_notified_value}
+              onChange={e => setForm(p => ({ ...p, fixed_notified_value: e.target.value }))}
+              placeholder="3rd Schedule retail price"
+              className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">SRO schedule</label>
+            <input value={form.sro_schedule_no} onChange={e => setForm(p => ({ ...p, sro_schedule_no: e.target.value }))}
+              placeholder="e.g. EIGHTH SCHEDULE Table 1"
+              className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">SRO item serial</label>
+            <input value={form.sro_item_serial} onChange={e => setForm(p => ({ ...p, sro_item_serial: e.target.value }))}
               className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]" />
           </div>
           {showGst && (

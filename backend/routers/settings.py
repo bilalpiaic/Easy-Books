@@ -100,12 +100,16 @@ class SettingsUpdate(BaseModel):
     app_theme: Optional[str] = None   # "light" | "dark" | "system"
     color_theme: Optional[str] = None  # "gold" | "blue" | "green" | "rose" | "slate"
     app_language: Optional[str] = None  # "en" | "ur" | "zh"
-    # PRA e-Invoice (Punjab Revenue Authority) — Pakistan tax compliance
+    # FBR Digital Invoicing (PRAL DI API v1.12) — historic add-on key: pra
     pra_enabled: Optional[str] = None        # "true" | "false"
-    pra_ntn: Optional[str] = None            # Business PNTN / NTN
-    pra_pos_id: Optional[str] = None         # 6-digit POS ID from PRA portal
-    pra_api_token: Optional[str] = None      # Production Bearer token (kept secret)
-    pra_sandbox_mode: Optional[str] = None   # "true" = use sandbox endpoint
+    pra_ntn: Optional[str] = None            # Seller NTN/CNIC (7, 9 or 13 digits)
+    pra_pos_id: Optional[str] = None         # unused by DI (legacy eIMS)
+    pra_api_token: Optional[str] = None      # PRAL Bearer token
+    pra_sandbox_mode: Optional[str] = None   # "true" = sandbox URLs + scenarioId
+    pra_seller_province: Optional[str] = None
+    pra_seller_address: Optional[str] = None
+    pra_business_activity: Optional[str] = None  # Retailer, Manufacturer, …
+    pra_sector: Optional[str] = None             # Wholesale / Retails, FMCG, …
     # UAE VAT e-Invoice — FTA localization pack
     uae_vat_enabled: Optional[str] = None
     uae_trn: Optional[str] = None            # 15-digit Tax Registration Number

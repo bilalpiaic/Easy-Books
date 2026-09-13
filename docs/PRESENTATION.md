@@ -147,7 +147,7 @@ flowchart TB
 | `purchase_store` | Operations | Purchases + Store |
 | `hrm` | HR | Payroll |
 | `telecom` | Industry | Telecom franchise |
-| `pra` | Industry | PRA e-Invoice (Pakistan) |
+| `pra` | Industry | FBR Digital Invoicing (PRAL DI API v1.12; historic key `pra`) |
 | `healthcare` | Industry | OPD / IPD / Lab / Procedures |
 | `weaving` | Industry | Weaving unit control (memo/ops) |
 | `spinning` | Industry | Yarn spinning mill (full GL) |
@@ -203,7 +203,7 @@ Narrative detail: [`WORKFLOW.md`](../WORKFLOW.md) purchase/store sections; API m
 | **Telecom franchise** | Tracker / load float → RSO chain → commissions / royalty / FCA | WORKFLOW §4.8 |
 | **Healthcare** | OPD visit bill → IPD admission + charges → discharge invoice; Lab order → collect → result → deliver; pharmacy dispense | WORKFLOW §4.9 · BLUEPRINT §10C |
 | **Yarn Spinning** | Bale receipt → multi-stage lot (carding→drawing→spinning) → cone output → dispatch with full GL WIP chain | WORKFLOW §4.11 · BLUEPRINT §10D |
-| **PRA e-Invoice** | Invoice → PRA submit → Fiscal Invoice Number; portal mode | BLUEPRINT §10B |
+| **FBR Digital Invoicing (`pra`)** | Invoice → validate → post DI API v1.12 → FBR invoice number + QR; portal mode | BLUEPRINT §10B |
 
 ---
 

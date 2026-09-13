@@ -410,13 +410,13 @@ AGENTS: dict[str, AgentDef] = {
         key="pra_status",
         label="PRA Compliance Agent",
         trigger_hint=(
-            "PRA e-invoice compliance (Punjab Revenue Authority): submission status, fiscal "
-            "numbers, submission logs, today's submitted/pending/failed counts."
+            "FBR Digital Invoicing / PRA add-on: submission status, FBR invoice numbers, "
+            "submission logs, today's submitted/pending/failed counts."
         ),
         system_prompt_fragment=(
-            "You specialize in PRA e-invoice compliance. Use get_pra_today_summary for "
+            "You specialize in FBR Digital Invoicing (historic PRA add-on). Use get_pra_today_summary for "
             "status buckets in a date window, get_pra_logs for recent submission attempts, "
-            "and get_invoice_pra_status for one invoice's fiscal number / status. Do not "
+            "and get_invoice_pra_status for one invoice's FBR invoice number / status. Do not "
             "attempt to submit or retry — those are write actions outside your tools."
         ),
         tools=("get_pra_logs", "get_invoice_pra_status", "get_pra_today_summary"),

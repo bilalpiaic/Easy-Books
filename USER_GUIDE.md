@@ -125,7 +125,7 @@ The **Settings → Sample / Demo Data** card lets you **Load** or **Remove** the
    - **Trader** — + inventory, COGS, GST input/output
    - **Manufacturing** — + Raw Materials, WIP, Finished Goods, direct labour, overhead
    - **Telecom Franchise** — 56-account franchise template
-   - **PRA e-Invoice** — Pakistani retail (PKR, PRA eIMS real-time submission, FIN printing)
+   - **PRA / FBR Digital Invoicing** — Pakistani retail (PKR, FBR DI API v1.12, FBR invoice number + QR)
 4. Click **Start Free Trial**
 
 Easy-Books creates your isolated tenant, seeds the COA, and logs you in as `owner`.
@@ -1027,7 +1027,7 @@ The in-app **User Guide** (`/guide`) and **Transaction Workflow** (`/workflow`) 
 | Deferred Revenue | — | ✓ | — | — | — | — | — | — | — |
 | Manufacturing (BoM, GRN, Production Orders) | — | — | — | ✓ | — | — | — | — | — |
 | Telecom Franchise (Tracker, RSO, FCA, SIM) | — | — | — | — | ✓ | — | — | — | — |
-| PRA e-Invoice (FIN, NTN/CNIC, PCT codes, pra_status) | — | — | — | — | — | ✓ | — | — | — |
+| FBR Digital Invoicing (DI v1.12, HS, saleType, FBR invoice no.) | — | — | — | — | — | ✓ | — | — | — |
 | Yarn Spinning (lots, bale receipt, stages, cones, dispatch) — §30A | — | — | — | — | — | — | ✓ | — | — |
 | Healthcare (OPD/IPD/Lab) | — | — | — | — | — | — | — | ✓ | — |
 | Textile Processing (grey lots, PPC stages) | — | — | — | — | — | — | — | — | ✓ |
@@ -1494,120 +1494,115 @@ Go to **Attendance → Import** (`/attendance/import`):
 
 ---
 
-## 28. PRA e-Invoice (Pakistan)
+## 28. FBR Digital Invoicing (PRAL DI API v1.12)
 
-Businesses registered with the **Punjab Revenue Authority (PRA)** are required to submit every sales invoice to the PRA eIMS system in real-time. Easy-Books integrates with the PRA API so this happens automatically in the background — you keep working without waiting for a PRA response.
+The **PRA** add-on now submits sales invoices to **FBR Digital Invoicing** via PRAL (Technical Specification for DI API v1.12). That is the federal e-invoicing gateway (`gw.fbr.gov.pk`), not the older Punjab eIMS POS/USIN payload.
 
-### 28.1 What is a Fiscal Invoice Number (FIN)?
+Official manuals: *Technical Documentation for DI API V1.12* and *DI Scenarios JSON for Sandbox Testing* (PRAL). Do not paste those sample bodies into production; use them only in sandbox with a `scenarioId`.
 
-When PRA accepts your invoice it returns a **Fiscal Invoice Number (FIN)** — e.g. `100001FFPK5137899`. This number must be printed on every issued invoice as proof of compliance. Easy-Books stores it and prints it automatically.
+### 28.1 FBR invoice number and QR
 
-### 28.2 Enable PRA e-Invoice
+On a valid post, FBR returns `invoiceNumber` (e.g. `7000007DI1747119701593`) and `validationResponse.statusCode` `00`. Easy-Books stores that number on the invoice and prints:
 
-Go to **Settings → PRA e-Invoice (Pakistan)**:
+- the FBR Digital Invoicing mark
+- a Version-2 QR (1.0 × 1.0 inch) encoding the FBR invoice number
+
+### 28.2 Enable the add-on
+
+Go to **Settings → FBR Digital Invoicing (PRAL DI API v1.12)**:
 
 | Field | What to enter |
 |-------|--------------|
-| **Enable PRA e-Invoice** | Toggle ON to activate real-time submission |
-| **PNTN / NTN** | Your 7-digit business NTN (e.g. `1234567-8`) |
-| **POS ID** | 6-digit POS ID from the PRA portal (e.g. `100001`) |
-| **API Token** | Bearer token from the PRA eIMS portal (paste and hide with the eye icon) |
-| **Sandbox mode** | ON = use the PRA test environment; OFF = live production submission |
+| **Enable** | Toggle ON for real-time validate-then-post |
+| **Seller NTN / CNIC** | 7, 9 or 13 digits (hyphens stripped on submit) |
+| **Seller province** | From FBR `/pdi/v1/provinces` (e.g. Punjab, Sindh) |
+| **Business activity / sector** | Filters sandbox scenarios per spec §10 |
+| **PRAL Bearer token** | Issued by PRAL; required for validate/post |
+| **Sandbox mode** | ON = `…/postinvoicedata_sb` + required `scenarioId` |
 
-Click **Test Connection** to verify your credentials before going live. A green "Connected" response (code 102 is normal — it means credentials are valid but no items were sent in the test ping) confirms the token and POS ID are correct.
+**Test Connection** sends a SN001-shaped stub to `validateinvoicedata` (it does not post). Success is `statusCode` `00`. HTTP 401 maps to error `0401`.
 
-### 28.3 Add Customer NTN / CNIC
+POS ID is no longer required. Payment mode stays on the invoice for local POS UX and is **not** sent to FBR.
 
-Open any customer and click **Edit**. Scroll to the **PRA e-Invoice** section at the bottom of the form:
+### 28.3 Buyer fields
 
-- **NTN** — Business buyer NTN (7 digits, e.g. `1234567-8`). Required for B2B invoices to unlock GST input credit for your customer.
-- **CNIC** — Consumer 13-digit ID card number. Required for B2C invoices above the PRA threshold.
+On the customer (and invoice override):
 
-Leave both blank for customers who are not registered (Easy-Books will still submit; PRA marks it as unregistered buyer).
+- **NTN** (7/9 digits) or **CNIC** (13 digits) → `buyerNTNCNIC`
+- **Registration type** — `Registered` or `Unregistered` (required)
+- **Province** — buyer destination province
 
-### 28.4 Add PCT Code to Products
+Registered buyers must have a valid NTN/CNIC. Unregistered buyers may omit it. Optional **Get_Reg_Type** lookup: `POST /api/pra/lookup-reg`.
 
-Open any product and click **Edit**. The **PCT Code** field (8-digit PRA product classification code) appears next to the HS Code field. PRA uses this to categorise each line item in the submitted invoice.
+### 28.4 Product / line fields
 
-Common PCT codes:
-| Product | PCT Code |
-|---------|----------|
-| Basmati Rice | `10063000` |
-| Sugar | `17011200` |
-| Cooking Oil | `15071000` |
-| Tea | `09021000` |
+HS code is required (`hsCode`). Do not send legacy PCT `00000000`. Also map:
 
-If a product has no PCT code, Easy-Books sends `00000000` (unclassified) which PRA accepts.
+| Form field | DI JSON |
+|------------|---------|
+| Sale type | `saleType` (e.g. Goods at standard rate (default), 3rd Schedule Goods) |
+| FBR UoM | `uoM` (must match HS_UOM for the HS code) |
+| Rate description | `rate` as a string (`18%`, `1%`, `Exempt`, `0%`) |
+| Notified / MRP | `fixedNotifiedValueOrRetailPrice` (required for 3rd Schedule) |
+| Further / extra / FED / ST withheld | matching item amounts |
+| SRO schedule + serial | `sroScheduleNo`, `sroItemSerialNo` |
 
-### 28.5 Create an Invoice — Payment Mode
+3rd Schedule (SN008 / SN027): tax is computed on MRP; `valueSalesExcludingST` is typically 0.
 
-On the **New Invoice** form, the **Payment Mode** field (labelled *PRA e-Invoice*) tells PRA how the buyer paid:
+### 28.5 Invoice header (DI)
 
-| Code | Mode |
-|------|------|
-| 1 | Cash |
-| 2 | Card / Bank Transfer |
-| 3 | Gift Voucher |
-| 4 | Loyalty Card |
-| 5 | Mixed |
-| 6 | Cheque |
+On New Invoice when the add-on is enabled:
 
-Default is Cash. Change it before saving if the customer pays by card or cheque.
+- **Document type** — `Sale Invoice` or `Debit Note`
+- **Sandbox scenario** — SN001–SN028 filtered by activity/sector. SN026–SN028 only when the FBR profile is retailer (spec note on §9)
+- **Debit Note** requires **original FBR invoice number** (`invoiceRefNo`; 22 digits NTN / 28 digits CNIC)
 
-### 28.6 Submission Flow
+Purchase-side DI posting (including SN009 cotton-ginner purchases) is out of this pass.
 
-When you **Save & Post** an invoice:
+### 28.6 Submission flow
 
-1. Easy-Books posts the GL entry and saves the invoice immediately (the UI confirms in under a second).
-2. In the background, the PRA payload is built from the invoice lines, customer NTN/CNIC, product PCT codes, POS ID, and payment mode.
-3. The payload is submitted to the PRA API with your Bearer token.
-4. On success (PRA code `100`), the FIN is stored and the invoice status changes to **PRA Submitted** (green badge).
-5. On failure, the status changes to **PRA Failed** (red badge) — click **Retry** on the invoice detail page to re-submit.
+When you save an invoice and DI is enabled:
 
-The submission always uses your invoice number as the USIN (Unique Serial Invoice Number), which makes retries safe — PRA is idempotent on USIN.
+1. The GL posts immediately; `pra_status` becomes **pending**.
+2. Easy-Books builds the DI JSON (camelCase header + `items[]`).
+3. Local checks (NTN length, HS, sale type, sandbox `scenarioId`, debit-note ref).
+4. `POST validateinvoicedata` then, if `00` and no item `01`, `POST postinvoicedata`.
+5. Success stores FBR `invoiceNumber` as `pra_fiscal_number` and sets **submitted**.
+6. Failure stores `errorCode` / `error` (and per-line `itemSNo`) — use **Retry**.
 
-### 28.7 Reading the PRA Status Badge
-
-On the invoice detail page, a badge appears below the main status:
+### 28.7 Status badge
 
 | Badge | Meaning |
 |-------|---------|
-| (hidden) | PRA is not enabled for this tenant |
-| 🟡 **PRA Pending** | Submission queued / in progress |
-| 🟢 **PRA Submitted** | FIN received; invoice is compliant |
-| 🔴 **PRA Failed** | Submission failed; Retry button visible |
+| (hidden) | Add-on / `pra_enabled` off |
+| Pending | Validate/post queued |
+| Submitted | FBR invoice number received |
+| Failed | Local or FBR validation failed; Retry visible |
 
-When submitted, the FIN is shown below the badge: **FIN: 100001FFPK5137899**.
+### 28.8 Print
 
-### 28.8 Printed Invoice
+Printed invoice and thermal receipt show the FBR invoice number, FBR mark, and 1-inch QR. HS code prints on lines.
 
-Every printed invoice automatically includes the FIN below the invoice number when one has been assigned:
+### 28.9 Logs and reference APIs
 
-```
-Invoice No:   INV-0042
-PRA Fiscal Invoice No: 100001FFPK5137899
-```
+- `GET /api/pra/logs` — attempts, endpoint, HTTP status, `statusCode`, error
+- `GET /api/pra/scenarios` — SN list for the tenant activity/sector
+- `GET /api/pra/ref/{provinces\|uom\|hs\|rates\|hsuom\|sroschedule\|sroitem\|doctypes}` — Bearer-forward to FBR PDI (static fallback if the gateway is unreachable)
 
-No extra setup is needed — the print template reads the stored FIN.
+### 28.10 Sandbox vs production
 
-### 28.9 Submission Log
+- Sandbox: `https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb` and `validateinvoicedata_sb`. `scenarioId` required.
+- Production: same paths without `_sb`. Routing also depends on the PRAL token. Do **not** send `scenarioId` in production.
 
-Go to **Settings → PRA e-Invoice** or use the API at `/api/pra/logs` to view every submission attempt: timestamp, endpoint (sandbox vs production), HTTP status, PRA response code, and the full request/response JSON for auditing.
+Common sandbox scenarios for the demo retailer: SN026 (standard to end consumer), SN001/SN002 (B2B registered/unregistered), SN008/SN027 (3rd Schedule MRP), SN028 (reduced rate retail).
 
-### 28.10 Sandbox vs Production
+### 28.11 Demo tenant
 
-- **Sandbox** (`pra_sandbox_mode = true`): Points to `ims.pral.com.pk/ims/sandbox/…`. Use this during setup and testing. The sandbox token is `24d8fab3-f2e9-398f-ae17-b387125ec4a2` (shared/public).
-- **Production** (`pra_sandbox_mode = false`): Points to `ims.pral.com.pk/ims/production/…`. Requires your real per-tenant Bearer token from the PRA portal.
-
-Switch Sandbox OFF only after a successful Test Connection with your real production token.
-
-### 28.11 Demo Tenant
-
-Log in as `demo.pra@easy-books.app` / `demo1234` to explore a pre-configured Pakistani retail business (*Lahore Retail Traders*) with:
-- PKR currency, POS ID 100001, NTN 1234567-8
-- 25 customers — half with NTN/CNIC (B2B), half without (B2C)
-- 8 retail products with PCT codes (rice, sugar, oil, flour, tea, milk powder, soap, detergent)
-- 90 invoices already submitted with sample FINs and varied payment modes
+Log in as `demo.pra@easy-books.app` / `demo1234` (*Lahore Retail Traders*):
+- PKR, seller NTN `8885801`, province Punjab, activity Retailer / Wholesale-Retail
+- Customers with 7-digit NTN + province + registration type
+- Products with HS codes (not PCT-only)
+- Sample invoices already marked submitted for portal walkthroughs
 
 ### 28.12 Portal Mode (admin / owner only)
 
@@ -1644,7 +1639,7 @@ The portal home replaces the standard dashboard for portal-mode users. It shows:
 - **Cash / Card split** — breakdown by payment mode
 - A **today's invoice table** with invoice number, customer, amount, payment mode, and PRA status badge
 
-Drill into any invoice from the table to retry a failed submission or view the FIN.
+Drill into any invoice from the table to retry a failed submission or view the FBR invoice number.
 
 ---
 

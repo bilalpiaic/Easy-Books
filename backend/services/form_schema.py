@@ -41,6 +41,8 @@ CORE_FIELDS: dict[str, frozenset[str]] = {
         "assigned_to_id", "payment_term_id", "gst_rate",
         "currency", "exchange_rate", "ar_account_id", "revenue_account_id",
         "payment_mode", "buyer_ntn", "buyer_cnic",
+        "buyer_registration_type", "buyer_province",
+        "di_invoice_type", "di_invoice_ref_no", "di_scenario_id",
         "is_intercompany", "ic_counterparty_tenant_id", "customer_name",
     }),
     "bill": LOCKED_FIELDS["bill"] | frozenset({
@@ -51,7 +53,8 @@ CORE_FIELDS: dict[str, frozenset[str]] = {
         "is_intercompany", "ic_counterparty_tenant_id", "vendor_name",
     }),
     "customer": LOCKED_FIELDS["customer"] | frozenset({
-        "email", "phone", "address", "ntn", "cnic", "gstin", "state_code",
+        "email", "phone", "address", "ntn", "cnic",
+        "registration_type", "province", "gstin", "state_code",
         "payment_term_id", "opening_balance",
     }),
     "vendor": LOCKED_FIELDS["vendor"] | frozenset({
@@ -61,6 +64,8 @@ CORE_FIELDS: dict[str, frozenset[str]] = {
     "product": LOCKED_FIELDS["product"] | frozenset({
         "code", "unit", "product_type", "default_rate", "reorder_level",
         "category_id", "hs_code", "pct_code", "hsn_sac",
+        "sale_type", "di_uom", "sro_schedule_no", "sro_item_serial",
+        "fixed_notified_value",
         "is_deferred", "recognition_months", "cost_method",
         "track_lot", "track_serial", "standalone_selling_price",
     }),

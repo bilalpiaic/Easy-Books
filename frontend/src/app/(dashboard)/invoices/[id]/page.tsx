@@ -467,7 +467,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             </div>
           )}
           {inv.pra_fiscal_number && (
-            <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">FIN: {inv.pra_fiscal_number}</div>
+            <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">FBR: {inv.pra_fiscal_number}</div>
           )}
           {uaeInstalled && (
             <div className="flex flex-col gap-1">
