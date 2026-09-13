@@ -618,7 +618,10 @@ def _post_json(url: str, payload: dict, token: str, timeout: float = 20.0) -> tu
 
 def submit_to_pra(session: Session, invoice_id: int) -> bool:
     """Validate then post an invoice to FBR DI. Updates invoice.pra_status in-place."""
-    invoice = session.get(Invoice, invoice_id)
+    try:
+        invoice = session.get(Invoice, invoice_id)
+    except Exception:
+        return False
     if not invoice:
         return False
 

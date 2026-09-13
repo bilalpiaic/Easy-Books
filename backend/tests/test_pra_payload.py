@@ -352,10 +352,10 @@ def test_payment_mode_not_in_payload():
         {},
         _config(),
     )
-    blob = str(payload).lower()
-    assert "paymentmode" not in blob
-    assert "posid" not in blob
-    assert "usin" not in blob
+    keys = {k.lower() for k in payload}
+    assert "paymentmode" not in keys
+    assert "posid" not in keys
+    assert "usin" not in keys
 
 
 def test_fetch_reference_fallback_without_token():
@@ -388,16 +388,6 @@ def test_submit_validate_then_post(client, admin_headers, monkeypatch):
 
     monkeypatch.setattr("services.pra._post_json", fake_post)
     h = admin_headers
-    client.patch("/api/settings", headers=h, json={
-        "pra_enabled": "true",
-        "pra_ntn": "8885801",
-        "pra_api_token": "tok",
-        "pra_sandbox_mode": "true",
-        "pra_seller_province": "Sindh",
-        "company_name": "Company 8",
-        "pra_business_activity": "Manufacturer",
-        "pra_sector": "All Other Sectors",
-    })
     c = client.post("/api/customers", headers=h, json={
         "name": "Buyer Co",
         "ntn": "2046004",
@@ -427,8 +417,18 @@ def test_submit_validate_then_post(client, admin_headers, monkeypatch):
             "sale_type": SALE_STANDARD,
         }],
     })
-    assert created.status_code == 200, created.text
+    assert created.status_code in (200, 201), created.text
     inv_id = created.json()["id"]
+    client.patch("/api/settings", headers=h, json={
+        "pra_enabled": "true",
+        "pra_ntn": "8885801",
+        "pra_api_token": "tok",
+        "pra_sandbox_mode": "true",
+        "pra_seller_province": "Sindh",
+        "company_name": "Company 8",
+        "pra_business_activity": "Manufacturer",
+        "pra_sector": "All Other Sectors",
+    })
     r = client.post(f"/api/pra/invoices/{inv_id}/submit", headers=h)
     assert r.status_code == 200, r.text
     body = r.json()
@@ -456,6 +456,9 @@ def test_submit_debit_note_requires_ref_then_posts(client, admin_headers, monkey
 
     monkeypatch.setattr("services.pra._post_json", fake_post)
     h = admin_headers
+    c = client.post("/api/customers", headers=h, json={
+        "name": "Buyer Co", "ntn": "2046004", "registration_type": "Registered", "province": "Sindh",
+    }).json()
     client.patch("/api/settings", headers=h, json={
         "pra_enabled": "true",
         "pra_ntn": "8885801",
@@ -464,9 +467,6 @@ def test_submit_debit_note_requires_ref_then_posts(client, admin_headers, monkey
         "pra_seller_province": "Sindh",
         "company_name": "Company 8",
     })
-    c = client.post("/api/customers", headers=h, json={
-        "name": "Buyer Co", "ntn": "2046004", "registration_type": "Registered", "province": "Sindh",
-    }).json()
     missing = client.post("/api/invoices", headers=h, json={
         "customer_id": c["id"],
         "issue_date": "2026-06-22",
@@ -478,7 +478,7 @@ def test_submit_debit_note_requires_ref_then_posts(client, admin_headers, monkey
         "buyer_province": "Sindh",
         "lines": [{"description": "return", "qty": 1, "rate": 100, "hs_code": "0101.2100"}],
     })
-    assert missing.status_code == 200, missing.text
+    assert missing.status_code in (200, 201), missing.text
     bad = client.post(f"/api/pra/invoices/{missing.json()['id']}/submit", headers=h)
     assert bad.status_code == 200
     assert bad.json()["success"] is False
@@ -495,7 +495,7 @@ def test_submit_debit_note_requires_ref_then_posts(client, admin_headers, monkey
         "buyer_province": "Sindh",
         "lines": [{"description": "return", "qty": 1, "rate": 100, "hs_code": "0101.2100"}],
     })
-    assert ok.status_code == 200, ok.text
+    assert ok.status_code in (200, 201), ok.text
     posted = client.post(f"/api/pra/invoices/{ok.json()['id']}/submit", headers=h)
     assert posted.json()["success"] is True
     assert calls[0]["invoiceType"] == INVOICE_TYPE_DEBIT

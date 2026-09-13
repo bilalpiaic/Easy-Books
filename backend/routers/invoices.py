@@ -39,7 +39,7 @@ from services.permissions import perm_dep, apply_own_filter
 from services.custom_fields import apply_incoming as apply_custom_fields
 from services.form_schema import apply_to_model, skip_custom_required
 from services.pra import get_pra_config, submit_to_pra
-from db import engine as _db_engine
+import db as _db_module
 from sqlmodel import Session as _Session
 from types import SimpleNamespace
 router = APIRouter(tags=["invoices"], dependencies=[perm_dep("invoices")])
@@ -710,8 +710,12 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
     if invoice.pra_status == "pending":
         invoice_id_for_bg = invoice.id
         def _pra_task():
-            with _Session(_db_engine) as bg_session:
-                submit_to_pra(bg_session, invoice_id_for_bg)
+            try:
+                with _Session(_db_module.engine) as bg_session:
+                    submit_to_pra(bg_session, invoice_id_for_bg)
+            except Exception as exc:
+                # Never fail the invoice HTTP response on a DI outage.
+                print(f"[pra] background submit failed: {exc}")
         background_tasks.add_task(_pra_task)
 
     lines_out = session.exec(
