@@ -77,7 +77,7 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres@localhost:5432/easybooks_test?sslmode=disable
         run: |
           uv sync
-          uv run pytest tests/test_marketplace.py tests/test_module_entitlements.py tests/test_studio_bundle.py tests/test_custom_fields.py tests/test_form_schema.py -q --tb=line
+          uv run pytest tests/test_marketplace.py tests/test_module_entitlements.py tests/test_studio_bundle.py tests/test_custom_fields.py tests/test_form_schema.py tests/test_tenant_isolation.py -q --tb=line
 
   frontend:
     name: Frontend (Node)
