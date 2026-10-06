@@ -7,6 +7,16 @@ end so the file is order-independent regardless of which test runs next.
 import importlib
 import os
 
+import pytest
+from sqlalchemy import create_engine
+
+
+def _skip_unless_sqlite():
+    """File backup is a local-install feature. The Postgres fixture never has a database.db to zip."""
+    import db
+    if db.engine.url.get_backend_name() != "sqlite":
+        pytest.skip("file backup is SQLite installs only")
+
 
 def _restore_baseline():
     """Reload local_config / auth / db under the (now-restored) real env so
@@ -58,6 +68,7 @@ def test_seed_demo_off_creates_no_demo_users(tmp_path, monkeypatch):
 
 
 def test_backup_download_returns_zip(client, admin_headers):
+    _skip_unless_sqlite()
     r = client.get("/api/backup/download", headers=admin_headers)
     assert r.status_code == 200, r.text
     assert r.headers["content-type"] == "application/zip"
@@ -66,6 +77,7 @@ def test_backup_download_returns_zip(client, admin_headers):
 
 def test_restore_rejects_zip_slip(client, admin_headers):
     """A backup containing a traversal path must be rejected (Zip Slip guard)."""
+    _skip_unless_sqlite()
     import io, zipfile
     c = client
     auth = admin_headers
@@ -78,3 +90,20 @@ def test_restore_rejects_zip_slip(client, admin_headers):
                files={"file": ("backup.zip", buf.read(), "application/zip")})
     assert r.status_code == 400, r.text
     assert "unsafe path" in r.json()["detail"].lower()
+
+
+def test_backup_rejects_live_postgres_engine(client, admin_headers, monkeypatch):
+    """Deploy CI sets DATABASE_URL to Postgres while the fixture serves SQLite.
+
+    The guard must follow the engine tests install on `db`, not the one
+    captured when the router was imported.
+    """
+    import db
+    pg = create_engine("postgresql://localhost/unused")
+    monkeypatch.setattr(db, "engine", pg)
+    try:
+        r = client.get("/api/backup/download", headers=admin_headers)
+    finally:
+        pg.dispose()
+    assert r.status_code == 400, r.text
+    assert "sqlite" in r.json()["detail"].lower()

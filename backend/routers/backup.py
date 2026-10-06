@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import Response
 
-from db import engine
+import db as db_module
 from local_config import data_dir, sqlite_path, uploads_dir
 from routers.common import AdminUserDep, SessionDep, log_audit
 
@@ -18,7 +18,10 @@ router = APIRouter(prefix="/api/backup", tags=["backup"])
 
 
 def _require_sqlite():
-    if engine.url.get_backend_name() != "sqlite":
+    # Read the engine at call time. Tests swap `db.engine` per case; an
+    # import-time binding would keep the process DATABASE_URL (Postgres in
+    # the deploy workflow) and reject SQLite backups the fixture is serving.
+    if db_module.engine.url.get_backend_name() != "sqlite":
         raise HTTPException(400, "Backup/restore is only available on local SQLite installs.")
 
 
