@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field
@@ -57,14 +57,11 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 ACCESS_COOKIE_NAME = "eb_access"
 CSRF_COOKIE_NAME = "eb_csrf"
 
-# Avatar storage — reuses the same UPLOAD_ROOT as document attachments,
-# under <root>/<tenant_id>/avatars/<user_id>.<ext>.
+# Avatar storage — unified object keys tenants/{tid}/avatar/{uuid}.ext (#426).
+# Legacy on-disk files under UPLOAD_ROOT / tenant_id / avatars / {user_id}.ext
+# are still served until scripts.migrate_storage copies them.
 _UPLOAD_ROOT = Path(os.environ.get("UPLOAD_ROOT", "uploads")).resolve()
 _AVATAR_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
-_AVATAR_MIME = {
-    "image/png": "png", "image/jpeg": "jpg", "image/jpg": "jpg",
-    "image/gif": "gif", "image/webp": "webp",
-}
 _LOGIN_ATTEMPT_WINDOW_SEC = 60
 _LOGIN_ATTEMPT_MAX = 10
 # Kept as an alias for tests that still clear the legacy in-memory dict.
@@ -770,24 +767,33 @@ def _find_avatar(tenant_id: int, user_id: int) -> Optional[Path]:
     return None
 
 
+def _delete_legacy_avatar(tenant_id: int, user_id: int) -> None:
+    d = _avatar_dir(tenant_id)
+    if not d.exists():
+        return
+    for old in d.glob(f"{user_id}.*"):
+        old.unlink(missing_ok=True)
+
+
 @router.post("/me/avatar")
 async def upload_avatar(session: SessionDep, user: CurrentUserDep, file: UploadFile = File(...)):
-    ext = _AVATAR_MIME.get((file.content_type or "").lower())
-    if ext is None:
-        raise HTTPException(status_code=400, detail="Avatar must be a PNG, JPEG, GIF or WebP image")
     contents = await file.read()
     if len(contents) > _AVATAR_MAX_BYTES:
         raise HTTPException(status_code=400, detail="Image too large (5 MB limit)")
+    from services.storage import delete_file, key_from_file_url, object_key, sniff_image, upload_file
+    try:
+        ext, mime = sniff_image(contents)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Avatar must be a PNG, JPEG, GIF or WebP image") from exc
 
-    d = _avatar_dir(user.tenant_id)
-    d.mkdir(parents=True, exist_ok=True)
-    # Remove any prior avatar for this user (extension may differ).
-    for old in d.glob(f"{user.id}.*"):
-        old.unlink(missing_ok=True)
-    (d / f"{user.id}.{ext}").write_bytes(contents)
+    old_key = key_from_file_url(user.avatar_url)
+    if old_key:
+        delete_file(old_key)
+    _delete_legacy_avatar(user.tenant_id, user.id)
 
-    # Cache-busting query so the browser re-fetches after a change.
-    user.avatar_url = f"/api/auth/users/{user.id}/avatar?v={int(datetime.utcnow().timestamp())}"
+    key = object_key(user.tenant_id, "avatar", f"{uuid.uuid4().hex}{ext}")
+    url = upload_file(key, contents, mime)
+    user.avatar_url = f"{url}?v={int(datetime.utcnow().timestamp())}"
     session.add(user)
     session.commit()
     return {"avatar_url": user.avatar_url}
@@ -795,8 +801,11 @@ async def upload_avatar(session: SessionDep, user: CurrentUserDep, file: UploadF
 
 @router.delete("/me/avatar", status_code=204)
 def delete_avatar(session: SessionDep, user: CurrentUserDep):
-    for old in _avatar_dir(user.tenant_id).glob(f"{user.id}.*"):
-        old.unlink(missing_ok=True)
+    from services.storage import delete_file, key_from_file_url
+    old_key = key_from_file_url(user.avatar_url)
+    if old_key:
+        delete_file(old_key)
+    _delete_legacy_avatar(user.tenant_id, user.id)
     user.avatar_url = None
     session.add(user)
     session.commit()
@@ -809,6 +818,22 @@ def get_avatar(user_id: int, session: SessionDep, user: CurrentUserDep):
     target = session.get(User, user_id)
     if target is None or target.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="Avatar not found")
+    from services.storage import download_file, key_from_file_url, sniff_image
+    key = key_from_file_url(target.avatar_url)
+    if key:
+        try:
+            data = download_file(key)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="Avatar not found")
+        try:
+            _ext, mime = sniff_image(data)
+        except ValueError:
+            mime = "application/octet-stream"
+        return Response(
+            content=data,
+            media_type=mime,
+            headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+        )
     path = _find_avatar(target.tenant_id, user_id)
     if path is None:
         raise HTTPException(status_code=404, detail="Avatar not found")

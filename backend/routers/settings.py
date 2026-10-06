@@ -15,7 +15,7 @@ from services.ai_providers import AI_SECRET_SETTINGS_KEYS
 from services.whatsapp import WA_SECRET_SETTINGS_KEYS, status_payload as wa_status_payload
 
 from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark_onboarding_step
-from services.storage import sniff_image, upload_file
+from services.storage import object_key, sniff_image, upload_file
 
 SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS | {
     "uae_api_key",
@@ -254,7 +254,7 @@ async def upload_logo(session: SessionDep, user: WriteUserDep, file: UploadFile 
         ext, mime = sniff_image(contents)
     except ValueError as exc:
         raise HTTPException(400, "Only PNG, JPEG, GIF, or WebP images are allowed") from exc
-    key = f"{user.tenant_id}/{uuid.uuid4().hex}{ext}"
+    key = object_key(user.tenant_id, "logo", f"{uuid.uuid4().hex}{ext}")
     logo_url = upload_file(key, contents, mime)
     row = session.exec(
         select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == "logo_url")
