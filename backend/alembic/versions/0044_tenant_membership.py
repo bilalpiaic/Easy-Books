@@ -35,7 +35,7 @@ def upgrade() -> None:
         # for existing DBs. create_all / fresh installs get the model UniqueConstraint.
 
     # Backfill one membership per existing user (idempotent).
-    users = bind.execute(sa.text("SELECT id, tenant_id, role FROM user")).fetchall()
+    users = bind.execute(sa.text('SELECT id, tenant_id, role FROM "user"')).fetchall()
     for uid, tid, role in users:
         exists = bind.execute(
             sa.text(
