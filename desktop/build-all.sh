@@ -20,7 +20,7 @@ done
 if ! command -v npm >/dev/null 2>&1; then
   NODE_DIR="$REPO_ROOT/.node"
   if [ ! -x "$NODE_DIR/bin/node" ]; then
-    nv="20.18.1"
+    nv="24.11.0"
     os="$(uname -s | tr '[:upper:]' '[:lower:]')"; [ "$os" = darwin ] && plat=darwin || plat=linux
     arch="$(uname -m)"; case "$arch" in x86_64|amd64) arch=x64;; aarch64|arm64) arch=arm64;; esac
     mkdir -p "$NODE_DIR"

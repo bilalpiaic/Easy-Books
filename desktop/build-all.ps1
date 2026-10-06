@@ -23,7 +23,7 @@ Set-Location $Root
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
   $NodeDir = Join-Path $RepoRoot ".node"
   if (-not (Test-Path (Join-Path $NodeDir "node.exe"))) {
-    $nv = "20.18.1"
+    $nv = "24.11.0"
     $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "x64" }
     $pkg = "node-v$nv-win-$arch"
     Write-Host "Downloading a local Node $nv..." -ForegroundColor Yellow
