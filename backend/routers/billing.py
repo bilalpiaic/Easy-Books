@@ -10,6 +10,7 @@ from sqlmodel import select
 
 from models import Tenant
 from services.saas import PLAN_LIMITS, apply_plan_defaults, usage_snapshot
+from services.security_policy import is_production
 from .common import AdminUserDep, CurrentUserDep, SessionDep
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
@@ -42,6 +43,8 @@ def create_checkout(body: CheckoutBody, session: SessionDep, user: AdminUserDep)
         raise HTTPException(404)
     secret = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     if not secret:
+        if is_production():
+            raise HTTPException(503, "Stripe is not configured")
         # Test / offline mode — upgrade immediately without Stripe.
         apply_plan_defaults(tenant, body.plan)
         tenant.subscription_status = "active"
@@ -93,6 +96,7 @@ def create_checkout(body: CheckoutBody, session: SessionDep, user: AdminUserDep)
 
 @stripe_router.post("/webhook")
 async def stripe_webhook(request: Request, session: SessionDep):
+    """Single signed Stripe webhook (#420). Portal invoice pay + subscription events."""
     payload = await request.body()
     sig = request.headers.get("stripe-signature", "")
     secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip()
@@ -104,10 +108,14 @@ async def stripe_webhook(request: Request, session: SessionDep):
             event = stripe.Webhook.construct_event(payload, sig, secret)
         except Exception as exc:
             raise HTTPException(400, f"Webhook error: {exc}") from exc
+    elif is_production():
+        raise HTTPException(503, "Stripe webhook secret is not configured")
     else:
         import json
         event = json.loads(payload.decode() or "{}")
 
+    if hasattr(event, "to_dict_recursive"):
+        event = event.to_dict_recursive()
     etype = event.get("type") if isinstance(event, dict) else getattr(event, "type", None)
     data = event.get("data", {}).get("object", {}) if isinstance(event, dict) else {}
 
@@ -139,8 +147,47 @@ async def stripe_webhook(request: Request, session: SessionDep):
             tenant.subscription_status = "past_due"
             session.add(tenant)
             session.commit()
+    elif etype == "checkout.session.completed":
+        _handle_checkout_completed(session, data)
 
     return {"received": True}
+
+
+def _handle_checkout_completed(session, data: dict) -> None:
+    """Portal invoice payments and SaaS plan checkouts share this event type."""
+    meta = data.get("metadata") or {}
+    invoice_id = int(meta.get("invoice_id") or 0)
+    tenant_id = int(meta.get("tenant_id") or 0)
+    session_id = data.get("id") or ""
+    amount_total = data.get("amount_total")
+    if invoice_id and tenant_id and session_id:
+        from decimal import Decimal as _Dec
+        from services.portal_pay import apply_checkout_payment
+        amount = None
+        if amount_total is not None:
+            amount = _Dec(amount_total) / _Dec(100)
+        try:
+            apply_checkout_payment(
+                session,
+                tenant_id=tenant_id,
+                invoice_id=invoice_id,
+                checkout_session_id=str(session_id),
+                amount=amount,
+                currency=(data.get("currency") or "").upper() or None,
+            )
+            session.commit()
+        except Exception as exc:
+            print(f"[stripe_webhook] portal pay failed: {type(exc).__name__}: {exc}")
+            session.rollback()
+        return
+    plan = meta.get("plan")
+    if plan and tenant_id:
+        tenant = _tenant_by_stripe(session, data.get("customer"), str(tenant_id))
+        if tenant:
+            apply_plan_defaults(tenant, plan)
+            tenant.subscription_status = "active"
+            session.add(tenant)
+            session.commit()
 
 
 def _tenant_by_stripe(session, customer_id: Optional[str], tenant_id: Optional[str]):

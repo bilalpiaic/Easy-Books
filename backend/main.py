@@ -498,56 +498,6 @@ def get_version():
         alembic_head = "unknown"
     return {"version": _APP_VERSION, "alembic_head": alembic_head}
 
-# ── Stripe webhook ────────────────────────────────────────────────────────────
-
-from fastapi import Request as _Request
-from models import Invoice as _Invoice  # noqa: F401 — kept for type clarity in webhook docs
-from db import get_session as _get_session
-
-@app.post("/api/stripe/webhook")
-async def stripe_webhook(request: _Request):
-    """Handle Stripe Checkout events. G-12."""
-    import stripe as _stripe
-    payload = await request.body()
-    sig = request.headers.get("stripe-signature", "")
-    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-    if not webhook_secret:
-        return {"received": True}
-    try:
-        event = _stripe.Webhook.construct_event(payload, sig, webhook_secret)
-    except Exception:
-        from fastapi import HTTPException as _HTTP
-        raise _HTTP(400, "Invalid webhook signature")
-
-    if event["type"] == "checkout.session.completed":
-        data = event["data"]["object"]
-        meta = data.get("metadata") or {}
-        invoice_id = int(meta.get("invoice_id") or 0)
-        tenant_id = int(meta.get("tenant_id") or 0)
-        session_id = data.get("id") or ""
-        amount_total = data.get("amount_total")  # cents
-        if invoice_id and tenant_id and session_id:
-            with next(_get_session()) as session:
-                from decimal import Decimal as _Dec
-                from services.portal_pay import apply_checkout_payment
-                amount = None
-                if amount_total is not None:
-                    amount = _Dec(amount_total) / _Dec(100)
-                try:
-                    apply_checkout_payment(
-                        session,
-                        tenant_id=tenant_id,
-                        invoice_id=invoice_id,
-                        checkout_session_id=str(session_id),
-                        amount=amount,
-                        currency=(data.get("currency") or "").upper() or None,
-                    )
-                    session.commit()
-                except Exception as exc:
-                    print(f"[stripe_webhook] portal pay failed: {type(exc).__name__}: {exc}")
-                    session.rollback()
-    return {"received": True}
-
 
 # v1 alias: a thin pass-through that re-mounts every /api/* route at /api/v1/*
 # pointing to the same endpoint function. Future v2 breaking changes ship

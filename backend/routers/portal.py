@@ -397,6 +397,9 @@ def portal_simulate_pay(
     must use the webhook path.
     """
     import os
+    from services.security_policy import is_production
+    if is_production():
+        raise HTTPException(403, "simulate-pay is disabled in production")
     if os.environ.get("STRIPE_SECRET_KEY", "").strip():
         raise HTTPException(400, "simulate-pay disabled while Stripe is configured")
     pt = _resolve(session, token)
