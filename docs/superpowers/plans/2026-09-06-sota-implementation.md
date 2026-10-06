@@ -1,7 +1,7 @@
 # Easy-Books — state-of-the-art implementation plan
 
 **Date:** 2026-09-06  
-**Status:** Plan only — execute as numbered PRs below. Do not start #122 / #307 / #309.  
+**Status:** Shipped on `main` — PR #395 (SQL hot paths), PR #396 (session bootstrap), PR #397 (indexes), PR #400 (Weighbridge). #306 / #307 / #309 also shipped afterwards (PRs #405–#407). Do not rebuild this plan. Ops secrets stay a host checklist.  
 **Locked:** one `main`, one Vercel app, one Neon DB. Client = `Tenant` row.  
 **Companion:** [production launch](2026-09-06-production-launch.md) (ops secrets) · [#391](https://github.com/bilalpiaic/Easy-Books/issues/391) (weighbridge UI, not this plan’s first PR)
 

@@ -1,7 +1,7 @@
 # Easy-Books production launch plan
 
 **Date:** 2026-09-06  
-**Status:** Wave 1 product is on `main` (incl. #118 remainder, mill findability, #390 forgot-password). Remaining launch work is **ops secrets** (Stripe/S3/Neon PITR) and flipping `REQUIRE_OWNER_TOTP=true` / `ALLOW_DEMO_LOGIN=false` / `SEED_DEMO=false` on Vercel. Next **code** programme: [SOTA implementation plan](2026-09-06-sota-implementation.md).  
+**Status:** Wave 1 product, the SOTA speed pack, #306–#307, and #309 are on `main` (through PR #411). Nothing is open on GitHub. Remaining launch work is **ops secrets** (Stripe/S3/Neon PITR) and flipping `REQUIRE_OWNER_TOTP=true` / `ALLOW_DEMO_LOGIN=false` / `SEED_DEMO=false` on Vercel.  
 **Audience:** ship paying tenants on the existing Vercel + Neon stack  
 **Companion:** Studio/customization spec `docs/superpowers/specs/2026-09-06-tenant-customization-studio-design.md`  
 **End-user Weighbridge:** [USER_GUIDE.md §41](../../../USER_GUIDE.md#41-weighbridge-mill-marketplace-listing)
@@ -74,8 +74,8 @@ Launch as **one SaaS**: one `main`, one Vercel frontend, one Vercel FastAPI, one
 - Per-client Vercel/Neon
 - Odoo xpath / partner Python in-process (#308)
 - Unlimited Studio fields in GL
-- Native iOS/Android (#307)
-- SOC 2 evidence pack (#309) until a contract requires it
+- Native iOS/Android (#307) — shipped later as the Capacitor shell (PR #407); do not start a second shell
+- SOC 2 evidence pack (#309) — shipped later as the controls map + admin ZIP (PR #406); it is not a certification
 
 ---
 

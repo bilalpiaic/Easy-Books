@@ -1,10 +1,12 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-09-06 (SOTA PRs #394–#397 on `main`; Weighbridge workspace #391)._
+_Last reviewed: 2026-10-06. No open GitHub issues. `main` is through PR #411._
 
 ## Status summary
 
-**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 1 **product** is on `main`. Remaining launch work is **ops secrets** (Stripe/S3/Neon PITR) and production env flags. **Engineering next:** [SOTA plan](superpowers/plans/2026-09-06-sota-implementation.md) — SQL hot paths, session bootstrap, then optional #391 Weighbridge workspace. Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)** leftover is GTM/ops (children shipped).
+**Code is caught up.** v5, v6 growth A/B, entitlements/Studio (#370–#376), the SOTA speed pack (PRs #395–#397), Weighbridge (#391), UK MTD + Malaysia MyInvois (#306, PR #405), the Capacitor shell (#307, PR #407), and the SOC 2 evidence catalogue (#309, PR #406) are on `main`. GitHub has nothing left open.
+
+**Remaining launch work is host configuration, not a branch.** Stripe live keys, S3 uploads, Neon point-in-time recovery, and `REQUIRE_OWNER_TOTP=true` / `ALLOW_DEMO_LOGIN=false` / `SEED_DEMO=false` on the Vercel backend. Checklist: [production launch plan](superpowers/plans/2026-09-06-production-launch.md). Do not reopen #307, #308 (declarative marketplace only), or #309.
 
 **v6 Growth Track [#298](https://github.com/bilalpiaic/Easy-Books/issues/298):** A + B largely **landed on `main`** (PRs #323–#351). Do not treat the table below as a build queue until Wave 0 closes shipped issues. C (platforms/GTM) is now #369, not more modules.
 
@@ -33,14 +35,14 @@ _Last reviewed: 2026-09-06 (SOTA PRs #394–#397 on `main`; Weighbridge workspac
 
 | Issue | Title | Status |
 |-------|-------|--------|
-| **#306** | Additional country localization packs | After entitlements (#370); not a launch blocker |
-| **#307** | Native mobile shell (iOS/Android) on the PWA | **Defer** — PWA is enough for go-live |
-| **#308** | Marketplace partner code execution / signed extensions | **Wontfix for production** — keep #227 declarative + #376 bundles |
-| **#309** | SOC 2–oriented evidence pack | **Defer** until an enterprise RFP |
+| **#306** | Additional country localization packs | **Shipped** PR #405 — UK MTD + Malaysia MyInvois |
+| **#307** | Native mobile shell (iOS/Android) on the PWA | **Shipped** PR #407 — Capacitor shell + push hook |
+| **#308** | Marketplace partner code execution / signed extensions | **Wontfix** — declarative manifests + #376 bundles |
+| **#309** | SOC 2–oriented evidence pack | **Shipped** PR #406 — controls map + admin ZIP; not a certification |
 | **#370–#376** | Entitlements, catalog audience, Studio-lite | **Shipped** PRs #377–#383 |
 | **#118** remainder | Require TOTP for `owner` + hide/block demo logins | **Shipped in code** — set `REQUIRE_OWNER_TOTP=true` and `ALLOW_DEMO_LOGIN=false` on production |
 | **#390** | Self-service forgot-password from login | **Shipped** PR #393 |
-| **#391** | First-party mill Weighbridge workspace | **This PR** — hub, tickets, first/second weigh, register, print slip; memo/ops, no extra GL |
+| **#391** | First-party mill Weighbridge workspace | **Shipped** PR #400 — hub, tickets, first/second weigh, register; memo/ops, no extra GL |
 | **Weighbridge** | Private mill Marketplace listing + Studio bundle | **Shipped** #384 listing, #387 mill visibility / Add-ons discovery |
 
 ### Shipped foundations (not v6 — do not reopen)
