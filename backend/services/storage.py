@@ -2,6 +2,8 @@
 
 STORAGE_BACKEND=local (default) writes under uploads_dir().
 STORAGE_BACKEND=s3 uses boto3 against S3_ENDPOINT / S3_BUCKET.
+
+Local URLs are authenticated `/api/files/{key}` paths (#418). Never public `/uploads/`.
 """
 from __future__ import annotations
 
@@ -16,6 +18,37 @@ S3_ENDPOINT = os.environ.get("S3_ENDPOINT", "")
 S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY", "")
 S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY", "")
 S3_REGION = os.environ.get("S3_REGION", "auto")
+
+_PNG = b"\x89PNG\r\n\x1a\n"
+_JPEG = b"\xff\xd8\xff"
+_GIF87 = b"GIF87a"
+_GIF89 = b"GIF89a"
+
+
+def sniff_image(data: bytes) -> tuple[str, str]:
+    """Return (extension-with-dot, mime) from magic bytes. Reject SVG/HTML."""
+    sample = data[:64]
+    if not data:
+        raise ValueError("empty file")
+    lowered = data[:256].lstrip().lower()
+    if lowered.startswith(b"<svg") or b"<svg" in lowered or lowered.startswith(b"<?xml"):
+        raise ValueError("SVG is not allowed")
+    if lowered.startswith(b"<") or b"<html" in lowered or b"<!doctype" in lowered:
+        raise ValueError("HTML is not allowed")
+    if data.startswith(_PNG):
+        return ".png", "image/png"
+    if data.startswith(_JPEG):
+        return ".jpg", "image/jpeg"
+    if data.startswith(_GIF87) or data.startswith(_GIF89):
+        return ".gif", "image/gif"
+    if sample[:4] == b"RIFF" and sample[8:12] == b"WEBP":
+        return ".webp", "image/webp"
+    raise ValueError("unrecognized image type")
+
+
+def local_file_url(key: str) -> str:
+    """Authenticated fetch path. Never a public /uploads URL."""
+    return f"/api/files/{key.lstrip('/')}"
 
 
 def _s3_client():
@@ -45,7 +78,7 @@ def upload_file(key: str, data: bytes, content_type: str = "application/octet-st
     dest = uploads_dir() / key
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(data)
-    return f"/uploads/{key}"
+    return local_file_url(key)
 
 
 def download_file(key: str) -> bytes:
@@ -73,7 +106,7 @@ def get_file_url(key: str, expires: int = 3600) -> str:
             Params={"Bucket": S3_BUCKET, "Key": key},
             ExpiresIn=expires,
         )
-    return f"/uploads/{key}"
+    return local_file_url(key)
 
 
 def storage_ok() -> bool:

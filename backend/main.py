@@ -16,7 +16,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from db import create_db_and_tables
 from routers import (
@@ -28,7 +27,7 @@ from routers import (
     reconciliations, recurring, report_builder, reports, settings, scrap_reasons, stock_locations, stock_transfers, pick_lists, store_issues, store_reports,
     subledger, tax_codes, telecom, telecom_reports, transactions, users, vendors,
     permissions, commissions, promo_rules, payroll, attendance, leave, expense_claims, system_update,
-    search, ai_chat, webhooks, tasks, health,
+    search, ai_chat, webhooks, tasks, health, files,
     billing, portal, approvals, bank_feeds, agent_ext, inventory_depth,
     consolidation, leases, contract_assets, intercompany, india_gst,
     practice, custom_fields, form_schema, print_templates, ops_tenants,
@@ -435,6 +434,7 @@ _ROUTERS = [
     alerts.router,
     devices.router,
     tasks.router,
+    files.router,
     billing.router,
     billing.stripe_router,
     portal.router,
@@ -548,12 +548,6 @@ async def stripe_webhook(request: _Request):
                     session.rollback()
     return {"received": True}
 
-
-# Serve uploaded files (company logos, attachments) under /uploads/.
-# Use local_config.uploads_dir() so Vercel (read-only /var/task) lands in /tmp.
-from local_config import uploads_dir as _uploads_dir
-_uploads = _uploads_dir()
-app.mount("/uploads", StaticFiles(directory=str(_uploads)), name="uploads")
 
 # v1 alias: a thin pass-through that re-mounts every /api/* route at /api/v1/*
 # pointing to the same endpoint function. Future v2 breaking changes ship
