@@ -29,6 +29,7 @@ from datetime import datetime, timedelta
 from typing import Callable, Optional
 
 import httpx
+from sqlalchemy import update
 from sqlmodel import Session, select
 
 from models import WebhookDelivery, WebhookEndpoint
@@ -48,6 +49,9 @@ MAX_ATTEMPTS = len(RETRY_DELAYS)
 POLL_SECONDS = 30
 BATCH_SIZE = 25
 TIMEOUT_SECONDS = 10.0
+# Claim TTL must cover one HTTP timeout; crashed workers release the row after this.
+CLAIM_TTL_SECONDS = 120
+CLAIM_STATUS = "sending"
 
 # Wake plumbing: the lifespan loop registers its event loop + Event here so
 # emit() (running in a request threadpool worker) can nudge it threadsafely.
@@ -160,38 +164,86 @@ def _apply_result(delivery: WebhookDelivery, status_code: int, error: str) -> No
             )
 
 
-def drain_once(
-    session: Session,
-    post: Callable[[str, str, dict], tuple[int, str]] = _default_post,
-    limit: int = BATCH_SIZE,
-) -> int:
-    """Deliver up to `limit` due rows sequentially (10 s timeout each — a
-    slow receiver delays the batch, acceptable for v1 volumes; #115 moves
-    this onto the task queue). Returns rows processed."""
-    now = _utcnow()
-    rows = session.exec(
-        select(WebhookDelivery, WebhookEndpoint)
+def _due_delivery_query(now: datetime, limit: int):
+    return (
+        select(WebhookDelivery)
         .join(WebhookEndpoint, WebhookEndpoint.id == WebhookDelivery.endpoint_id)  # type: ignore[arg-type]
         .where(
-            WebhookDelivery.status == "pending",
+            WebhookDelivery.status.in_(("pending", CLAIM_STATUS)),
             WebhookDelivery.next_retry <= now,
             WebhookEndpoint.is_active == True,  # noqa: E712
         )
         .order_by(WebhookDelivery.id)
         .limit(limit)
-    ).all()
-    for delivery, endpoint in rows:
+    )
+
+
+def _claim_delivery(session: Session, delivery_id: int, now: datetime) -> bool:
+    """Compare-and-set pending/stale-sending → sending. Returns True if we own it."""
+    result = session.execute(
+        update(WebhookDelivery)
+        .where(
+            WebhookDelivery.id == delivery_id,
+            WebhookDelivery.status.in_(("pending", CLAIM_STATUS)),
+            WebhookDelivery.next_retry <= now,
+        )
+        .values(
+            status=CLAIM_STATUS,
+            next_retry=now + timedelta(seconds=CLAIM_TTL_SECONDS),
+        )
+    )
+    return (result.rowcount or 0) == 1
+
+
+def drain_once(
+    session: Session,
+    post: Callable[[str, str, dict], tuple[int, str]] = _default_post,
+    limit: int = BATCH_SIZE,
+) -> int:
+    """Deliver up to `limit` due rows. Claims each row before POST so two
+    workers cannot send the same delivery (#425). Postgres uses
+    ``FOR UPDATE SKIP LOCKED``; SQLite uses the same compare-and-set claim.
+    Delivery stays at-least-once (stale claims retry after CLAIM_TTL)."""
+    now = _utcnow()
+    stmt = _due_delivery_query(now, limit)
+    try:
+        dialect = session.get_bind().dialect.name
+    except Exception:
+        dialect = ""
+    if dialect == "postgresql":
+        stmt = stmt.with_for_update(skip_locked=True, of=WebhookDelivery)
+    candidates = list(session.exec(stmt).all())
+    claimed_ids: list[int] = []
+    for row in candidates:
+        if row.id is None:
+            continue
+        if _claim_delivery(session, row.id, now):
+            claimed_ids.append(row.id)
+    session.commit()
+
+    processed = 0
+    for delivery_id in claimed_ids:
+        delivery = session.get(WebhookDelivery, delivery_id)
+        if not delivery:
+            continue
+        endpoint = session.get(WebhookEndpoint, delivery.endpoint_id)
+        if not endpoint or not endpoint.is_active:
+            continue
         headers = {
             "Content-Type": "application/json",
             "X-EasyBooks-Event": delivery.event_type,
             "X-EasyBooks-Delivery": str(delivery.id),
             "X-EasyBooks-Signature": sign(endpoint.secret, delivery.payload_json),
         }
-        status_code, error = post(endpoint.url, delivery.payload_json, headers)
+        try:
+            status_code, error = post(endpoint.url, delivery.payload_json, headers)
+        except Exception as exc:
+            status_code, error = 0, f"{type(exc).__name__}: {exc}"[:300]
         _apply_result(delivery, status_code, error)
         session.add(delivery)
-    session.commit()
-    return len(rows)
+        session.commit()
+        processed += 1
+    return processed
 
 
 def send_test_ping(endpoint: WebhookEndpoint) -> tuple[int, str]:

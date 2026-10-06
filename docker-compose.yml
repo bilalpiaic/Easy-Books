@@ -53,6 +53,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
       SCHEMA_BOOTSTRAP: alembic
       APP_ENV: production
+      APP_ROLE: worker
     volumes:
       - eb_data:/data
     depends_on:

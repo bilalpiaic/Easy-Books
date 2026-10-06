@@ -93,3 +93,16 @@ def run_background_jobs() -> bool:
     if role == "migrate":
         return False
     return True
+
+
+def run_in_process_schedulers() -> bool:
+    """True when this API process should host overdue/webhook/bank loops.
+
+    Desktop without Redis keeps in-process loops. Compose/SaaS with REDIS_URL
+    leaves crons to the ARQ worker so two API replicas do not double-send.
+    """
+    if not run_background_jobs():
+        return False
+    if (os.environ.get("REDIS_URL") or "").strip():
+        return False
+    return True

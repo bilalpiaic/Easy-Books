@@ -12,6 +12,11 @@ from tasks.imports import process_bulk_import_task
 from tasks.recurring import post_recurring_entries_task
 from tasks.insights import scan_insights_task
 from tasks.dunning import run_dunning_rules_task
+from tasks.cluster import (
+    run_bank_sync_task,
+    run_housekeeping_task,
+    run_overdue_sweep_task,
+)
 
 REGISTRY = {
     "send_email_task": send_email_task,
@@ -22,6 +27,9 @@ REGISTRY = {
     "post_recurring_entries_task": post_recurring_entries_task,
     "scan_insights_task": scan_insights_task,
     "run_dunning_rules_task": run_dunning_rules_task,
+    "run_overdue_sweep_task": run_overdue_sweep_task,
+    "run_housekeeping_task": run_housekeeping_task,
+    "run_bank_sync_task": run_bank_sync_task,
 }
 
 __all__ = list(REGISTRY.keys()) + ["REGISTRY"]

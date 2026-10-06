@@ -13,6 +13,7 @@ from services.app_runtime import (
     postgres_pool_kwargs,
     resolve_database_url,
     run_background_jobs,
+    run_in_process_schedulers,
 )
 
 
@@ -75,6 +76,18 @@ def test_api_role_skips_background_jobs(monkeypatch):
     assert run_background_jobs() is False
     monkeypatch.setenv("APP_ROLE", "worker")
     assert run_background_jobs() is True
+
+
+def test_in_process_schedulers_skip_when_redis_configured(monkeypatch):
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.delenv("RUN_BACKGROUND_JOBS", raising=False)
+    monkeypatch.delenv("RUN_SCHEDULERS", raising=False)
+    monkeypatch.delenv("APP_ROLE", raising=False)
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    assert run_background_jobs() is True
+    assert run_in_process_schedulers() is False
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    assert run_in_process_schedulers() is True
 
 
 def test_entrypoint_migrate_role_does_not_exec_uvicorn(tmp_path, monkeypatch):

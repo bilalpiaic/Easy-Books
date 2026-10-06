@@ -194,7 +194,7 @@ class WebhookDelivery(SQLModel, table=True):
     endpoint_id: int = Field(foreign_key="webhookendpoint.id", ondelete="CASCADE", index=True)
     event_type: str = Field(index=True)
     payload_json: str
-    status: str = Field(default="pending", index=True)   # pending | delivered | failed
+    status: str = Field(default="pending", index=True)   # pending | sending | delivered | failed
     attempts: int = Field(default=0)
     next_retry: Optional[datetime] = Field(default=None, index=True)
     response_code: Optional[int] = None
