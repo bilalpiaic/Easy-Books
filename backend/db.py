@@ -98,7 +98,10 @@ def create_db_and_tables():
         # The standalone installers run scripts.autoseed_demo first to fully
         # populate them (so this block then no-ops); the desktop build sets
         # SEED_DEMO=false (load on demand via Settings → Sample / Demo Data).
-        if os.environ.get("SEED_DEMO", "true").lower() == "true":
+        # Production (#419): unset SEED_DEMO defaults off — never ship demo
+        # logins because the env var was forgotten.
+        from services.security_policy import seed_demo_default
+        if os.environ.get("SEED_DEMO", seed_demo_default()).lower() == "true":
             demo_configs = [
                 ("demo.simple@easy-books.app", "simple", "Demo - Simple", "Demo User"),
                 ("demo.services@easy-books.app", "services", "Demo - Services", "Demo User"),

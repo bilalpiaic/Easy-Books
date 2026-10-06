@@ -67,6 +67,20 @@ def test_seed_demo_off_creates_no_demo_users(tmp_path, monkeypatch):
     _restore_baseline()
 
 
+def test_jwt_aborts_when_environment_production_without_secret(tmp_path, monkeypatch):
+    """#419 — ENVIRONMENT=production is equivalent to APP_ENV=production."""
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.delenv("ENV", raising=False)
+    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
+    monkeypatch.setenv("EB_DATA_DIR", str(tmp_path))
+    import auth
+    with pytest.raises(SystemExit, match="JWT_SECRET_KEY"):
+        importlib.reload(auth)
+    monkeypatch.undo()
+    _restore_baseline()
+
+
 def test_backup_download_returns_zip(client, admin_headers):
     _skip_unless_sqlite()
     r = client.get("/api/backup/download", headers=admin_headers)

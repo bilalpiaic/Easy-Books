@@ -91,6 +91,42 @@ def test_demo_owner_exempt_from_totp_requirement(client, monkeypatch):
     assert r.status_code in (200, 201), r.text
 
 
+def test_production_defaults_fail_closed(monkeypatch):
+    """#419 — production env without explicit flags: TOTP on, demo login off."""
+    monkeypatch.delenv("REQUIRE_OWNER_TOTP", raising=False)
+    monkeypatch.delenv("ALLOW_DEMO_LOGIN", raising=False)
+    monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.delenv("ENV", raising=False)
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    from services import security_policy as sp
+    assert sp.is_production() is True
+    assert sp.require_owner_totp() is True
+    assert sp.demo_login_allowed() is False
+    assert sp.seed_demo_default() == "false"
+
+
+def test_dev_defaults_keep_demo_usable(monkeypatch):
+    monkeypatch.delenv("REQUIRE_OWNER_TOTP", raising=False)
+    monkeypatch.delenv("ALLOW_DEMO_LOGIN", raising=False)
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.delenv("ENV", raising=False)
+    from services import security_policy as sp
+    assert sp.is_production() is False
+    assert sp.require_owner_totp() is False
+    assert sp.demo_login_allowed() is True
+    assert sp.seed_demo_default() == "true"
+
+
+def test_explicit_flags_override_production(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("REQUIRE_OWNER_TOTP", "false")
+    monkeypatch.setenv("ALLOW_DEMO_LOGIN", "true")
+    from services import security_policy as sp
+    assert sp.require_owner_totp() is False
+    assert sp.demo_login_allowed() is True
+
+
 def test_partial_totp_token_cannot_call_me(client, admin_headers):
     r = client.post("/api/auth/totp/setup", headers=admin_headers)
     secret = r.json()["secret"]

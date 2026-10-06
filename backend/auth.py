@@ -7,7 +7,12 @@ import bcrypt
 from jose import jwt
 
 _DEFAULT_SECRET = "super-secret-key-change-in-prod"
-_ENV = (os.environ.get("APP_ENV") or os.environ.get("ENV") or "development").lower()
+_ENV = (
+    os.environ.get("ENVIRONMENT")
+    or os.environ.get("APP_ENV")
+    or os.environ.get("ENV")
+    or "development"
+).lower()
 
 _env_secret = os.environ.get("JWT_SECRET_KEY", "")
 if _env_secret:
@@ -16,7 +21,7 @@ elif _ENV in ("production", "prod"):
     # Hard-fail at import time: a production process must never sign tokens
     # with a public default key.
     raise SystemExit(
-        "FATAL: JWT_SECRET_KEY is unset while APP_ENV=production. "
+        "FATAL: JWT_SECRET_KEY is unset while ENVIRONMENT/APP_ENV=production. "
         "Set a strong random secret in the environment before starting. "
         "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
     )
