@@ -79,6 +79,46 @@ jobs:
           uv sync
           uv run pytest tests/test_marketplace.py tests/test_module_entitlements.py tests/test_studio_bundle.py tests/test_custom_fields.py tests/test_form_schema.py tests/test_tenant_isolation.py -q --tb=line
 
+  alembic-postgres:
+    name: Alembic empty Postgres
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: easybooks_migrate
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: alembic upgrade head on empty database
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres@localhost:5432/easybooks_migrate?sslmode=disable
+        run: |
+          uv sync
+          heads=$(uv run alembic heads)
+          echo "$heads"
+          test "$(echo "$heads" | grep -c '(head)')" -eq 1
+          uv run alembic upgrade head
+          uv run alembic current
+
   frontend:
     name: Frontend (Node)
     runs-on: ubuntu-latest
