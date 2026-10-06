@@ -16,6 +16,7 @@ import {
 } from '@/lib/dashboardHome'
 import VersionBadge from '@/components/VersionBadge'
 import UpdateModal from '@/components/UpdateModal'
+import { AuthFileImg } from '@/components/AuthFileImg'
 import { useTheme, type ThemeMode, type ColorTheme } from '@/context/ThemeContext'
 import { useLocale } from '@/context/LocaleContext'
 import { LANGUAGES, type Language } from '@/i18n/config'
@@ -452,9 +453,8 @@ export default function SettingsPage() {
           <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">Company Logo</label>
           <div className="flex items-center gap-4">
             {form.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={`${process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"}${form.logo_url}`}
+              <AuthFileImg
+                src={form.logo_url}
                 alt="Company logo"
                 className="h-16 w-auto object-contain border border-[var(--border)] rounded-lg p-1 bg-white"
               />
@@ -467,7 +467,7 @@ export default function SettingsPage() {
               <input
                 ref={logoInputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                accept="image/png,image/jpeg,image/gif,image/webp"
                 className="hidden"
                 onChange={e => { if (e.target.files?.[0]) handleLogoUpload(e.target.files[0]) }}
               />
@@ -479,7 +479,7 @@ export default function SettingsPage() {
                 <Upload className="w-4 h-4" />
                 {logoUploading ? "Uploading…" : "Upload Logo"}
               </button>
-              <p className="text-xs text-[var(--text-muted)] mt-1">PNG, JPEG, SVG, WebP, GIF — max 5 MB</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">PNG, JPEG, WebP, GIF — max 5 MB</p>
             </div>
           </div>
         </div>

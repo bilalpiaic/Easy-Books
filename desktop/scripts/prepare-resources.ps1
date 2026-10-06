@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path "$PSScriptRoot/../..").Path
 $Res = Join-Path $Root "desktop/resources"
-$NodeVersion = "20.18.1"
+$NodeVersion = "24.11.0"
 Remove-Item -Recurse -Force $Res -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $Res | Out-Null
 

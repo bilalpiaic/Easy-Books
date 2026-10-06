@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-RES="$ROOT/desktop/resources"; NODE_VERSION="20.18.1"
+RES="$ROOT/desktop/resources"; NODE_VERSION="24.11.0"
 rm -rf "$RES"; mkdir -p "$RES"
 
 # Ensure Node/npm is on PATH for the frontend build. Prefer system node; else

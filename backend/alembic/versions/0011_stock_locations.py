@@ -82,11 +82,15 @@ def upgrade() -> None:
 
     # ── Backfill: every existing tenant gets a Main Store, and existing
     # InventoryLayer rows attach to it so legacy behaviour is preserved.
-    bind.execute(sa.text(
-        "INSERT INTO stocklocation (tenant_id, code, name, type, is_active) "
-        "SELECT id, 'MAIN', 'Main Store', 'own', 1 FROM tenant "
-        "WHERE id NOT IN (SELECT tenant_id FROM stocklocation WHERE code='MAIN')"
-    ))
+    # Dialect-safe boolean: integer 1 fails on Postgres BOOLEAN (#422).
+    bind.execute(
+        sa.text(
+            "INSERT INTO stocklocation (tenant_id, code, name, type, is_active) "
+            "SELECT id, 'MAIN', 'Main Store', 'own', :active FROM tenant "
+            "WHERE id NOT IN (SELECT tenant_id FROM stocklocation WHERE code='MAIN')"
+        ),
+        {"active": True},
+    )
     bind.execute(sa.text(
         "UPDATE inventorylayer SET location_id = ("
         "  SELECT id FROM stocklocation "
@@ -96,18 +100,24 @@ def upgrade() -> None:
     ))
 
     # Manufacturing tenants also get GODOWN and WIP
-    bind.execute(sa.text(
-        "INSERT INTO stocklocation (tenant_id, code, name, type, is_active) "
-        "SELECT id, 'GODOWN', 'Customer Goods Godown', 'customer_custodial', 1 "
-        "FROM tenant WHERE business_model = 'manufacturing' "
-        "AND id NOT IN (SELECT tenant_id FROM stocklocation WHERE code='GODOWN')"
-    ))
-    bind.execute(sa.text(
-        "INSERT INTO stocklocation (tenant_id, code, name, type, is_active) "
-        "SELECT id, 'WIP', 'Work-in-Progress Floor', 'wip', 1 "
-        "FROM tenant WHERE business_model = 'manufacturing' "
-        "AND id NOT IN (SELECT tenant_id FROM stocklocation WHERE code='WIP')"
-    ))
+    bind.execute(
+        sa.text(
+            "INSERT INTO stocklocation (tenant_id, code, name, type, is_active) "
+            "SELECT id, 'GODOWN', 'Customer Goods Godown', 'customer_custodial', :active "
+            "FROM tenant WHERE business_model = 'manufacturing' "
+            "AND id NOT IN (SELECT tenant_id FROM stocklocation WHERE code='GODOWN')"
+        ),
+        {"active": True},
+    )
+    bind.execute(
+        sa.text(
+            "INSERT INTO stocklocation (tenant_id, code, name, type, is_active) "
+            "SELECT id, 'WIP', 'Work-in-Progress Floor', 'wip', :active "
+            "FROM tenant WHERE business_model = 'manufacturing' "
+            "AND id NOT IN (SELECT tenant_id FROM stocklocation WHERE code='WIP')"
+        ),
+        {"active": True},
+    )
 
 
 def downgrade() -> None:

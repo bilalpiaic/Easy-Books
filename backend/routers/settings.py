@@ -3,7 +3,6 @@ switching + module activation."""
 import json as _json
 import os
 import uuid
-from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -16,8 +15,8 @@ from services.ai_providers import AI_SECRET_SETTINGS_KEYS
 from services.whatsapp import WA_SECRET_SETTINGS_KEYS, status_payload as wa_status_payload
 
 from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark_onboarding_step
+from services.storage import sniff_image, upload_file
 
-# Secrets that must never leave GET /api/settings unredacted.
 SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS | {
     "uae_api_key",
     "zatca_csid_token",
@@ -27,9 +26,6 @@ SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS | {
 }
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
-
-from local_config import uploads_dir
-UPLOADS_DIR = uploads_dir()
 
 
 class SettingsUpdate(BaseModel):
@@ -252,19 +248,14 @@ def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdat
 
 @router.post("/logo")
 async def upload_logo(session: SessionDep, user: WriteUserDep, file: UploadFile = File(...)):
-    """Upload a company logo. Stores as /uploads/{tenant_id}/{uuid}.{ext}."""
-    allowed = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"}
-    if file.content_type not in allowed:
-        raise HTTPException(400, "Only PNG, JPEG, GIF, WebP, SVG allowed")
-    ext = Path(file.filename or "logo.png").suffix or ".png"
-    tenant_dir = UPLOADS_DIR / str(user.tenant_id)
-    tenant_dir.mkdir(parents=True, exist_ok=True)
-    fname = f"{uuid.uuid4().hex}{ext}"
-    dest = tenant_dir / fname
+    """Upload a company logo. Stored via storage.py; fetched only with a session."""
     contents = await file.read()
-    dest.write_bytes(contents)
-    logo_url = f"/uploads/{user.tenant_id}/{fname}"
-    # Persist logo_url in settings
+    try:
+        ext, mime = sniff_image(contents)
+    except ValueError as exc:
+        raise HTTPException(400, "Only PNG, JPEG, GIF, or WebP images are allowed") from exc
+    key = f"{user.tenant_id}/{uuid.uuid4().hex}{ext}"
+    logo_url = upload_file(key, contents, mime)
     row = session.exec(
         select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == "logo_url")
     ).first()

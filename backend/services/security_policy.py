@@ -16,6 +16,17 @@ import os
 from models import User
 
 
+def is_production() -> bool:
+    """True when ENVIRONMENT / APP_ENV / ENV is production or prod."""
+    env = (
+        os.environ.get("ENVIRONMENT")
+        or os.environ.get("APP_ENV")
+        or os.environ.get("ENV")
+        or ""
+    ).strip().lower()
+    return env in ("production", "prod")
+
+
 def _flag(name: str, default: bool = False) -> bool:
     raw = (os.environ.get(name) or "").strip().lower()
     if not raw:
@@ -24,11 +35,16 @@ def _flag(name: str, default: bool = False) -> bool:
 
 
 def require_owner_totp() -> bool:
-    return _flag("REQUIRE_OWNER_TOTP", default=False)
+    return _flag("REQUIRE_OWNER_TOTP", default=is_production())
 
 
 def demo_login_allowed() -> bool:
-    return _flag("ALLOW_DEMO_LOGIN", default=True)
+    return _flag("ALLOW_DEMO_LOGIN", default=not is_production())
+
+
+def seed_demo_default() -> str:
+    """SEED_DEMO unset → false in production, true in local/dev."""
+    return "false" if is_production() else "true"
 
 
 def is_demo_email(email: str | None) -> bool:

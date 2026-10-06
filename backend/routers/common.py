@@ -295,6 +295,33 @@ def get_default_account(
     return get_or_create_account(session, tenant_id, code, fallback_name, fallback_type)
 
 
+def get_owned_or_404(
+    session: Session,
+    model,
+    id: int,
+    tenant_id: int,
+    *,
+    detail: Optional[str] = None,
+):
+    """Load ``model`` by primary key and require ``tenant_id`` to match.
+
+    Missing rows and cross-tenant ids both return HTTP 404 so callers cannot
+    distinguish "does not exist" from "exists in another company". Child
+    tables without their own ``tenant_id`` must join through a parent that
+    does — see ``assert_owned``.
+    """
+    row = session.get(model, id)
+    assert_owned(row, tenant_id, detail=detail or f"{getattr(model, '__name__', 'Record')} not found")
+    return row
+
+
+def assert_owned(row, tenant_id: int, *, detail: str = "Not found"):
+    """404 unless ``row`` exists and ``row.tenant_id == tenant_id``."""
+    if row is None or getattr(row, "tenant_id", None) != tenant_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+    return row
+
+
 def get_or_create_account(
     session: Session, tenant_id: int, code: str, name: str, acct_type: str
 ) -> Account:

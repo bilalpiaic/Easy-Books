@@ -21,7 +21,8 @@ from models_healthcare import (
     HcStoreIssue, HcStoreIssueItem, HcWard,
 )
 from routers.common import (
-    CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit, next_number,
+    CurrentUserDep, SessionDep, WriteUserDep, get_owned_or_404, get_or_create_account,
+    log_audit, next_number,
 )
 from services.healthcare_posting import (
     post_discharge_bill, post_ipd_deposit, post_lab_order,
@@ -864,6 +865,11 @@ def list_visits(
 def create_visit(user: WriteUserDep, session: SessionDep, body: VisitCreate):
     _patient_or_404(session, user.tenant_id, body.patient_id)
     _doctor_or_404(session, user.tenant_id, body.doctor_id)
+    tok = None
+    if body.token_id:
+        tok = get_owned_or_404(
+            session, HcOpdToken, body.token_id, user.tenant_id, detail="Token not found"
+        )
 
     vitals_json = json.dumps(body.vitals.model_dump()) if body.vitals else None
     visit = HcOpdVisit(
@@ -882,12 +888,9 @@ def create_visit(user: WriteUserDep, session: SessionDep, body: VisitCreate):
         created_at=datetime.utcnow(),
     )
     session.add(visit)
-    # Mark token as visited
-    if body.token_id:
-        tok = session.get(HcOpdToken, body.token_id)
-        if tok:
-            tok.status = "visited"
-            session.add(tok)
+    if tok is not None:
+        tok.status = "visited"
+        session.add(tok)
     session.commit()
     session.refresh(visit)
     return visit
@@ -1497,9 +1500,12 @@ def get_lab_order(user: CurrentUserDep, session: SessionDep, order_id: int):
             dependencies=[perm_dep("healthcare.lab", "edit")])
 def enter_result(user: WriteUserDep, session: SessionDep,
                  order_id: int, item_id: int, body: ResultEntry):
+    order = get_owned_or_404(
+        session, HcLabOrder, order_id, user.tenant_id, detail="Lab order not found"
+    )
     item = session.exec(
         select(HcLabOrderItem).where(
-            HcLabOrderItem.id == item_id, HcLabOrderItem.lab_order_id == order_id
+            HcLabOrderItem.id == item_id, HcLabOrderItem.lab_order_id == order.id
         )
     ).first()
     if not item:
@@ -1519,11 +1525,10 @@ def enter_result(user: WriteUserDep, session: SessionDep,
     session.add(item)
 
     # Auto-update order status to resulted if all items have results
-    order = session.get(HcLabOrder, order_id)
     all_items = session.exec(
-        select(HcLabOrderItem).where(HcLabOrderItem.lab_order_id == order_id)
+        select(HcLabOrderItem).where(HcLabOrderItem.lab_order_id == order.id)
     ).all()
-    if all(i.resulted_at for i in all_items) and order:
+    if all(i.resulted_at for i in all_items):
         order.status = "resulted"
         session.add(order)
 
@@ -2156,7 +2161,14 @@ def pending_dispensing(user: CurrentUserDep, session: SessionDep):
 @router.post("/store/pharmacy/dispense", dependencies=[perm_dep("healthcare.store", "edit")])
 def dispense_item(user: WriteUserDep, session: SessionDep,
                   item_id: int, dispensed_qty: Decimal):
-    item = session.exec(select(HcPrescriptionItem).where(HcPrescriptionItem.id == item_id)).first()
+    item = session.exec(
+        select(HcPrescriptionItem)
+        .join(HcPrescription, HcPrescriptionItem.prescription_id == HcPrescription.id)
+        .where(
+            HcPrescriptionItem.id == item_id,
+            HcPrescription.tenant_id == user.tenant_id,
+        )
+    ).first()
     if not item:
         raise HTTPException(404, "Prescription item not found")
     item.dispensed_qty = dispensed_qty

@@ -121,7 +121,8 @@ def _revoke_presented_token(session: Session, request: Request) -> None:
 
 
 def _cookie_secure() -> bool:
-    return os.environ.get("APP_ENV", "dev").lower() in ("production", "prod")
+    from services.security_policy import is_production
+    return is_production()
 
 
 def _set_access_cookie(response: Response, token: str) -> None:

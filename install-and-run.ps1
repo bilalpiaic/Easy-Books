@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 . (Join-Path $Root 'portable\apply-env.ps1')
-$NodeVersion = '20.18.1'
+$NodeVersion = '24.11.0'
 
 function Log($m) { Write-Host "`n> $m" -ForegroundColor Yellow }
 

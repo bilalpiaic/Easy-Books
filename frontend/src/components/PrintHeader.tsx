@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
+import { AuthFileImg } from "@/components/AuthFileImg"
 
 interface PrintHeaderProps {
   /** Title of the report — e.g. "Trial Balance" */
@@ -91,8 +92,7 @@ export default function PrintHeader({
       <div className="print-brand-row">
         <div className="print-brand">
           {info.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={info.logo_url} alt={info.name} className="print-logo-img" />
+            <AuthFileImg src={info.logo_url} alt={info.name} className="print-logo-img" />
           ) : (
             <div className="print-logo">{info.initial}</div>
           )}

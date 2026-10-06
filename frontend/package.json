@@ -2,6 +2,9 @@
   "name": "frontend",
   "version": "3.0.0",
   "private": true,
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
     "build": "next build",

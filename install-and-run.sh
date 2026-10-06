@@ -18,7 +18,7 @@ cd "$ROOT"
 # .easy-books-portable). Leaves EB_DATA_DIR at ~/.easy-books when unset.
 # shellcheck disable=SC1091
 . "$ROOT/portable/apply-env.sh"
-NODE_VERSION="20.18.1"
+NODE_VERSION="24.11.0"
 
 log()  { printf "\n\033[1;33m▶ %s\033[0m\n" "$*"; }
 die()  { printf "\n\033[1;31m✖ %s\033[0m\n" "$*" >&2; exit 1; }
@@ -45,7 +45,7 @@ else
     arch="$(uname -m)"; case "$arch" in
       x86_64|amd64) arch="x64";;
       aarch64|arm64) arch="arm64";;
-      *) die "Unsupported CPU arch: $arch (install Node 20+ manually, then re-run).";;
+      *) die "Unsupported CPU arch: $arch (install Node 24+ manually, then re-run).";;
     esac
     url="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${plat}-${arch}.tar.gz"
     mkdir -p "$NODE_DIR"

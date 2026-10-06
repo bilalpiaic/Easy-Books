@@ -60,9 +60,10 @@ def test_storage_local_roundtrip(tmp_path, monkeypatch):
     reload(local_config)
     reload(storage)
     url = storage.upload_file("t1/hello.txt", b"hello", "text/plain")
-    assert url.startswith("/uploads/")
+    assert url.startswith("/api/files/")
+    assert "/uploads/" not in url
     assert storage.download_file("t1/hello.txt") == b"hello"
-    assert storage.get_file_url("t1/hello.txt").startswith("/uploads/")
+    assert storage.get_file_url("t1/hello.txt").startswith("/api/files/")
 
 
 @pytest.mark.asyncio
