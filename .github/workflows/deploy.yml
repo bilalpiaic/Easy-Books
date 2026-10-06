@@ -14,19 +14,6 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test_easy_books
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
@@ -37,10 +24,13 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Backend tests (PostgreSQL)
+      - name: Backend tests
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test_easy_books
+          # Full suite uses the in-memory SQLite fixture (tests/conftest.py).
+          # Leave DATABASE_URL unset: a Postgres URL builds db.engine at import,
+          # which the fixture then replaces, and previously failed the SQLite
+          # backup tests. Postgres coverage is the CI backend-postgres job.
           OVERDUE_SWEEP_ENABLED: "false"
           WEBHOOKS_ENABLED: "false"
           PYTHONPATH: .
