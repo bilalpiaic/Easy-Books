@@ -22,15 +22,14 @@ import models  # noqa: F401 — registers every table on SQLModel.metadata
 config = context.config
 
 # Resolve DATABASE_URL the same way db.py does — including the Heroku-style
-# `postgres://` → `postgresql://` rewrite that some Postgres providers still emit.
-db_url = os.environ.get("DATABASE_URL")
+# `postgres://` → `postgresql://` rewrite. Alembic prefers DATABASE_URL_DIRECT
+# so it can talk to the primary instead of a transaction pooler (#424).
+from services.app_runtime import resolve_database_url
+from local_config import sqlite_path
+
+db_url = resolve_database_url(for_alembic=True)
 if not db_url:
-    # No DATABASE_URL → SQLite. Target the SAME path the app uses (honours
-    # EB_DATA_DIR for local/packaged installs) instead of a stray cwd file.
-    from local_config import sqlite_path
     db_url = f"sqlite:///{sqlite_path()}"
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
 config.set_main_option("sqlalchemy.url", db_url)
 
 if config.config_file_name is not None:

@@ -20,7 +20,8 @@ services:
       DATABASE_URL: ${DATABASE_URL:-}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       APP_ENV: production
-      # Tell the app to trust Alembic for schema bootstrap (not create_all)
+      # Office/compose: leave APP_ROLE unset so the API container still migrates.
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       SCHEMA_BOOTSTRAP: alembic
     volumes:
       # Persistent data: SQLite database + uploaded files
@@ -32,7 +33,7 @@ services:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/version')"
       interval: 15s
       timeout: 5s
       # Give migrations + first-run demo seed time to complete before health checks count

@@ -18,6 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db import create_db_and_tables
+from services.app_runtime import allow_create_all_bootstrap, run_background_jobs
 from routers import (
     accounts, admin, advances, aging, alerts, analytic_accounts, analytic_dimensions, api_keys, assets, attachments,
     audit, auth, backup, bank_accounts, bank_imports, bills, bom, budgets, pos, ecommerce,
@@ -190,12 +191,6 @@ def _env_flag(name: str, default: str = "true") -> bool:
     return os.environ.get(name, default).lower() not in ("0", "false", "no", "off")
 
 
-def _is_serverless() -> bool:
-    """Vercel (and similar) set VERCEL=1 — background loops can't survive
-    across invocations, so default them off unless explicitly re-enabled."""
-    return os.environ.get("VERCEL", "").lower() in ("1", "true")
-
-
 async def _instance_lock_heartbeat() -> None:
     """Keep `.instance.lock` mtime fresh so a crashed peer expires, not us."""
     from local_config import refresh_instance_lock
@@ -210,11 +205,10 @@ async def _instance_lock_heartbeat() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # `lifespan` replaces the deprecated @app.on_event("startup") hook.
-    # For local dev / SQLite we let SQLModel create tables on demand so a
-    # fresh checkout boots without an Alembic step. In production set
-    # SCHEMA_BOOTSTRAP=alembic and run `alembic upgrade head` from CI so
-    # schema changes are explicit and version-controlled.
-    if os.environ.get("SCHEMA_BOOTSTRAP", "create_all") == "create_all":
+    # Local/dev SQLite: SQLModel create_all so a fresh checkout boots.
+    # Production SaaS must set SCHEMA_BOOTSTRAP=alembic and run migrations
+    # from the migrate role — create_all is fail-closed (#424).
+    if allow_create_all_bootstrap():
         create_db_and_tables()
 
     from local_config import (
@@ -229,9 +223,9 @@ async def lifespan(_app: FastAPI):
         locked = True
 
     # On Vercel, long-lived asyncio loops do nothing useful (the function
-    # freezes between requests). Opt in explicitly if you wire an external
-    # cron to hit a sweep endpoint instead.
-    _bg_default = "false" if _is_serverless() else "true"
+    # freezes between requests). APP_ROLE=api also defaults them off so
+    # three replicas do not send 3× reminder email (#425).
+    _bg_default = "true" if run_background_jobs() else "false"
     tasks = []
     if locked:
         tasks.append(asyncio.create_task(_instance_lock_heartbeat()))

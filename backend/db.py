@@ -3,37 +3,28 @@ import os
 from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
 from models import Account, PaymentTerm, ProductCategory, SequenceCounter, Settings, StockLocation
+from services.app_runtime import is_vercel, postgres_pool_kwargs, resolve_database_url
+from services.security_policy import is_production
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE_URL = resolve_database_url()
 
 # Neon (and most managed Postgres) require TLS. Prefer the Neon *pooled*
 # connection string (`…-pooler.…neon.tech`) on Vercel — each invocation
 # opens at most one connection (pool_size=1) so the pooler can multiplex.
+# Off Vercel, DB_POOL_SIZE / DB_MAX_OVERFLOW default to 5/5 (#424).
 if DATABASE_URL:
-    if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    if "sslmode" not in DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
-        sep = "&" if "?" in DATABASE_URL else "?"
-        DATABASE_URL = f"{DATABASE_URL}{sep}sslmode=require"
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
-        pool_size=1,
-        max_overflow=0,
+        **postgres_pool_kwargs(),
     )
 else:
-    _environment = (
-        os.environ.get("ENVIRONMENT")
-        or os.environ.get("APP_ENV")
-        or os.environ.get("ENV")
-        or "development"
-    ).lower()
-    _on_vercel = os.environ.get("VERCEL", "").lower() in ("1", "true")
-    if _environment in ("production", "prod") or _on_vercel:
+    if is_production() or is_vercel():
         raise RuntimeError(
             "DATABASE_URL environment variable must be set in production. "
-            "Point it at Neon Postgres (pooled connection string). "
-            "SQLite fallback is not supported for serverless deployments."
+            "Point it at managed Postgres (pooled connection string for the app; "
+            "DATABASE_URL_DIRECT for Alembic). "
+            "SQLite fallback is not supported for serverless or production SaaS."
         )
     from sqlalchemy import event
     from local_config import configure_sqlite_connection, sqlite_connect_args, sqlite_path
