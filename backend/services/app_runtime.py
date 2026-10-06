@@ -106,3 +106,16 @@ def run_in_process_schedulers() -> bool:
     if (os.environ.get("REDIS_URL") or "").strip():
         return False
     return True
+
+
+def self_update_enabled() -> bool:
+    """git-pull updater is desktop/script only (#428). Off in production SaaS."""
+    explicit = _flag("ENABLE_SELF_UPDATE")
+    if explicit is not None:
+        return explicit
+    from services.security_policy import is_production
+    if is_production():
+        return False
+    if app_role():
+        return False
+    return True

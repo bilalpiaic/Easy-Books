@@ -52,6 +52,10 @@ async def trigger_update(
     if current_user.role not in ("admin", "owner"):
         raise HTTPException(403, "Admin or owner required")
 
+    from services.app_runtime import self_update_enabled
+    if not self_update_enabled():
+        raise HTTPException(404, "Not found")
+
     script = _find_install_script()
     if script is None:
         return {
@@ -119,8 +123,11 @@ async def update_status_check(current_user: CurrentUserDep):
     """
     global _status_cache, _status_cache_at
 
+    from services.app_runtime import self_update_enabled
     local_full  = _git("rev-parse", "HEAD")
     local_short = local_full[:7] if local_full else "unknown"
+    if not self_update_enabled():
+        return {"status": "up_to_date", "local": local_short, "remote": local_short, "behind": False}
 
     now = time.time()
     if _status_cache is None or (now - _status_cache_at) > _STATUS_TTL:

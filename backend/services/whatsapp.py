@@ -40,7 +40,8 @@ def _setting(session: Session, tenant_id: int, key: str) -> Optional[str]:
     row = session.exec(
         select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == key)
     ).first()
-    return row.value if row and row.value else None
+    from services.crypto_secrets import reveal_setting
+    return reveal_setting(row.value) if row and row.value else None
 
 
 def is_configured(session: Session, tenant_id: int) -> bool:

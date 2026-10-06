@@ -23,6 +23,7 @@ SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS | {
     "peppol_api_key",
     "uk_mtd_client_secret",
     "my_invois_client_secret",
+    "pra_api_token",
 }
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -234,6 +235,14 @@ def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdat
         session.add(tenant)
 
     for key, value in updates.items():
+        if key in SECRET_SETTINGS_KEYS:
+            from services.crypto_secrets import seal_setting
+            value = seal_setting(value)
+        if key in ("ai_ollama_base_url", "peppol_ap_url", "marketplace_catalog_url") and value:
+            from services.ssrf import public_url_error
+            err = public_url_error(value, allow_loopback=(key == "ai_ollama_base_url"))
+            if err:
+                raise HTTPException(400, err)
         row = session.exec(
             select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == key)
         ).first()
@@ -372,7 +381,15 @@ def update_modules(
     tenant = session.get(Tenant, user.tenant_id)
     if not tenant:
         raise HTTPException(404, "Tenant not found")
-    tenant.enabled_modules = _json.dumps(list(body.enabled_modules))
+    from services.entitlements import PLAN_DENIED, can_install, enforce_module_plans
+    wanted = list(body.enabled_modules)
+    if enforce_module_plans():
+        denied = [m for m in wanted if m != "base" and not can_install(tenant, m)]
+        if denied:
+            raise HTTPException(403, PLAN_DENIED)
+        if "base" not in wanted:
+            wanted = ["base", *wanted]
+    tenant.enabled_modules = _json.dumps(wanted)
     session.add(tenant)
     session.commit()
     session.refresh(tenant)

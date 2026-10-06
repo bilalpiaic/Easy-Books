@@ -12,6 +12,7 @@ services:
       APP_ROLE: api
       RUN_MIGRATIONS: "false"
       RUN_BACKGROUND_JOBS: "false"
+      ENABLE_SELF_UPDATE: "false"
       DB_SSLMODE: disable
       DB_POOL_SIZE: "5"
       DB_MAX_OVERFLOW: "5"
@@ -60,6 +61,7 @@ services:
       SCHEMA_BOOTSTRAP: alembic
       APP_ENV: production
       RUN_BACKGROUND_JOBS: "true"
+      ENABLE_SELF_UPDATE: "false"
       DB_SSLMODE: disable
     depends_on:
       - postgres

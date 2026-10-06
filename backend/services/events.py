@@ -137,8 +137,12 @@ def _enqueue_drain_if_queued() -> None:
 def _default_post(url: str, body: str, headers: dict) -> tuple[int, str]:
     """Blocking POST; returns (status_code, error_text). error_text is ''
     on a connect success (any HTTP status counts as a response)."""
+    from services.ssrf import public_url_error
+    blocked = public_url_error(url)
+    if blocked:
+        return 0, f"SSRF blocked: {blocked}"
     try:
-        resp = httpx.post(url, content=body, headers=headers, timeout=TIMEOUT_SECONDS)
+        resp = httpx.post(url, content=body, headers=headers, timeout=TIMEOUT_SECONDS, follow_redirects=False)
         return resp.status_code, ""
     except Exception as exc:                       # DNS, refused, timeout, TLS…
         return 0, f"{type(exc).__name__}: {exc}"[:300]
@@ -236,7 +240,12 @@ def drain_once(
             "X-EasyBooks-Signature": sign(endpoint.secret, delivery.payload_json),
         }
         try:
-            status_code, error = post(endpoint.url, delivery.payload_json, headers)
+            from services.ssrf import public_url_error
+            blocked = public_url_error(endpoint.url)
+            if blocked:
+                status_code, error = 0, f"SSRF blocked: {blocked}"
+            else:
+                status_code, error = post(endpoint.url, delivery.payload_json, headers)
         except Exception as exc:
             status_code, error = 0, f"{type(exc).__name__}: {exc}"[:300]
         _apply_result(delivery, status_code, error)
@@ -249,6 +258,10 @@ def drain_once(
 def send_test_ping(endpoint: WebhookEndpoint) -> tuple[int, str]:
     """Fire an immediate signed ping (used by POST /api/webhooks/{id}/test).
     Bypasses the outbox on purpose — the caller wants the live response."""
+    from services.ssrf import public_url_error
+    blocked = public_url_error(endpoint.url)
+    if blocked:
+        return 0, f"SSRF blocked: {blocked}"
     body = json.dumps({"event": "ping", "timestamp": _utcnow().isoformat() + "Z"})
     headers = {
         "Content-Type": "application/json",
