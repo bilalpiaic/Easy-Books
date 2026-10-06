@@ -32,7 +32,8 @@ def upgrade() -> None:
                 )
             )
         # Backfill: existing single-user tenants should be owners.
-        op.execute("UPDATE user SET role = 'owner'")
+        user_tbl = bind.dialect.identifier_preparer.quote("user")
+        op.execute(sa.text(f"UPDATE {user_tbl} SET role = 'owner'"))
 
 
 def downgrade() -> None:
