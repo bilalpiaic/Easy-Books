@@ -16,7 +16,7 @@ services:
       DB_POOL_SIZE: "5"
       DB_MAX_OVERFLOW: "5"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/version')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/live')"]
       interval: 30s
       timeout: 5s
       retries: 3

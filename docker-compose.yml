@@ -33,7 +33,7 @@ services:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/version')"
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/live')"
       interval: 15s
       timeout: 5s
       # Give migrations + first-run demo seed time to complete before health checks count

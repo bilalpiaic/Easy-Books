@@ -1,19 +1,10 @@
 """Global rate-limiting middleware.
 
-Per-process, in-memory sliding-window limiter — mirrors routers/ai_chat.py's
-`_RATE` pattern exactly (a deque of monotonic timestamps per identity, lazy
-left-pop pruning on each check). No Redis: this app ships as an offline
-Electron desktop app and a standalone script installer with no external
-services, so cross-worker-exact rate limiting isn't attempted here — the
-same tradeoff already accepted for the AI chat rate limiter.
-
-Identity is resolved by decoding the bearer token / cookie inline, the same
-way services/idempotency.py's `_resolve_tenant_id` already does — middleware
-runs before FastAPI's dependency injection, so `CurrentUserDep` isn't
-available here.
+Sliding-window limiter: Redis when REDIS_URL is set (shared across replicas),
+in-memory fallback for desktop. Redis errors fail open (#427). Login keeps
+its own DB-backed throttle.
 """
 import os
-import time
 from collections import defaultdict, deque
 
 from fastapi import Request
@@ -22,6 +13,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from auth import ALGORITHM, SECRET_KEY
+from services.client_ip import client_ip
+from services.sliding_window import allow
 
 _WINDOW_SECONDS = 60
 
@@ -31,16 +24,19 @@ _WINDOW_SECONDS = 60
 _EXEMPT_PATHS = {
     "/api/auth/login", "/api/v1/auth/login",
     "/docs", "/openapi.json", "/api/version",
+    "/api/health", "/api/health/live", "/api/health/ready",
 }
+
+
+def _exempt(path: str) -> bool:
+    if path in _EXEMPT_PATHS:
+        return True
+    return path.startswith("/api/health")
 
 
 def _resolve_identity(request: Request) -> tuple[str, object]:
     """Returns ("auth", (tenant_id, sub)) for a decodable JWT, else
-    ("anon", client_ip). API keys (eb_live_... prefix, added in a later PR)
-    aren't recognized here — jwt.decode fails on them and they fall through
-    to "anon", bucketing that traffic at the stricter unauthenticated limit
-    until this is revisited alongside the API-key work. Not a correctness
-    or security issue, just a coarser bucket than ideal in the meantime."""
+    ("anon", client_ip)."""
     auth_header = request.headers.get("authorization", "")
     token = None
     if auth_header.lower().startswith("bearer "):
@@ -56,7 +52,7 @@ def _resolve_identity(request: Request) -> tuple[str, object]:
                 return "auth", (tenant_id, sub)
         except JWTError:
             pass
-    return "anon", (request.client.host if request.client else "unknown")
+    return "anon", client_ip(request)
 
 
 _AUTH_BUCKETS: dict[tuple, deque] = defaultdict(deque)
@@ -65,24 +61,20 @@ _ANON_BUCKETS: dict[object, deque] = defaultdict(deque)
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in _EXEMPT_PATHS:
+        if _exempt(request.url.path):
             return await call_next(request)
 
         kind, key = _resolve_identity(request)
         if kind == "auth":
             limit = int(os.environ.get("RATE_LIMIT_AUTHENTICATED_PER_MIN", "1000"))
-            bucket = _AUTH_BUCKETS[key]
+            memory = _AUTH_BUCKETS
         else:
             limit = int(os.environ.get("RATE_LIMIT_UNAUTHENTICATED_PER_MIN", "100"))
-            bucket = _ANON_BUCKETS[key]
+            memory = _ANON_BUCKETS
 
-        now = time.monotonic()
-        while bucket and now - bucket[0] > _WINDOW_SECONDS:
-            bucket.popleft()
-        if len(bucket) >= limit:
+        if not allow(kind, key, limit=limit, window=_WINDOW_SECONDS, memory=memory):
             return JSONResponse(
                 {"detail": f"Rate limit exceeded ({limit}/minute). Try again shortly."},
                 status_code=429,
             )
-        bucket.append(now)
         return await call_next(request)

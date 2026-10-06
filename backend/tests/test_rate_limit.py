@@ -76,3 +76,38 @@ def test_login_is_exempt_and_governed_only_by_its_own_throttle(client: TestClien
     for _ in range(5):
         r = client.post("/api/auth/login", data={"username": "ratelimit3@t.com", "password": "wrong"})
         assert r.status_code == 401
+
+
+def test_probe_paths_are_exempt_from_global_limiter(client: TestClient, monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_UNAUTHENTICATED_PER_MIN", "1")
+    assert client.get("/api/customers").status_code == 401
+    assert client.get("/api/customers").status_code == 429
+    assert client.get("/api/health/live").status_code == 200
+    assert client.get("/api/health/ready").status_code == 200
+    assert client.get("/api/health").status_code == 200
+
+
+def test_login_throttle_ignores_spoofed_xff_unless_peer_trusted(client: TestClient, monkeypatch):
+    monkeypatch.delenv("TRUSTED_PROXIES", raising=False)
+    headers = {"X-Forwarded-For": "203.0.113.9"}
+    for _ in range(10):
+        client.post(
+            "/api/auth/login",
+            data={"username": "xff@t.com", "password": "wrong"},
+            headers=headers,
+        )
+    blocked = client.post(
+        "/api/auth/login",
+        data={"username": "xff@t.com", "password": "wrong"},
+        headers={"X-Forwarded-For": "198.51.100.2"},
+    )
+    assert blocked.status_code == 429
+
+    monkeypatch.setenv("TRUSTED_PROXIES", "testclient")
+    fresh = client.post(
+        "/api/auth/login",
+        data={"username": "xff@t.com", "password": "wrong"},
+        headers={"X-Forwarded-For": "198.51.100.2"},
+    )
+    assert fresh.status_code == 401
+

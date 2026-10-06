@@ -14,7 +14,6 @@ Tools call existing report functions directly (no HTTP re-request) so all
 business rules, tenant filters, and calculations are automatically reused.
 """
 import json
-import time
 from collections import defaultdict, deque
 from datetime import date as DateType, datetime
 
@@ -212,22 +211,20 @@ def _check_rate_limit(session, user) -> None:
         limit = plan_cap
     else:
         limit = min(setting_limit, plan_cap)
-    bucket = _RATE[(user.tenant_id, user.id)]
-    now = time.monotonic()
-    while bucket and now - bucket[0] > 3600:
-        bucket.popleft()
-    if len(bucket) >= limit:
+    from services.sliding_window import allow
+    ident = (user.tenant_id, user.id)
+    if not allow("ai", ident, limit=limit, window=3600, memory=_RATE):
+        used = len(_RATE.get(ident, ()))
         raise HTTPException(
             status_code=429,
             detail={
                 "error": "ai_quota_exceeded",
                 "message": f"AI request limit reached ({limit}/hour). Try again in a few minutes.",
-                "used": len(bucket),
+                "used": used or limit,
                 "limit": limit,
                 "plan": tenant.plan if tenant else "free",
             },
         )
-    bucket.append(now)
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────

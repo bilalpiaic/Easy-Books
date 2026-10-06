@@ -490,4 +490,11 @@ for route in list(app.routes):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        proxy_headers=True,
+        forwarded_allow_ips=os.environ.get("TRUSTED_PROXIES", "127.0.0.1"),
+    )

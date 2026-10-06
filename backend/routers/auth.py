@@ -51,6 +51,7 @@ from services.memberships import ensure_membership, get_membership, list_user_me
 from services.security_policy import is_demo_email
 
 from .common import CurrentUserDep, SessionDep
+from services.client_ip import client_ip
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -154,7 +155,7 @@ def _throttle(session: Session, request: Request) -> None:
     so the table stays bounded without a cron job. Shared across workers
     because state is in the DB, not a process-local dict.
     """
-    ip = request.client.host if request.client else "unknown"
+    ip = client_ip(request)
     cutoff = datetime.utcnow() - timedelta(seconds=_LOGIN_ATTEMPT_WINDOW_SEC)
     # Prune
     old = session.exec(
@@ -526,7 +527,7 @@ class ResetPasswordIn(BaseModel):
 
 
 def _throttle_reset(session: Session, request: Request, email_key: str) -> None:
-    ip = request.client.host if request.client else "unknown"
+    ip = client_ip(request)
     cutoff = datetime.utcnow() - timedelta(seconds=_RESET_WINDOW_SEC)
     old = session.exec(
         select(PasswordResetAttempt).where(PasswordResetAttempt.attempted_at < cutoff)

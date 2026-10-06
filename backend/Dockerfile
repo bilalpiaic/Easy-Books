@@ -27,10 +27,10 @@ COPY . .
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# Health-check via the unauthenticated /api/version endpoint
+# Health-check via /api/health/live — no DB/Redis/S3 (#427)
 HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=5 \
   CMD python -c \
-  "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/version')" \
+  "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/live')" \
   || exit 1
 
 EXPOSE 8000

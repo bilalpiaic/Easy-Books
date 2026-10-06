@@ -72,4 +72,6 @@ if [ -n "$CMD0" ] && [ "$CMD0" != "api" ]; then
 fi
 
 echo "[startup] Starting API server..."
-exec uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000
+ALLOW_IPS="${TRUSTED_PROXIES:-127.0.0.1}"
+exec uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 \
+  --proxy-headers --forwarded-allow-ips="${ALLOW_IPS}"
