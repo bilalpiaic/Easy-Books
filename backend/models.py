@@ -10,7 +10,7 @@ P0 migration notes:
     Weighted-Average cost when stock is sold.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 
@@ -18,6 +18,11 @@ from sqlalchemy import CheckConstraint, Column, ForeignKey, Index, Integer, JSON
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from services.money import Money, ZERO
+
+
+def utc_now() -> datetime:
+    """Timezone-aware UTC. SQLAlchemy 2.1 / SQLModel reject naive datetimes."""
+    return datetime.now(timezone.utc)
 
 
 def money_col(default: Decimal = ZERO, **kw):
@@ -50,7 +55,7 @@ class Tenant(SQLModel, table=True):
     module_meta: str = Field(default="{}")
     # IAS 2.25: FIFO or weighted-average; applied consistently to all products.
     cost_method: str = Field(default="wavg")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
     # SaaS plan metering (#119)
     plan: str = Field(default="free", index=True)  # free|starter|pro|enterprise
@@ -88,7 +93,7 @@ class User(SQLModel, table=True):
     must_change_password: bool = Field(default=False)
     role: str = Field(default="viewer", index=True)
     tenant_id: int = Field(foreign_key="tenant.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     last_login_at: Optional[datetime] = None
 
     my_data_only: bool = Field(default=False)
@@ -121,7 +126,7 @@ class TenantMembership(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     role: str = Field(default="viewer", index=True)
     invited_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class UserInvite(SQLModel, table=True):
@@ -142,7 +147,7 @@ class UserInvite(SQLModel, table=True):
     invited_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
     expires_at: datetime
     accepted_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class ApiKey(SQLModel, table=True):
@@ -167,7 +172,7 @@ class ApiKey(SQLModel, table=True):
     last_used: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class WebhookEndpoint(SQLModel, table=True):
@@ -181,7 +186,7 @@ class WebhookEndpoint(SQLModel, table=True):
     events: List[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     description: Optional[str] = None
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class WebhookDelivery(SQLModel, table=True):
@@ -199,7 +204,7 @@ class WebhookDelivery(SQLModel, table=True):
     next_retry: Optional[datetime] = Field(default=None, index=True)
     response_code: Optional[int] = None
     last_error: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     delivered_at: Optional[datetime] = None
 
 
@@ -213,7 +218,7 @@ class TaskDeadLetter(SQLModel, table=True):
     kwargs_json: str = Field(default="{}")
     error: str
     status: str = Field(default="open", index=True)  # open | retried | discarded
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     retried_at: Optional[datetime] = None
 
 
@@ -289,7 +294,7 @@ class UserDashboardLayout(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", primary_key=True)
     user_id: int = Field(foreign_key="user.id", primary_key=True)
     layout_json: str
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class UserAlert(SQLModel, table=True):
@@ -317,7 +322,7 @@ class UserAlert(SQLModel, table=True):
     entity_type: Optional[str] = None
     entity_id: Optional[int] = None
     dedupe_key: str = Field(index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     read_at: Optional[datetime] = None
 
 
@@ -338,8 +343,8 @@ class DeviceToken(SQLModel, table=True):
     token: str
     device_name: Optional[str] = None
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    last_seen_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    last_seen_at: datetime = Field(default_factory=utc_now)
 
 
 class AppUpdateNotice(SQLModel, table=True):
@@ -355,7 +360,7 @@ class AppUpdateNotice(SQLModel, table=True):
     commit_date: Optional[str] = None  # YYYY-MM-DD
     # False for first-run seed so we don't spam historical commits.
     notify_users: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class Account(SQLModel, table=True):
@@ -448,7 +453,7 @@ class ConsolidationMember(SQLModel, table=True):
     # Optional IC control-account codes on this member (for propose)
     ic_ar_code: Optional[str] = None
     ic_ap_code: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class ConsolidationRun(SQLModel, table=True):
@@ -473,7 +478,7 @@ class ConsolidationRun(SQLModel, table=True):
     posted_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
     voided_at: Optional[datetime] = None
     voided_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
@@ -498,7 +503,7 @@ class ConsolidationElimination(SQLModel, table=True):
     credit: Money = money_col()
     member_tenant_id: Optional[int] = Field(default=None, foreign_key="tenant.id")
     sort_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class TransactionBase(SQLModel):
@@ -520,7 +525,7 @@ class Transaction(TransactionBase, table=True):
     jv_number: str = Field(index=True)
     voucher_type: str = Field(default="JV", index=True)
     legacy_jv_number: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     is_reversed: bool = Field(default=False)
     reversed_by_id: Optional[int] = Field(default=None)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
@@ -785,7 +790,7 @@ class Reconciliation(SQLModel, table=True):
     period_end: str
     statement_balance: Money = money_col()
     status: str = Field(default="open")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class ReconciliationLine(SQLModel, table=True):
@@ -803,7 +808,7 @@ class AuditLog(SQLModel, table=True):
     entity_type: str  # account | customer | vendor | invoice | bill | transaction | ...
     entity_id: Optional[int] = None
     detail: Optional[str] = None  # JSON blob with context
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=utc_now)
 
 
 class ProductCategory(SQLModel, table=True):
@@ -885,7 +890,7 @@ class CustomFieldDef(SQLModel, table=True):
     sort_order: int = Field(default=0)
     archived_at: Optional[datetime] = Field(default=None, index=True)
     source_extension_id: Optional[str] = Field(default=None, index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class FormSchema(SQLModel, table=True):
@@ -899,7 +904,7 @@ class FormSchema(SQLModel, table=True):
     entity: str = Field(primary_key=True)
     role: str = Field(default="*", primary_key=True)
     payload_json: dict = Field(default_factory=dict, sa_column=Column("schema_json", JSON, nullable=False))
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=utc_now)
     updated_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
@@ -921,7 +926,7 @@ class PrintTemplate(SQLModel, table=True):
     is_builtin_override: bool = Field(default=False)
     is_default: bool = Field(default=False)
     source_extension_id: Optional[str] = Field(default=None, index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class StockSerial(SQLModel, table=True):
@@ -943,7 +948,7 @@ class StockSerial(SQLModel, table=True):
     source_doc: Optional[str] = None
     sold_doc_type: Optional[str] = None
     sold_doc_id: Optional[int] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class LandedCost(SQLModel, table=True):
@@ -975,7 +980,7 @@ class LandedCost(SQLModel, table=True):
     status: str = Field(default="draft", index=True)
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class LandedCostAllocation(SQLModel, table=True):
@@ -1010,7 +1015,7 @@ class NrVRun(SQLModel, table=True):
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     reverse_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class NrVLine(SQLModel, table=True):
@@ -1058,7 +1063,7 @@ class BomHeader(SQLModel, table=True):
     explode_on_invoice: bool = Field(default=False)  # auto-consume components when output product is sold
     description: Optional[str] = None
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class BomLine(SQLModel, table=True):
@@ -1163,7 +1168,7 @@ class CustomerRatePlan(SQLModel, table=True):
     customer_id: int = Field(foreign_key="customer.id", index=True)
     rate_plan_id: int = Field(foreign_key="rateplan.id", index=True)
     is_active: bool = Field(default=True)
-    assigned_at: datetime = Field(default_factory=datetime.utcnow)
+    assigned_at: datetime = Field(default_factory=utc_now)
 
 
 class StockLocation(SQLModel, table=True):
@@ -1210,7 +1215,7 @@ class InventoryLayer(SQLModel, table=True):
     qty_remaining: Money = money_col()
     unit_cost: Money = money_col()
     source_doc: Optional[str] = None  # e.g. "BILL-0042", "GRN-0007"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class StockMovement(SQLModel, table=True):
@@ -1231,7 +1236,7 @@ class StockMovement(SQLModel, table=True):
     )
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
-    occurred_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    occurred_at: datetime = Field(default_factory=utc_now, index=True)
     product_id: int = Field(foreign_key="product.id", index=True)
     direction: str                              # see CHECK
     qty: Money = money_col()
@@ -1272,7 +1277,7 @@ class StockTransfer(SQLModel, table=True):
     received_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
     received_at: Optional[datetime] = None
     cancel_reason: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class StockTransferLine(SQLModel, table=True):
@@ -1306,7 +1311,7 @@ class StockReservation(SQLModel, table=True):
     status: str = Field(default="open", index=True)
     notes: Optional[str] = None
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     released_at: Optional[datetime] = None
 
 
@@ -1327,7 +1332,7 @@ class PickList(SQLModel, table=True):
     status: str = Field(default="draft", index=True)
     notes: Optional[str] = None
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     packed_at: Optional[datetime] = None
 
 
@@ -1361,7 +1366,7 @@ class GoodsReceiptNote(SQLModel, table=True):
     declared_value: Money = money_col(default=Decimal("0"))   # optional memo value (sum across lines)
     notes: Optional[str] = None
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class GRNLine(SQLModel, table=True):
@@ -1416,7 +1421,7 @@ class ProductionOrder(SQLModel, table=True):
     delivered_qty: Money = money_col(default=Decimal("0"))       # cumulative (#222)
     invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id")
     # Stage timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     delivered_at: Optional[datetime] = None
@@ -1471,7 +1476,7 @@ class ProductionScrap(SQLModel, table=True):
     total_cost: Money = money_col(default=Decimal("0"))
     gl_posted: bool = Field(default=False)
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
@@ -1497,7 +1502,7 @@ class PromoRule(SQLModel, table=True):
     discount_value: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
     giveaway_product_id: Optional[int] = Field(default=None, foreign_key="product.id")
     giveaway_qty: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class InvoiceLine(SQLModel, table=True):
@@ -1627,7 +1632,7 @@ class PaymentAllocation(SQLModel, table=True):
     invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id", index=True)
     bill_id: Optional[int] = Field(default=None, foreign_key="bill.id", index=True)
     amount: Money = money_col()
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class DeferredRevenueSchedule(SQLModel, table=True):
@@ -1648,7 +1653,7 @@ class DeferredRevenueSchedule(SQLModel, table=True):
     status: str = Field(default="active")
     deferred_revenue_account_id: int = Field(foreign_key="account.id")
     revenue_account_id: int = Field(foreign_key="account.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class RevenueAllocationAudit(SQLModel, table=True):
@@ -1660,7 +1665,7 @@ class RevenueAllocationAudit(SQLModel, table=True):
     transaction_price: Money = money_col()
     method: str = Field(default="relative_ssp")  # relative_ssp | none
     detail_json: Optional[list] = Field(default=None, sa_column=Column(JSON, nullable=True))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class ContractAsset(SQLModel, table=True):
@@ -1687,7 +1692,7 @@ class ContractAsset(SQLModel, table=True):
     invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id", index=True)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class AnalyticDimension(SQLModel, table=True):
@@ -1751,7 +1756,7 @@ class PurchaseOrder(SQLModel, table=True):
     bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
     demand_id: Optional[int] = Field(default=None, foreign_key="purchasedemand.id")
     comparative_id: Optional[int] = Field(default=None, foreign_key="comparativestatement.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class PurchaseOrderLine(SQLModel, table=True):
@@ -1785,7 +1790,7 @@ class GateInward(SQLModel, table=True):
     status: str = Field(default="open")                   # open | billed | cancelled
     cancel_reason: Optional[str] = None
     created_by_id: int = Field(foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class GateInwardLine(SQLModel, table=True):
@@ -1821,7 +1826,7 @@ class PurchaseDemand(SQLModel, table=True):
     created_by_id: int = Field(foreign_key="user.id")
     approved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
     approved_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class PurchaseDemandLine(SQLModel, table=True):
@@ -1848,7 +1853,7 @@ class VendorQuotation(SQLModel, table=True):
     delivery_terms: Optional[str] = None
     payment_terms: Optional[str] = None
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class VendorQuotationLine(SQLModel, table=True):
@@ -1891,7 +1896,7 @@ class ComparativeStatement(SQLModel, table=True):
             ForeignKey("purchaseorder.id", use_alter=True, name="fk_cs_po_id"),
         ),
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class Budget(SQLModel, table=True):
@@ -1950,7 +1955,7 @@ class FixedAsset(SQLModel, table=True):
     disposal_date: Optional[str] = None
     disposal_proceeds: Money = money_col()
     disposal_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class DepreciationEntry(SQLModel, table=True):
@@ -1980,7 +1985,7 @@ class AssetImpairment(SQLModel, table=True):
     notes: Optional[str] = None
     transaction_id: int = Field(foreign_key="transaction.id")
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class LeaseContract(SQLModel, table=True):
@@ -2026,7 +2031,7 @@ class LeaseContract(SQLModel, table=True):
     terminated_at: Optional[str] = None
     termination_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
@@ -2087,7 +2092,7 @@ class CreditNote(SQLModel, table=True):
     ar_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class CreditNoteLine(SQLModel, table=True):
@@ -2126,7 +2131,7 @@ class DebitNote(SQLModel, table=True):
     status: str = Field(default="draft")
     ap_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class DebitNoteLine(SQLModel, table=True):
@@ -2169,7 +2174,7 @@ class GateOutward(SQLModel, table=True):
     approved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
     approved_at: Optional[datetime] = None
     cancel_reason: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class GateOutwardLine(SQLModel, table=True):
@@ -2205,7 +2210,7 @@ class StoreIssue(SQLModel, table=True):
     notes: Optional[str] = None
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     created_by_id: int = Field(foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class StoreIssueLine(SQLModel, table=True):
@@ -2227,8 +2232,8 @@ class AiChatSession(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     title: str = Field(default="New chat")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class AiChatMessage(SQLModel, table=True):
@@ -2241,7 +2246,7 @@ class AiChatMessage(SQLModel, table=True):
     content: str
     model: Optional[str] = None          # litellm model string, assistant rows
     agent: Optional[str] = None          # routed specialist-agent key, assistant rows
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class CustomerAdvance(SQLModel, table=True):
@@ -2263,7 +2268,7 @@ class CustomerAdvance(SQLModel, table=True):
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     status: str = Field(default="open")
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class VendorAdvance(SQLModel, table=True):
@@ -2285,7 +2290,7 @@ class VendorAdvance(SQLModel, table=True):
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     status: str = Field(default="open")
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class LoginAttempt(SQLModel, table=True):
@@ -2298,7 +2303,7 @@ class LoginAttempt(SQLModel, table=True):
     """
     id: Optional[int] = Field(default=None, primary_key=True)
     ip: str = Field(index=True)
-    attempted_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    attempted_at: datetime = Field(default_factory=utc_now, index=True)
 
 
 class PasswordResetToken(SQLModel, table=True):
@@ -2310,7 +2315,7 @@ class PasswordResetToken(SQLModel, table=True):
     token_hash: str = Field(unique=True, index=True)
     expires_at: datetime = Field(index=True)
     used_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class PasswordResetAttempt(SQLModel, table=True):
@@ -2318,7 +2323,7 @@ class PasswordResetAttempt(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     ip: str = Field(index=True)
     email_key: str = Field(default="", index=True)
-    attempted_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    attempted_at: datetime = Field(default_factory=utc_now, index=True)
 
 
 class RevokedToken(SQLModel, table=True):
@@ -2398,7 +2403,7 @@ class BankStatementImport(SQLModel, table=True):
     line_count: int = Field(default=0)
     matched_count: int = Field(default=0)
     status: str = Field(default="parsed")   # parsed | matched | reconciled
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class StatementLine(SQLModel, table=True):
@@ -2470,7 +2475,7 @@ class IdempotencyKey(SQLModel, table=True):
     path: str
     status_code: int
     response_body: str          # JSON-serialised response
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class PRASubmissionLog(SQLModel, table=True):
@@ -2478,7 +2483,7 @@ class PRASubmissionLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True)
     invoice_id: int = Field(index=True)
-    attempt_at: datetime = Field(default_factory=datetime.utcnow)
+    attempt_at: datetime = Field(default_factory=utc_now)
     endpoint: str
     request_json: str
     response_code: Optional[str] = None   # DI validationResponse.statusCode (00 = valid)
@@ -2493,7 +2498,7 @@ class UaeEinvoiceLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True)
     invoice_id: int = Field(index=True)
-    attempt_at: datetime = Field(default_factory=datetime.utcnow)
+    attempt_at: datetime = Field(default_factory=utc_now)
     endpoint: str
     request_json: str
     response_uuid: Optional[str] = None
@@ -2509,7 +2514,7 @@ class ZatcaSubmissionLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True)
     invoice_id: int = Field(index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     request_payload: str
     response_payload: Optional[str] = None
     status: str = Field(default="error")  # cleared|reported|rejected|error|submitted
@@ -2524,7 +2529,7 @@ class PeppolSubmissionLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True)
     invoice_id: int = Field(index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     request_payload: str
     response_payload: Optional[str] = None
     status: str = Field(default="error")  # accepted|rejected|error|submitted
@@ -2540,7 +2545,7 @@ class UkMtdSubmissionLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True)
     invoice_id: int = Field(default=0, index=True)  # 0 = period return, else sourced invoice
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     request_payload: str
     response_payload: Optional[str] = None
     status: str = Field(default="error")  # accepted|rejected|error|submitted
@@ -2556,7 +2561,7 @@ class MyInvoisSubmissionLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True)
     invoice_id: int = Field(index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     request_payload: str
     response_payload: Optional[str] = None
     status: str = Field(default="error")  # accepted|rejected|error|submitted
@@ -2598,7 +2603,7 @@ class Attachment(SQLModel, table=True):
     size_bytes: int
     file_path: str                       # relative path under UPLOAD_ROOT
     uploaded_by_id: int = Field(foreign_key="user.id")
-    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+    uploaded_at: datetime = Field(default_factory=utc_now)
 
 
 class RecurringTemplate(SQLModel, table=True):
@@ -2643,7 +2648,7 @@ class TrackerAccount(SQLModel, table=True):
     deposit_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     load_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class TrackerTransaction(SQLModel, table=True):
@@ -2670,7 +2675,7 @@ class TrackerTransaction(SQLModel, table=True):
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     is_reconciled: bool = Field(default=False)
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class RSOAgent(SQLModel, table=True):
@@ -2688,7 +2693,7 @@ class RSOAgent(SQLModel, table=True):
     territory: Optional[str] = None
     receivable_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class RetailOutlet(SQLModel, table=True):
@@ -2703,7 +2708,7 @@ class RetailOutlet(SQLModel, table=True):
     phone: Optional[str] = None
     address: Optional[str] = None
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class LoadTransfer(SQLModel, table=True):
@@ -2732,7 +2737,7 @@ class LoadTransfer(SQLModel, table=True):
     amount: Money = money_col()               # face value of load transferred
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     is_settled: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class SimBatch(SQLModel, table=True):
@@ -2756,7 +2761,7 @@ class SimBatch(SQLModel, table=True):
     received_date: str                        # ISO date
     tracker_txn_id: Optional[int] = Field(default=None, foreign_key="tracker_transaction.id")
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class SimActivation(SQLModel, table=True):
@@ -2784,7 +2789,7 @@ class SimActivation(SQLModel, table=True):
     status: str = Field(default="pending")
     sale_price: Money = money_col()           # for counter sales
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class RSODailyCollection(SQLModel, table=True):
@@ -2802,7 +2807,7 @@ class RSODailyCollection(SQLModel, table=True):
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     is_reconciled: bool = Field(default=False)
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class FCAEvent(SQLModel, table=True):
@@ -2823,7 +2828,7 @@ class FCAEvent(SQLModel, table=True):
     event_date: str                           # ISO date
     source_channel: str                       # counter | rso_retail | direct
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class KPITarget(SQLModel, table=True):
@@ -2849,7 +2854,7 @@ class KPITarget(SQLModel, table=True):
     commission_txn_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     status: str = Field(default="open")       # open | closed
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 # --- API DTOs (used by routers for request bodies & responses) ---
@@ -2897,8 +2902,8 @@ class ReportDefinition(SQLModel, table=True):
     config: str = Field(sa_column=Column(JSON))   # ReportConfig JSON
     visibility: str = Field(default="private")    # "private" | "shared"
     owner_id: int = Field(foreign_key="user.id", index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 # ── Payroll models ────────────────────────────────────────────────────────────
@@ -2915,7 +2920,7 @@ class Employee(SQLModel, table=True):
     bank_account: Optional[str] = None
     bank_name: Optional[str] = None
     is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
@@ -2951,7 +2956,7 @@ class PayrollRun(SQLModel, table=True):
     notes: Optional[str] = None
     jv_number: Optional[str] = None
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
@@ -2984,7 +2989,7 @@ class AttendanceRecord(SQLModel, table=True):
     notes: Optional[str] = None
     source: str = "manual"                 # manual|biometric
     raw_data: Optional[str] = None         # JSON string — future biometric payload
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
@@ -3039,7 +3044,7 @@ class LeaveRequest(SQLModel, table=True):
     approved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
     approved_at: Optional[datetime] = None
     reject_reason: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class ExpenseClaim(SQLModel, table=True):
@@ -3065,7 +3070,7 @@ class ExpenseClaim(SQLModel, table=True):
     approved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
     approved_at: Optional[datetime] = None
     reject_reason: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class ExpenseClaimLine(SQLModel, table=True):
@@ -3091,7 +3096,7 @@ class PortalToken(SQLModel, table=True):
     expires_at: datetime
     permissions: list = Field(default_factory=lambda: ["view_invoices", "pay"], sa_column=Column(JSON))
     last_accessed: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class PortalDispute(SQLModel, table=True):
@@ -3102,7 +3107,7 @@ class PortalDispute(SQLModel, table=True):
     customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
     body: str
     status: str = Field(default="open", index=True)  # open | resolved
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     resolved_at: Optional[datetime] = None
     resolved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
@@ -3145,7 +3150,7 @@ class ApprovalRequest(SQLModel, table=True):
     requested_by_id: int = Field(foreign_key="user.id")
     # Snapshotted at submit so later doc edits can't retarget the threshold chain (#269)
     amount: float = Field(default=0.0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     resolved_at: Optional[datetime] = None
     notes: Optional[str] = None
 
@@ -3170,7 +3175,7 @@ class ApprovalDecision(SQLModel, table=True):
     action: str  # approve | reject
     step_index: int = Field(default=0)
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class PlaidConnection(SQLModel, table=True):
@@ -3223,7 +3228,7 @@ class AgentSuggestion(SQLModel, table=True):
     action_href: Optional[str] = None
     action_label: Optional[str] = None
     dismissed: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     expires_at: Optional[datetime] = None
 
 

@@ -16,7 +16,7 @@ import os
 import secrets
 import uuid
 from collections import deque
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -156,7 +156,7 @@ def _throttle(session: Session, request: Request) -> None:
     because state is in the DB, not a process-local dict.
     """
     ip = client_ip(request)
-    cutoff = datetime.utcnow() - timedelta(seconds=_LOGIN_ATTEMPT_WINDOW_SEC)
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=_LOGIN_ATTEMPT_WINDOW_SEC)
     # Prune
     old = session.exec(
         select(LoginAttempt).where(LoginAttempt.attempted_at < cutoff)
@@ -271,7 +271,7 @@ def login(
             status_code=403,
             detail="This account has been deactivated. Contact an administrator.",
         )
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = datetime.now(timezone.utc)
     session.add(user)
     session.commit()
 
