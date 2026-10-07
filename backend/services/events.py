@@ -25,6 +25,8 @@ import asyncio
 import hashlib
 import hmac
 import json
+import threading
+from contextlib import nullcontext
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
@@ -48,6 +50,8 @@ RETRY_DELAYS = [60, 300, 1800, 7200, 86400]   # seconds after 1st..5th failure
 MAX_ATTEMPTS = len(RETRY_DELAYS)
 POLL_SECONDS = 30
 BATCH_SIZE = 25
+# SQLite rejects concurrent writers on a shared StaticPool connection.
+_SQLITE_DRAIN_LOCK = threading.Lock()
 TIMEOUT_SECONDS = 10.0
 # Claim TTL must cover one HTTP timeout; crashed workers release the row after this.
 CLAIM_TTL_SECONDS = 120
@@ -208,12 +212,18 @@ def drain_once(
     workers cannot send the same delivery (#425). Postgres uses
     ``FOR UPDATE SKIP LOCKED``; SQLite uses the same compare-and-set claim.
     Delivery stays at-least-once (stale claims retry after CLAIM_TTL)."""
-    now = _utcnow()
-    stmt = _due_delivery_query(now, limit)
     try:
         dialect = session.get_bind().dialect.name
     except Exception:
         dialect = ""
+    lock = _SQLITE_DRAIN_LOCK if dialect == "sqlite" else nullcontext()
+    with lock:
+        return _drain_once_locked(session, post, limit, dialect)
+
+
+def _drain_once_locked(session, post, limit, dialect) -> int:
+    now = _utcnow()
+    stmt = _due_delivery_query(now, limit)
     if dialect == "postgresql":
         stmt = stmt.with_for_update(skip_locked=True, of=WebhookDelivery)
     candidates = list(session.exec(stmt).all())

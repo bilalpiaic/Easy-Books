@@ -147,3 +147,11 @@ def test_entrypoint_migrate_role_does_not_exec_uvicorn(tmp_path, monkeypatch):
     assert "alembic upgrade head" in text
     assert "uvicorn" not in text
     assert "arq" not in text
+
+
+def test_vercel_requirements_pin_sqlalchemy_before_2_1():
+    """Vercel pip ignores uv.lock; 2.1 broke login with timezone-aware DateTime."""
+    root = Path(__file__).resolve().parents[1]
+    for rel in ("requirements.txt", "api/requirements.txt"):
+        text = (root / rel).read_text()
+        assert "sqlalchemy>=2.0.49,<2.1" in text, rel

@@ -19,6 +19,15 @@ def _signup_login(client, email="owner-2fa@co.test", password="pw12345678"):
     return {"Authorization": f"Bearer {body['access_token']}"}, body
 
 
+def test_login_attempt_default_is_timezone_aware():
+    """SQLAlchemy 2.1 rejects naive datetime.utcnow() on LoginAttempt."""
+    from models import LoginAttempt
+
+    row = LoginAttempt(ip="127.0.0.1")
+    assert row.attempted_at.tzinfo is not None
+    assert row.attempted_at.utcoffset().total_seconds() == 0
+
+
 def test_oauth_providers_includes_demo_login(client):
     r = client.get("/api/auth/oauth/providers")
     assert r.status_code == 200
