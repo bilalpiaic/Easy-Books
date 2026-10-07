@@ -288,6 +288,10 @@ OVERDUE_SWEEP_ENABLED=     # default true; set "false" to disable the background
 OVERDUE_SWEEP_INTERVAL_HOURS=  # default 24; how often the scheduler tick runs (it also fires once immediately on boot)
 REQUIRE_OWNER_TOTP=        # default false; "true" on production so owners must enable TOTP before mutating APIs (demo.*@easy-books.app exempt)
 ALLOW_DEMO_LOGIN=          # default true; "false" on production to 403 demo.* logins and hide Try demo
+SIGNUP_ENABLED=            # default true locally; production defaults off (invite-only). Pair with SIGNUP_ALLOWLIST
+SIGNUP_ALLOWLIST=          # comma emails that may still POST /api/auth/signup when public signup is off
+DISABLED_MODULES=          # comma MODULE_REGISTRY ids; SaaS production sets healthcare so those APIs 404
+REQUIRE_OPS_TOTP=          # default false locally; production defaults on so /api/ops/* requires authenticator 2FA
 SEED_DEMO=                 # default true in installers; "false" on production so demo tenants are not created
 ENFORCE_MODULE_PLANS=      # default true; "false" unrestricts module install (pytest autouse)
 ```

@@ -16,7 +16,12 @@ function LoginForm() {
   const [otp, setOtp] = useState("")
   const [partialToken, setPartialToken] = useState("")
   const [needsTotp, setNeedsTotp] = useState(false)
-  const [providers, setProviders] = useState<{ google?: boolean; microsoft?: boolean; demo_login?: boolean }>({})
+  const [providers, setProviders] = useState<{
+    google?: boolean
+    microsoft?: boolean
+    demo_login?: boolean
+    signup?: boolean
+  }>({})
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [demoLoading, setDemoLoading] = useState(false)
@@ -249,8 +254,12 @@ function LoginForm() {
             )}
             <p className="text-center text-xs text-[#1a1814]/50">
               <Link href="/forgot-password" className="underline">Forgot password?</Link>
-              {" · "}
-              No account? <Link href="/signup" className="underline">Sign up</Link>
+              {providers.signup !== false && (
+                <>
+                  {" · "}
+                  No account? <Link href="/signup" className="underline">Sign up</Link>
+                </>
+              )}
             </p>
           </form>
         )}

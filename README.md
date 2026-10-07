@@ -468,6 +468,10 @@ uv run alembic upgrade head
 | `OPS_ADMIN_EMAILS` | Comma-separated staff emails for `/api/ops/tenants` entitle API. Empty list fail-closes | unset |
 | `REQUIRE_OWNER_TOTP` | Owners must enable authenticator 2FA before mutating APIs (invoice/bill/etc.). Login still works so they can enroll. Demo `demo.*@easy-books.app` users are exempt | `false` |
 | `ALLOW_DEMO_LOGIN` | When `false`, `demo.*@easy-books.app` password login returns 403 and the login page hides **Try demo**. Use with `SEED_DEMO=false` in production | `true` |
+| `SIGNUP_ENABLED` | Public signup. Production defaults **off** (invite-only). Ops `POST /api/ops/tenants` + `UserInvite` is the provision path | `true` locally |
+| `SIGNUP_ALLOWLIST` | Comma-separated emails allowed to sign up when `SIGNUP_ENABLED` is off | unset |
+| `DISABLED_MODULES` | Comma-separated module ids whose APIs 404 (SaaS: `healthcare`) | unset |
+| `REQUIRE_OPS_TOTP` | Ops users must have authenticator 2FA. Production defaults on | `false` locally |
 
 Frontend: set `NEXT_PUBLIC_API_URL=http://localhost:8000` in `frontend/.env.local`.
 

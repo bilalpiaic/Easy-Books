@@ -33,6 +33,7 @@ def test_oauth_providers_includes_demo_login(client):
     assert r.status_code == 200
     body = r.json()
     assert body["demo_login"] is True
+    assert body["signup"] is True
     assert "google" in body and "microsoft" in body
 
 
@@ -104,6 +105,8 @@ def test_production_defaults_fail_closed(monkeypatch):
     """#419 — production env without explicit flags: TOTP on, demo login off."""
     monkeypatch.delenv("REQUIRE_OWNER_TOTP", raising=False)
     monkeypatch.delenv("ALLOW_DEMO_LOGIN", raising=False)
+    monkeypatch.delenv("SIGNUP_ENABLED", raising=False)
+    monkeypatch.delenv("REQUIRE_OPS_TOTP", raising=False)
     monkeypatch.delenv("APP_ENV", raising=False)
     monkeypatch.delenv("ENV", raising=False)
     monkeypatch.setenv("ENVIRONMENT", "production")
@@ -111,12 +114,16 @@ def test_production_defaults_fail_closed(monkeypatch):
     assert sp.is_production() is True
     assert sp.require_owner_totp() is True
     assert sp.demo_login_allowed() is False
+    assert sp.signup_enabled() is False
+    assert sp.require_ops_totp() is True
     assert sp.seed_demo_default() == "false"
 
 
 def test_dev_defaults_keep_demo_usable(monkeypatch):
     monkeypatch.delenv("REQUIRE_OWNER_TOTP", raising=False)
     monkeypatch.delenv("ALLOW_DEMO_LOGIN", raising=False)
+    monkeypatch.delenv("SIGNUP_ENABLED", raising=False)
+    monkeypatch.delenv("REQUIRE_OPS_TOTP", raising=False)
     monkeypatch.delenv("ENVIRONMENT", raising=False)
     monkeypatch.delenv("APP_ENV", raising=False)
     monkeypatch.delenv("ENV", raising=False)
@@ -124,6 +131,8 @@ def test_dev_defaults_keep_demo_usable(monkeypatch):
     assert sp.is_production() is False
     assert sp.require_owner_totp() is False
     assert sp.demo_login_allowed() is True
+    assert sp.signup_enabled() is True
+    assert sp.require_ops_totp() is False
     assert sp.seed_demo_default() == "true"
 
 

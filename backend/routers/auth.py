@@ -48,7 +48,7 @@ from models import (
 from services.email import send_email
 from services.frontend_origin import frontend_public_origin
 from services.memberships import ensure_membership, get_membership, list_user_memberships
-from services.security_policy import is_demo_email
+from services.security_policy import is_demo_email, signup_allowed_for
 
 from .common import CurrentUserDep, SessionDep
 from services.client_ip import client_ip
@@ -194,6 +194,11 @@ class UserSignup(BaseModel):
 
 @router.post("/signup")
 def signup(data: UserSignup, session: SessionDep, response: Response):
+    if not signup_allowed_for(data.email):
+        raise HTTPException(
+            status_code=403,
+            detail="Signup is invite-only. Ask Easy-Books for an invitation.",
+        )
     existing = session.exec(select(User).where(User.email == data.email)).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")

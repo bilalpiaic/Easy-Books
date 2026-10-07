@@ -22,7 +22,13 @@ from auth import (
 )
 from models import Tenant, User, utc_now
 from services.crypto_secrets import decrypt_secret, encrypt_secret
-from services.security_policy import demo_login_allowed, owner_must_setup_totp, owner_totp_locked
+from services.security_policy import (
+    demo_login_allowed,
+    owner_must_setup_totp,
+    owner_totp_locked,
+    signup_allowed_for,
+    signup_enabled,
+)
 
 from .common import CurrentUserDep, SessionDep
 from .auth import (
@@ -165,6 +171,7 @@ def oauth_providers():
             os.environ.get("MICROSOFT_CLIENT_ID") and os.environ.get("MICROSOFT_CLIENT_SECRET")
         ),
         "demo_login": demo_login_allowed(),
+        "signup": signup_enabled(),
     }
 
 
@@ -279,7 +286,8 @@ def _finish_oauth(session, response, provider, sub, email, full_name):
         raise HTTPException(400, "OAuth provider did not return an email")
     user = session.exec(select(User).where(User.email == email)).first()
     if not user:
-        if os.environ.get("ALLOW_SSO_SIGNUP", "false").lower() != "true":
+        sso_ok = os.environ.get("ALLOW_SSO_SIGNUP", "false").lower() == "true"
+        if not sso_ok or not signup_allowed_for(email):
             raise HTTPException(403, "No account for this email; SSO signup disabled")
         # Create a personal tenant for first-time SSO
         tenant = Tenant(name=f"{full_name or email}'s Company")

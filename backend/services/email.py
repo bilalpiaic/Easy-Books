@@ -16,6 +16,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 
+def smtp_configured() -> bool:
+    return bool(os.getenv("SMTP_HOST", "").strip())
+
+
 def send_email(to: str, subject: str, html_body: str) -> None:
     """Send an HTML email. Silently no-ops when SMTP_HOST is not set."""
     smtp_host = os.getenv("SMTP_HOST", "").strip()

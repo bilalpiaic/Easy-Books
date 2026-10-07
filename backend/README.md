@@ -157,6 +157,10 @@ Domain report routers add more: `healthcare_reports.py` (7 endpoints under `/api
 | `ANTHROPIC_API_KEY` | — | Enables the AI Financial Assistant (`POST /api/ai/chat`); unset → 503 with a clear message |
 | `ENFORCE_MODULE_PLANS` | `true` | Set `false` to allow any tenant to install any `MODULE_REGISTRY` id (rollback). Pytest sets this off automatically. |
 | `OPS_ADMIN_EMAILS` | empty (fail-closed) | Comma-separated Easy-Books staff emails for `GET/PUT /api/ops/tenants*`. Tenant `role=owner` is not enough. |
+| `SIGNUP_ENABLED` | `true` in dev; `false` in production | Public `POST /api/auth/signup`. Production is invite-only unless explicitly enabled. |
+| `SIGNUP_ALLOWLIST` | empty | Comma-separated emails that may still sign up when public signup is off. |
+| `DISABLED_MODULES` | empty | Comma-separated `MODULE_REGISTRY` ids. SaaS sets `healthcare` so those APIs 404. |
+| `REQUIRE_OPS_TOTP` | `false` in dev; `true` in production | Platform-ops routes require authenticator 2FA. |
 
 ## API conventions
 

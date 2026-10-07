@@ -42,6 +42,28 @@ def demo_login_allowed() -> bool:
     return _flag("ALLOW_DEMO_LOGIN", default=not is_production())
 
 
+def signup_enabled() -> bool:
+    """Public ``POST /api/auth/signup``. Production defaults off (invite-only)."""
+    return _flag("SIGNUP_ENABLED", default=not is_production())
+
+
+def signup_allowlisted(email: str | None) -> bool:
+    raw = os.environ.get("SIGNUP_ALLOWLIST") or ""
+    allowed = {p.strip().lower() for p in raw.split(",") if p.strip()}
+    return (email or "").strip().lower() in allowed
+
+
+def signup_allowed_for(email: str | None) -> bool:
+    if signup_enabled():
+        return True
+    return signup_allowlisted(email)
+
+
+def require_ops_totp() -> bool:
+    """Platform-ops mutations require authenticator 2FA in production."""
+    return _flag("REQUIRE_OPS_TOTP", default=is_production())
+
+
 def seed_demo_default() -> str:
     """SEED_DEMO unset → false in production, true in local/dev."""
     return "false" if is_production() else "true"

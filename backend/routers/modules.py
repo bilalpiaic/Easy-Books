@@ -177,6 +177,10 @@ def install_module_for_tenant(
     if module_id not in MODULE_REGISTRY:
         raise HTTPException(404, f"Unknown module: {module_id!r}")
 
+    from services.disabled_modules import is_module_disabled
+    if is_module_disabled(module_id):
+        raise HTTPException(403, f"Module {module_id!r} is disabled on this server")
+
     enabled = _get_enabled(tenant)
     if module_id in enabled:
         return {"enabled_modules": enabled, "message": f"{module_id} is already installed"}

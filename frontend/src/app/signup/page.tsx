@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { setAuthToken } from "@/lib/auth"
@@ -15,7 +15,15 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [signupOpen, setSignupOpen] = useState<boolean | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    fetch(`${apiBase}/api/auth/oauth/providers`)
+      .then((r) => r.json())
+      .then((body) => setSignupOpen(body.signup !== false))
+      .catch(() => setSignupOpen(true))
+  }, [])
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,6 +93,22 @@ export default function SignupPage() {
         </div>
 
         <div className="bg-white p-6 sm:p-7 rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5">
+          {signupOpen === false ? (
+            <>
+              <h2 className="text-xl font-serif text-[#1a1814] mb-1">Invite only</h2>
+              <p className="text-sm text-[#1a1814]/70 mb-4">
+                Public signup is closed. Easy-Books will send an invitation link when your company is provisioned.
+                If you already have a link, open it from your email.
+              </p>
+              <Link
+                href="/login"
+                className="block w-full text-center bg-[#1a1814] text-white font-bold py-4 rounded-xl hover:bg-[#b8943f] hover:text-[#1a1814] transition-colors"
+              >
+                Go to login
+              </Link>
+            </>
+          ) : (
+            <>
           <h2 className="text-xl font-serif text-[#1a1814] mb-1">Create your account</h2>
           <p className="text-xs text-[#1a1814]/55 mb-4">
             You get Base Accounting first. Install Inventory, Manufacturing, Healthcare, PRA, and more from{" "}
@@ -190,6 +214,8 @@ export default function SignupPage() {
               Login
             </Link>
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>

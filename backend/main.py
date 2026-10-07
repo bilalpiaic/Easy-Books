@@ -313,6 +313,17 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 @app.middleware("http")
+async def check_disabled_modules(request, call_next):
+    """``DISABLED_MODULES`` kill switch (#430) — 404 with CORS, not a crash."""
+    if request.method == "OPTIONS":
+        return await call_next(request)
+    from services.disabled_modules import path_hits_disabled_module
+    if path_hits_disabled_module(request.url.path):
+        return _cors_json(request, 404, {"detail": "Not Found"})
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def check_tenant_suspension(request, call_next):
     """Suspended tenants get 402 on accounting routes (#119)."""
     path = request.url.path
