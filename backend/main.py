@@ -18,6 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db import create_db_and_tables
+from services.app_runtime import allow_create_all_bootstrap, run_in_process_schedulers
 from routers import (
     accounts, admin, advances, aging, alerts, analytic_accounts, analytic_dimensions, api_keys, assets, attachments,
     audit, auth, backup, bank_accounts, bank_imports, bills, bom, budgets, pos, ecommerce,
@@ -59,20 +60,8 @@ def _run_overdue_sweep_once() -> None:
     (tests monkeypatch it, though the scheduler never runs under TestClient
     since lifespan only fires for `with TestClient(app) as c:` usage, which
     no test in this repo uses)."""
-    import db as _db
-    from sqlmodel import Session as _Session
-    from services.overdue import send_overdue_reminders, sweep_overdue
-    from services.alerts import refresh_ops_alerts
-    with _Session(_db.engine) as session:
-        changed = sweep_overdue(session)
-        sent = send_overdue_reminders(session)
-        alerts_n = refresh_ops_alerts(session, force=True)
-        if changed or sent or alerts_n:
-            print(
-                f"[overdue] swept {changed} invoice(s), sent {sent} reminder(s), "
-                f"alerts +{alerts_n}",
-                flush=True,
-            )
+    from services.cluster_jobs import run_overdue_sweep_once
+    run_overdue_sweep_once()
 
 
 async def _overdue_scheduler_loop() -> None:
@@ -90,33 +79,16 @@ async def _overdue_scheduler_loop() -> None:
 
 
 def _run_revoked_token_prune_once() -> None:
-    """Deletes RevokedToken rows past their expires_at (#113) — the token
-    they denylist would have expired on its own by then, so the row is dead
-    weight. Sync/blocking; called via asyncio.to_thread. Lazy db import for
-    the same reason as _run_overdue_sweep_once."""
-    from datetime import datetime as _dt
-
-    import db as _db
-    from sqlalchemy import delete as _delete
-    from sqlmodel import Session as _Session
-    from models import RevokedToken as _RevokedToken
-    with _Session(_db.engine) as session:
-        result = session.execute(
-            _delete(_RevokedToken).where(_RevokedToken.expires_at < _dt.utcnow())
-        )
-        session.commit()
-        if result.rowcount:
-            print(f"[revoked-tokens] pruned {result.rowcount} expired row(s)", flush=True)
+    """Housekeeping (#425) — revoked tokens plus idempotency / login / DLQ."""
+    from services.cluster_jobs import run_housekeeping_once
+    run_housekeeping_once()
 
 
 def _run_webhook_drain_once() -> int:
     """Sync, blocking — via asyncio.to_thread. Lazy db import for the same
     reason as _run_overdue_sweep_once."""
-    import db as _db
-    from sqlmodel import Session as _Session
-    from services.events import drain_once
-    with _Session(_db.engine) as session:
-        return drain_once(session)
+    from services.cluster_jobs import run_webhook_drain_once
+    return run_webhook_drain_once()
 
 
 async def _webhook_delivery_loop() -> None:
@@ -161,17 +133,8 @@ def _run_bank_sync_once() -> None:
     """Pull-only bank feed sync (#301). EU/UK Open Banking has no bank-side
     webhooks — schedule + on-demand sync are the real path. Lazy db import
     matches the overdue sweep pattern."""
-    import db as _db
-    from sqlmodel import Session as _Session
-    from services.bank_sync import sync_all_active_connections
-    with _Session(_db.engine) as session:
-        counts = sync_all_active_connections(session)
-        if counts.get("ok") or counts.get("error"):
-            print(
-                f"[bank-sync] ok={counts.get('ok', 0)} error={counts.get('error', 0)} "
-                f"skipped={counts.get('skipped', 0)}",
-                flush=True,
-            )
+    from services.cluster_jobs import run_bank_sync_once
+    run_bank_sync_once()
 
 
 async def _bank_sync_scheduler_loop() -> None:
@@ -190,12 +153,6 @@ def _env_flag(name: str, default: str = "true") -> bool:
     return os.environ.get(name, default).lower() not in ("0", "false", "no", "off")
 
 
-def _is_serverless() -> bool:
-    """Vercel (and similar) set VERCEL=1 — background loops can't survive
-    across invocations, so default them off unless explicitly re-enabled."""
-    return os.environ.get("VERCEL", "").lower() in ("1", "true")
-
-
 async def _instance_lock_heartbeat() -> None:
     """Keep `.instance.lock` mtime fresh so a crashed peer expires, not us."""
     from local_config import refresh_instance_lock
@@ -210,11 +167,10 @@ async def _instance_lock_heartbeat() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # `lifespan` replaces the deprecated @app.on_event("startup") hook.
-    # For local dev / SQLite we let SQLModel create tables on demand so a
-    # fresh checkout boots without an Alembic step. In production set
-    # SCHEMA_BOOTSTRAP=alembic and run `alembic upgrade head` from CI so
-    # schema changes are explicit and version-controlled.
-    if os.environ.get("SCHEMA_BOOTSTRAP", "create_all") == "create_all":
+    # Local/dev SQLite: SQLModel create_all so a fresh checkout boots.
+    # Production SaaS must set SCHEMA_BOOTSTRAP=alembic and run migrations
+    # from the migrate role — create_all is fail-closed (#424).
+    if allow_create_all_bootstrap():
         create_db_and_tables()
 
     from local_config import (
@@ -229,9 +185,10 @@ async def lifespan(_app: FastAPI):
         locked = True
 
     # On Vercel, long-lived asyncio loops do nothing useful (the function
-    # freezes between requests). Opt in explicitly if you wire an external
-    # cron to hit a sweep endpoint instead.
-    _bg_default = "false" if _is_serverless() else "true"
+    # freezes between requests). APP_ROLE=api and REDIS_URL both default
+    # them off so three replicas do not send 3× reminder email (#425).
+    # Desktop without Redis still runs these in-process.
+    _bg_default = "true" if run_in_process_schedulers() else "false"
     tasks = []
     if locked:
         tasks.append(asyncio.create_task(_instance_lock_heartbeat()))
@@ -533,4 +490,11 @@ for route in list(app.routes):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        proxy_headers=True,
+        forwarded_allow_ips=os.environ.get("TRUSTED_PROXIES", "127.0.0.1"),
+    )

@@ -37,7 +37,10 @@ def _get_setting(session: Session, tenant_id: int, key: str, default: str = "") 
     row = session.exec(
         select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == key)
     ).first()
-    return row.value if row else default
+    from services.crypto_secrets import reveal_setting
+    if not row:
+        return default
+    return reveal_setting(row.value) or default
 
 
 def get_uae_config(session: Session, tenant_id: int) -> Optional[dict]:

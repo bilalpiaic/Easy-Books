@@ -34,3 +34,27 @@ def test_grandfathered_duplicate_prefixes_still_present():
     for prefix, files in _GRANDFATHERED_PREFIXES.items():
         for name in files:
             assert name in names, f"do not rename grandfathered {prefix} file {name}"
+
+
+def test_membership_backfill_quotes_reserved_user_table():
+    """Postgres treats unquoted `user` as a function, not the table (#422 CI)."""
+    src = (
+        Path(__file__).resolve().parents[1]
+        / "alembic"
+        / "versions"
+        / "0044_tenant_membership.py"
+    ).read_text()
+    assert 'quote("user")' in src
+    assert "FROM user" not in src.replace('quote("user")', "")
+
+
+def test_quoted_user_identifier_roundtrips_sqlite(tmp_path):
+    from sqlalchemy import create_engine, text
+
+    engine = create_engine(f"sqlite:///{tmp_path}/u.db")
+    q = engine.dialect.identifier_preparer.quote("user")
+    with engine.begin() as conn:
+        conn.execute(text(f"CREATE TABLE {q} (id INTEGER, tenant_id INTEGER, role TEXT)"))
+        conn.execute(text(f"INSERT INTO {q} (id, tenant_id, role) VALUES (1, 2, 'owner')"))
+        row = conn.execute(text(f"SELECT id, tenant_id, role FROM {q}")).one()
+    assert row == (1, 2, "owner")

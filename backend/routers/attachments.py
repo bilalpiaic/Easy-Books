@@ -3,26 +3,9 @@
 Attaches PDFs / images / Office docs to any of: invoice, bill, transaction
 (manual JV), payment_received, bill_payment, grn, production_order.
 
-Storage backend
----------------
-Files are stored in Supabase Storage (S3-compatible object store).
-
-Bucket layout:
-    <bucket> / <tenant_id> / <parent_type> / <parent_id> / <uuid>.<ext>
-
-The bucket name is configured via SUPABASE_BUCKET env var (default:
-"attachments"). The bucket should be set to PRIVATE in Supabase — files
-are only served through this API, never via public URLs.
-
-Tenant isolation: the tenant_id is the top-level prefix in every storage
-path. The DB row also carries tenant_id and every query filters on it so
-a tenant can never access another tenant's rows or paths.
-
-Required env vars
------------------
-    SUPABASE_URL          https://<project-ref>.supabase.co
-    SUPABASE_SERVICE_KEY  service-role key (bypasses RLS for server-side ops)
-    SUPABASE_BUCKET       bucket name (default: attachments)
+Files go through ``services.storage`` (#426): local disk or S3/Spaces.
+Keys: tenants/{tenant_id}/attachment/{uuid}.{ext}. Supabase remains a
+read fallback for rows still pointing at the old bucket layout.
 
 Endpoints
 ---------
@@ -36,8 +19,6 @@ from __future__ import annotations
 
 import os
 import uuid
-from functools import lru_cache
-from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
@@ -47,16 +28,11 @@ from models import (
     Attachment, Bill, GoodsReceiptNote, Invoice, PaymentReceived,
     BillPayment, ProductionOrder, Transaction,
 )
+from services.storage import delete_file, download_file, object_key, upload_file
 from .common import SessionDep, CurrentUserDep, WriteUserDep, log_audit
 
 router = APIRouter(prefix="/api/attachments", tags=["attachments"])
 
-
-# ── Config ────────────────────────────────────────────────────────────────────
-
-_SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-_SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "attachments")
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))  # 25 MB
 
 _ALLOWED_MIME = {
@@ -82,22 +58,6 @@ _PARENT_TABLE = {
 }
 
 
-# ── Supabase client (lazy, cached) ───────────────────────────────────────────
-
-@lru_cache(maxsize=1)
-def _storage():
-    """Return the Supabase storage client, initialised once per process."""
-    if not _SUPABASE_URL or not _SUPABASE_SERVICE_KEY:
-        raise HTTPException(
-            status_code=503,
-            detail="File storage not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY.",
-        )
-    from supabase import create_client
-    return create_client(_SUPABASE_URL, _SUPABASE_SERVICE_KEY).storage
-
-
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
 def _ensure_parent_belongs_to_tenant(session, parent_type: str, parent_id: int, tenant_id: int):
     model = _PARENT_TABLE.get(parent_type)
     if model is None:
@@ -116,13 +76,6 @@ def _safe_extension(filename: str) -> str:
     safe = "".join(c for c in ext if c.isalnum())[:8]
     return safe or "bin"
 
-
-def _storage_path(tenant_id: int, parent_type: str, parent_id: int, stored_name: str) -> str:
-    """Build the bucket-relative path for a file."""
-    return f"{tenant_id}/{parent_type}/{parent_id}/{stored_name}"
-
-
-# ── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("", status_code=201)
 async def upload_attachment(
@@ -155,14 +108,10 @@ async def upload_attachment(
 
     ext = _safe_extension(file.filename or "")
     stored_name = f"{uuid.uuid4().hex}.{ext}"
-    path = _storage_path(user.tenant_id, parent_type, parent_id, stored_name)
+    path = object_key(user.tenant_id, "attachment", stored_name)
 
     try:
-        _storage().from_(SUPABASE_BUCKET).upload(
-            path,
-            contents,
-            {"content-type": file.content_type or "application/octet-stream"},
-        )
+        upload_file(path, contents, file.content_type or "application/octet-stream")
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Storage upload failed: {exc}") from exc
 
@@ -228,9 +177,9 @@ def delete_attachment(att_id: int, session: SessionDep, user: WriteUserDep):
     if not att or att.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="Attachment not found")
     try:
-        _storage().from_(SUPABASE_BUCKET).remove([att.file_path])
+        delete_file(att.file_path)
     except Exception:
-        pass  # best-effort; proceed with DB deletion even if storage removal fails
+        pass
     session.delete(att)
     log_audit(
         session, user, "delete", "attachment", att.id,
@@ -240,14 +189,14 @@ def delete_attachment(att_id: int, session: SessionDep, user: WriteUserDep):
     return None
 
 
-# ── Internal ─────────────────────────────────────────────────────────────────
-
 def _serve(att_id: int, session, user, *, disposition: str):
     att = session.get(Attachment, att_id)
     if not att or att.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="Attachment not found")
     try:
-        data: bytes = _storage().from_(SUPABASE_BUCKET).download(att.file_path)
+        data = download_file(att.file_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Attachment file missing") from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Storage download failed: {exc}") from exc
     headers = {"Content-Disposition": f'{disposition}; filename="{att.original_name}"'}

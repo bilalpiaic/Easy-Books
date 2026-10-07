@@ -11,6 +11,7 @@ Marking the alert read (bell or /alerts) is the ack — no separate update popup
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -196,6 +197,10 @@ def ensure_notice_table(session: Session) -> None:
     """
     global _notice_table_ready
     if _notice_table_ready:
+        return
+    from services.security_policy import is_production
+    if is_production() or (os.environ.get("SCHEMA_BOOTSTRAP") or "").strip().lower() == "alembic":
+        _notice_table_ready = True
         return
     from sqlalchemy import inspect, text
 

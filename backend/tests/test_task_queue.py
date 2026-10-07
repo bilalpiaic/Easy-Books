@@ -45,6 +45,15 @@ def test_health_endpoint(client, admin_headers):
     assert "version" in body
 
 
+def test_live_and_ready_probes(client):
+    live = client.get("/api/health/live")
+    assert live.status_code == 200
+    assert live.json()["status"] == "ok"
+    ready = client.get("/api/health/ready")
+    assert ready.status_code == 200
+    assert ready.json()["db"] == "ok"
+
+
 def test_task_status_sync_id(client, admin_headers):
     r = client.get("/api/tasks/sync-send_email_task", headers=admin_headers)
     assert r.status_code == 200

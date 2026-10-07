@@ -39,6 +39,7 @@ def test_logo_upload_and_authenticated_fetch(client: TestClient):
     assert r.status_code == 200, r.text
     url = r.json()["logo_url"]
     assert url.startswith("/api/files/")
+    assert "/tenants/" in url
     assert "/uploads/" not in url
 
     got = client.get(url, headers=auth)
@@ -95,6 +96,6 @@ def test_generated_pdf_key_is_not_public(client: TestClient, tmp_path, monkeypat
     import services.storage as storage
     reload(local_config)
     reload(storage)
-    storage.upload_file("99/pdfs/INV-1.pdf", b"%PDF-fake", "application/pdf")
+    storage.upload_file("tenants/99/pdf/INV-1.pdf", b"%PDF-fake", "application/pdf")
     public = client.get("/uploads/99/pdfs/INV-1.pdf")
     assert public.status_code in (401, 404)

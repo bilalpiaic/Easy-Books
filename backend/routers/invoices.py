@@ -1440,6 +1440,7 @@ async def enqueue_invoice_pdf(
     """Enqueue PDF generation (#115); poll GET /api/tasks/{job_id} for the URL."""
     import json as _json
     from services.queue import enqueue
+    from services.storage import object_key
 
     inv = session.exec(
         select(Invoice).where(Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id)
@@ -1453,7 +1454,8 @@ async def enqueue_invoice_pdf(
         select(Settings).where(Settings.tenant_id == user.tenant_id)
     ).all()
     settings_map = {s.key: s.value for s in settings_rows}
-    output_key = f"{user.tenant_id}/pdfs/{inv.number}.pdf"
+    safe_number = "".join(c if c.isalnum() or c in "-_." else "_" for c in (inv.number or "invoice"))
+    output_key = object_key(user.tenant_id, "pdf", f"{safe_number}.pdf")
     data_json = _json.dumps({
         "invoice": inv.model_dump(),
         "lines": [ln.model_dump() for ln in lines],

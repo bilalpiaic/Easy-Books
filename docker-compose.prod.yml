@@ -9,15 +9,40 @@ services:
     environment:
       SCHEMA_BOOTSTRAP: alembic
       APP_ENV: production
+      APP_ROLE: api
+      RUN_MIGRATIONS: "false"
+      RUN_BACKGROUND_JOBS: "false"
+      ENABLE_SELF_UPDATE: "false"
+      DB_SSLMODE: disable
+      DB_POOL_SIZE: "5"
+      DB_MAX_OVERFLOW: "5"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/live')"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 60s
     depends_on:
-      - postgres
-      - redis
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  migrate:
+    image: ghcr.io/bilalpiaic/easy-books-backend:${TAG:-latest}
+    command: migrate
+    env_file: .env.prod
+    environment:
+      SCHEMA_BOOTSTRAP: alembic
+      APP_ENV: production
+      APP_ROLE: migrate
+      DB_SSLMODE: disable
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     image: ghcr.io/bilalpiaic/easy-books-frontend:${TAG:-latest}
@@ -31,6 +56,13 @@ services:
     command: arq worker.WorkerSettings
     restart: always
     env_file: .env.prod
+    environment:
+      APP_ROLE: worker
+      SCHEMA_BOOTSTRAP: alembic
+      APP_ENV: production
+      RUN_BACKGROUND_JOBS: "true"
+      ENABLE_SELF_UPDATE: "false"
+      DB_SSLMODE: disable
     depends_on:
       - postgres
       - redis

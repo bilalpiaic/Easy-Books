@@ -47,6 +47,11 @@ def _validate(body_url: Optional[str], body_events: Optional[list[str]]) -> None
         body_url.startswith("http://") or body_url.startswith("https://")
     ):
         raise HTTPException(400, "url must start with http:// or https://")
+    if body_url is not None:
+        from services.ssrf import public_url_error
+        err = public_url_error(body_url)
+        if err:
+            raise HTTPException(400, err)
     if body_events is not None:
         unknown = sorted(set(body_events) - set(EVENT_TYPES))
         if unknown:

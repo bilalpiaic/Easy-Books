@@ -190,6 +190,57 @@ def test_logs_endpoint_lists_deliveries(client, admin_headers):
     assert logs[0]["status"] == "delivered"
 
 
+def test_two_drainers_cannot_send_the_same_row_twice(client, admin_headers):
+    """#425 — compare-and-set claim so racing workers are at-least-once, not twice."""
+    import threading
+
+    _seed_delivery(client, admin_headers)
+    sent: list[str] = []
+    lock = threading.Lock()
+
+    def fake_post(url, body, headers):
+        with lock:
+            sent.append(headers["X-EasyBooks-Delivery"])
+        return 200, ""
+
+    engine = client.app.state.engine
+    errors: list[BaseException] = []
+
+    def worker():
+        try:
+            with Session(engine) as s:
+                drain_once(s, post=fake_post)
+        except BaseException as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == []
+    assert sent == [sent[0]]
+    assert len(sent) == 1
+    with _session(client) as s:
+        d = s.exec(select(WebhookDelivery)).one()
+        assert d.status == "delivered" and d.attempts == 1
+
+
+def test_claim_is_exclusive_across_sessions(client, admin_headers):
+    from services.events import _claim_delivery, _utcnow
+
+    _seed_delivery(client, admin_headers)
+    engine = client.app.state.engine
+    with Session(engine) as s:
+        did = s.exec(select(WebhookDelivery)).one().id
+    now = _utcnow()
+    with Session(engine) as s1:
+        assert _claim_delivery(s1, did, now) is True
+        s1.commit()
+    with Session(engine) as s2:
+        assert _claim_delivery(s2, did, now) is False
+
+
 # ── Tenant isolation ─────────────────────────────────────────────────────────
 
 def test_endpoints_are_tenant_scoped(client, admin_headers):

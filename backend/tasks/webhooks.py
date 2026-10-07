@@ -7,14 +7,27 @@ async def deliver_webhook_task(ctx, delivery_id: int) -> dict:
     import db as _db
     from sqlmodel import Session
     from models import WebhookDelivery, WebhookEndpoint
-    from services.events import _apply_result, _default_post, sign
+    from services.events import (
+        _apply_result,
+        _claim_delivery,
+        _default_post,
+        _utcnow,
+        sign,
+    )
 
     with Session(_db.engine) as session:
         delivery = session.get(WebhookDelivery, delivery_id)
-        if not delivery or delivery.status != "pending":
+        if not delivery or delivery.status not in ("pending", "sending"):
             return {"ok": False, "reason": "not_pending"}
-        endpoint = session.get(WebhookEndpoint, delivery.endpoint_id)
-        if not endpoint or not endpoint.is_active:
+        now = _utcnow()
+        if delivery.next_retry and delivery.next_retry > now and delivery.status == "sending":
+            return {"ok": False, "reason": "claimed"}
+        if not _claim_delivery(session, delivery_id, now):
+            return {"ok": False, "reason": "claimed"}
+        session.commit()
+        delivery = session.get(WebhookDelivery, delivery_id)
+        endpoint = session.get(WebhookEndpoint, delivery.endpoint_id) if delivery else None
+        if not delivery or not endpoint or not endpoint.is_active:
             return {"ok": False, "reason": "endpoint_inactive"}
         headers = {
             "Content-Type": "application/json",

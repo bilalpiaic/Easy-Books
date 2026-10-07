@@ -16,8 +16,11 @@ def _safe_key(path: str, tenant_id: int) -> str:
     key = path.lstrip("/")
     if not key or ".." in key.split("/"):
         raise HTTPException(404, "File not found")
-    first = key.split("/", 1)[0]
-    if first != str(tenant_id):
+    parts = key.split("/")
+    if parts[0] == "tenants":
+        if len(parts) < 3 or parts[1] != str(tenant_id):
+            raise HTTPException(404, "File not found")
+    elif parts[0] != str(tenant_id):
         raise HTTPException(404, "File not found")
     return key
 
