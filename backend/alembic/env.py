@@ -21,8 +21,8 @@ import models  # noqa: F401 — registers every table on SQLModel.metadata
 
 config = context.config
 
-# Resolve DATABASE_URL the same way db.py does — including the Heroku-style
-# `postgres://` → `postgresql://` rewrite. Alembic prefers DATABASE_URL_DIRECT
+# Resolve DATABASE_URL the same way db.py does — Heroku-style `postgres://`
+# rewrite, psycopg2 driver pin, and sslmode. Alembic prefers DATABASE_URL_DIRECT
 # so it can talk to the primary instead of a transaction pooler (#424).
 from services.app_runtime import resolve_database_url
 from local_config import sqlite_path
