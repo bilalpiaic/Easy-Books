@@ -93,7 +93,9 @@ export default function SignupPage() {
         </div>
 
         <div className="bg-white p-6 sm:p-7 rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5">
-          {signupOpen === false ? (
+          {signupOpen === null ? (
+            <p className="text-sm text-[#1a1814]/60">Checking whether signup is open…</p>
+          ) : signupOpen === false ? (
             <>
               <h2 className="text-xl font-serif text-[#1a1814] mb-1">Invite only</h2>
               <p className="text-sm text-[#1a1814]/70 mb-4">
