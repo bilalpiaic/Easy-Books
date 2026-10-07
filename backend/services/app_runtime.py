@@ -56,11 +56,26 @@ def _normalize_pg_url(url: str) -> str:
     return url
 
 
+def _neon_direct_from_pooler(url: str) -> str:
+    """Neon pooled hostnames are ``ep-…-pooler.region.aws.neon.tech``.
+
+    DDL (Alembic) is unreliable through the transaction pooler; strip the
+    suffix when ``DATABASE_URL_DIRECT`` is unset so Vercel can still migrate.
+    """
+    if "-pooler." in url:
+        return url.replace("-pooler.", ".", 1)
+    return url
+
+
 def resolve_database_url(*, for_alembic: bool = False) -> str | None:
     """App uses DATABASE_URL (may be a pooler). Alembic prefers DATABASE_URL_DIRECT."""
     raw = ""
     if for_alembic:
-        raw = (os.environ.get("DATABASE_URL_DIRECT") or os.environ.get("DATABASE_URL") or "").strip()
+        raw = (os.environ.get("DATABASE_URL_DIRECT") or "").strip()
+        if not raw:
+            raw = _neon_direct_from_pooler(
+                (os.environ.get("DATABASE_URL") or "").strip()
+            )
     else:
         raw = (os.environ.get("DATABASE_URL") or "").strip()
     if not raw:

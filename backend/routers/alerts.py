@@ -38,7 +38,10 @@ def list_alerts(
 ):
     # Soft refresh so alerts appear without waiting for the daily sweep
     if in_app_alerts_enabled(session, user.tenant_id):
-        refresh_ops_alerts(session, tenant_id=user.tenant_id)
+        try:
+            refresh_ops_alerts(session, tenant_id=user.tenant_id)
+        except Exception:
+            session.rollback()
 
     filters = [
         UserAlert.tenant_id == user.tenant_id,
@@ -66,7 +69,10 @@ def unread_count(session: SessionDep, user: CurrentUserDep):
     if not in_app_alerts_enabled(session, user.tenant_id):
         return {"count": 0, "enabled": False}
     # Light refresh so the badge stays current without opening the panel
-    refresh_ops_alerts(session, tenant_id=user.tenant_id)
+    try:
+        refresh_ops_alerts(session, tenant_id=user.tenant_id)
+    except Exception:
+        session.rollback()
     count = session.exec(
         select(func.count()).select_from(UserAlert).where(
             UserAlert.tenant_id == user.tenant_id,

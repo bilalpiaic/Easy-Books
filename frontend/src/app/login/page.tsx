@@ -102,12 +102,23 @@ function LoginForm() {
     setIsLoading(true)
     setError("")
     try {
-      const response = await fetch(`${apiBase}/api/auth/totp/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ partial_token: partialToken, code: otp }),
-      })
-      if (!response.ok) throw new Error("Invalid authenticator code")
+      const digits = otp.replace(/\D/g, "")
+      let response: Response
+      try {
+        response = await fetch(`${apiBase}/api/auth/totp/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ partial_token: partialToken, code: digits }),
+        })
+      } catch (err) {
+        throw new Error(networkErrorMessage(err, "Could not verify authenticator code"))
+      }
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}))
+        throw new Error(
+          typeof body.detail === "string" ? body.detail : "Invalid authenticator code",
+        )
+      }
       finishLogin(await response.json())
     } catch (err) {
       setError(err instanceof Error ? err.message : "OTP failed")
@@ -163,14 +174,14 @@ function LoginForm() {
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
               inputMode="numeric"
-              maxLength={6}
+              maxLength={8}
               placeholder="000000"
               autoFocus
             />
             {error && <p className="text-sm text-red-700">{error}</p>}
             <button
               type="submit"
-              disabled={isLoading || otp.length < 6}
+              disabled={isLoading || otp.replace(/\D/g, "").length < 6}
               className="w-full bg-[#b8943f] text-black font-medium rounded-lg py-2.5 disabled:opacity-50"
             >
               {isLoading ? "Verifying…" : "Verify"}

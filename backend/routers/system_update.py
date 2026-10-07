@@ -41,6 +41,24 @@ _status_cache_at: float    = 0
 _STATUS_TTL                = 30 * 60  # seconds
 
 
+@router.post("/api/system/schema-upgrade")
+def schema_upgrade(current_user: CurrentUserDep):
+    """Run ``alembic upgrade head`` against DATABASE_URL(_DIRECT).
+
+    Vercel has no migrate replica; production Neon can lag the deployed models.
+    Owner/admin only. Idempotent when already at head.
+    """
+    if current_user.role not in ("admin", "owner"):
+        raise HTTPException(403, "Admin or owner required")
+    from services.schema_migrate import upgrade_to_head
+
+    try:
+        result = upgrade_to_head()
+    except Exception as exc:
+        raise HTTPException(500, "Schema upgrade failed. Check backend logs.") from exc
+    return {"ok": True, **result}
+
+
 @router.post("/api/system/update")
 async def trigger_update(
     bg: BackgroundTasks,

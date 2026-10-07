@@ -432,7 +432,7 @@ function TotpEnrollCard({
     e.preventDefault()
     setErr(null); setBusy(true)
     try {
-      await apiFetch("/api/auth/totp/enable", { method: "POST", body: JSON.stringify({ code }) })
+      await apiFetch("/api/auth/totp/enable", { method: "POST", body: JSON.stringify({ code: code.replace(/\D/g, "") }) })
       setMustSetupTotp(false)
       setOk(true)
       setCode("")
@@ -480,14 +480,14 @@ function TotpEnrollCard({
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 inputMode="numeric"
-                maxLength={6}
+                maxLength={8}
                 placeholder="000000"
                 required
               />
             </Field>
             <button
               type="submit"
-              disabled={busy || code.length < 6}
+              disabled={busy || code.replace(/\D/g, "").length < 6}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60"
             >
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Enable

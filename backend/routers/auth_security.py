@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -20,7 +20,7 @@ from auth import (
     SECRET_KEY,
     create_access_token,
 )
-from models import Tenant, User
+from models import Tenant, User, utc_now
 from services.crypto_secrets import decrypt_secret, encrypt_secret
 from services.security_policy import demo_login_allowed, owner_must_setup_totp, owner_totp_locked
 
@@ -43,6 +43,21 @@ class TotpCode(BaseModel):
 class TotpVerify(BaseModel):
     partial_token: str
     code: str
+
+
+def _totp_code(raw: str) -> str:
+    """Microsoft Authenticator (and others) may insert a space: ``123 456``."""
+    return "".join(ch for ch in (raw or "") if ch.isdigit())
+
+
+def _plain_totp_secret(stored: str) -> str:
+    try:
+        return decrypt_secret(stored)
+    except ValueError as exc:
+        raise HTTPException(
+            400,
+            "Authenticator secret could not be read. Click Set up 2FA again.",
+        ) from exc
 
 
 def _issue_full_token(user: User, response: Response) -> dict:
@@ -87,11 +102,11 @@ def totp_setup(session: SessionDep, user: CurrentUserDep):
 def totp_enable(body: TotpCode, session: SessionDep, user: CurrentUserDep):
     if not user.totp_secret:
         raise HTTPException(400, "Call /totp/setup first")
-    plain = decrypt_secret(user.totp_secret)
-    if not pyotp.TOTP(plain).verify(body.code, valid_window=1):
+    plain = _plain_totp_secret(user.totp_secret)
+    if not pyotp.TOTP(plain).verify(_totp_code(body.code), valid_window=1):
         raise HTTPException(401, "Invalid OTP code")
     user.totp_enabled = True
-    user.totp_verified_at = datetime.utcnow()
+    user.totp_verified_at = utc_now()
     session.add(user)
     session.commit()
     return {"ok": True, "totp_enabled": True}
@@ -110,8 +125,8 @@ def totp_disable(body: TotpCode, session: SessionDep, user: CurrentUserDep):
         session.add(user)
         session.commit()
         return {"ok": True}
-    plain = decrypt_secret(user.totp_secret)
-    if not pyotp.TOTP(plain).verify(body.code, valid_window=1):
+    plain = _plain_totp_secret(user.totp_secret)
+    if not pyotp.TOTP(plain).verify(_totp_code(body.code), valid_window=1):
         raise HTTPException(401, "Invalid OTP code")
     user.totp_enabled = False
     user.totp_secret = None
@@ -133,10 +148,10 @@ def totp_verify(body: TotpVerify, session: SessionDep, response: Response):
     user = session.exec(select(User).where(User.email == email)).first()
     if not user or not user.totp_enabled or not user.totp_secret:
         raise HTTPException(401, "2FA not enabled for this user")
-    plain = decrypt_secret(user.totp_secret)
-    if not pyotp.TOTP(plain).verify(body.code, valid_window=1):
+    plain = _plain_totp_secret(user.totp_secret)
+    if not pyotp.TOTP(plain).verify(_totp_code(body.code), valid_window=1):
         raise HTTPException(401, "Invalid OTP code")
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = utc_now()
     session.add(user)
     session.commit()
     return _issue_full_token(user, response)
@@ -288,7 +303,7 @@ def _finish_oauth(session, response, provider, sub, email, full_name):
     else:
         user.oauth_provider = provider
         user.oauth_sub = str(sub) if sub else user.oauth_sub
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = utc_now()
         session.add(user)
         session.commit()
 

@@ -44,6 +44,20 @@ def test_alembic_prefers_direct_url(monkeypatch):
     assert "sslmode=require" in alembic
 
 
+def test_alembic_strips_neon_pooler_when_direct_unset(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL_DIRECT", raising=False)
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://u:p@ep-foo-pooler.us-east-2.aws.neon.tech/neondb",
+    )
+    monkeypatch.setenv("DB_SSLMODE", "require")
+    app = resolve_database_url()
+    alembic = resolve_database_url(for_alembic=True)
+    assert "-pooler." in app
+    assert "-pooler." not in alembic
+    assert "ep-foo.us-east-2.aws.neon.tech" in alembic
+
+
 def test_sslmode_disable(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@postgres:5432/db")
     monkeypatch.setenv("DB_SSLMODE", "disable")
@@ -147,6 +161,19 @@ def test_entrypoint_migrate_role_does_not_exec_uvicorn(tmp_path, monkeypatch):
     assert "alembic upgrade head" in text
     assert "uvicorn" not in text
     assert "arq" not in text
+
+
+def test_auto_migrate_defaults_on_for_vercel(monkeypatch):
+    from services.schema_migrate import auto_migrate_enabled
+
+    monkeypatch.delenv("SCHEMA_AUTO_MIGRATE", raising=False)
+    monkeypatch.setenv("VERCEL", "1")
+    assert auto_migrate_enabled() is True
+    monkeypatch.delenv("VERCEL", raising=False)
+    assert auto_migrate_enabled() is False
+    monkeypatch.setenv("SCHEMA_AUTO_MIGRATE", "false")
+    monkeypatch.setenv("VERCEL", "1")
+    assert auto_migrate_enabled() is False
 
 
 def test_vercel_requirements_pin_sqlalchemy_before_2_1():
