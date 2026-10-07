@@ -66,16 +66,16 @@ def upgrade() -> None:
         _add_col_if_missing("statementline", name, col)
 
     bind = op.get_bind()
+    # 0001_baseline create_all already built these indexes from the live
+    # models. try/except around CREATE INDEX aborts the Postgres transaction.
     if bind.dialect.has_table(bind, "statementline"):
-        try:
+        sl_idxs = {ix["name"] for ix in sa.inspect(bind).get_indexes("statementline")}
+        if "ix_statementline_match_status" not in sl_idxs:
             op.create_index("ix_statementline_match_status", "statementline", ["match_status"])
-        except Exception:
-            pass
     if bind.dialect.has_table(bind, "categorizationrule"):
-        try:
+        cr_idxs = {ix["name"] for ix in sa.inspect(bind).get_indexes("categorizationrule")}
+        if "ix_categorizationrule_priority" not in cr_idxs:
             op.create_index("ix_categorizationrule_priority", "categorizationrule", ["priority"])
-        except Exception:
-            pass
 
 
 def downgrade() -> None:

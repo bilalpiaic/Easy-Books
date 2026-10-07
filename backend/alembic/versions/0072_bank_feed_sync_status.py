@@ -47,10 +47,9 @@ def upgrade() -> None:
     )
     bind = op.get_bind()
     if bind.dialect.has_table(bind, "plaidconnection"):
-        try:
+        idxs = {ix["name"] for ix in sa.inspect(bind).get_indexes("plaidconnection")}
+        if "ix_plaidconnection_provider" not in idxs:
             op.create_index("ix_plaidconnection_provider", "plaidconnection", ["provider"])
-        except Exception:
-            pass
 
 
 def downgrade() -> None:

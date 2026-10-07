@@ -58,6 +58,18 @@ def test_env_widens_alembic_version_num_for_long_revision_ids():
     assert all(len(r) <= 128 for r in long_ids)
 
 
+def test_bank_feeds_index_create_is_idempotent_on_postgres():
+    """0001 create_all already stamps ix_statementline_match_status."""
+    src = (
+        Path(__file__).resolve().parents[1]
+        / "alembic"
+        / "versions"
+        / "0052_bank_feeds.py"
+    ).read_text()
+    assert "get_indexes" in src
+    assert "except Exception:" not in src
+
+
 def test_quoted_user_identifier_roundtrips_sqlite(tmp_path):
     from sqlalchemy import create_engine, text
 
