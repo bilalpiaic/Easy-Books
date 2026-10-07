@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { User as UserIcon, Save, KeyRound, Camera, Trash2, Loader2, CheckCircle2, ShieldCheck, UserCheck } from "lucide-react"
 import { apiFetch, apiBase } from "@/lib/api"
 import { getAuthHeader, setMustChangePwd, setMustSetupTotp } from "@/lib/auth"
+import { TotpQrDisplay } from "@/components/TotpQrDisplay"
 
 interface Me {
   id: number
@@ -455,7 +456,7 @@ function TotpEnrollCard({
       ) : (
         <>
           <p className="text-sm text-[var(--text-primary)]/60">
-            Scan the secret with an authenticator app, then enter a 6-digit code to enable 2FA.
+            Scan the QR code with an authenticator app, then enter a 6-digit code to enable 2FA.
           </p>
           <button
             type="button"
@@ -466,10 +467,10 @@ function TotpEnrollCard({
             {busy && !secret ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
             Set up 2FA
           </button>
-          {secret && (
-            <div className="text-xs break-all space-y-1 bg-[var(--bg-page)] rounded-lg p-3">
-              <div>Secret: <code>{secret}</code></div>
-              {otpauth && <div>URI: <code>{otpauth}</code></div>}
+          {secret && otpauth && <TotpQrDisplay otpauthUrl={otpauth} secret={secret} />}
+          {secret && !otpauth && (
+            <div className="text-xs break-all bg-[var(--bg-page)] rounded-lg p-3">
+              Secret: <code>{secret}</code>
             </div>
           )}
           <form onSubmit={enable} className="flex flex-wrap items-end gap-2">

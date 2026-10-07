@@ -17,6 +17,7 @@ import {
 import VersionBadge from '@/components/VersionBadge'
 import UpdateModal from '@/components/UpdateModal'
 import { AuthFileImg } from '@/components/AuthFileImg'
+import { TotpQrDisplay } from '@/components/TotpQrDisplay'
 import { useTheme, type ThemeMode, type ColorTheme } from '@/context/ThemeContext'
 import { useLocale } from '@/context/LocaleContext'
 import { LANGUAGES, type Language } from '@/i18n/config'
@@ -3055,7 +3056,7 @@ function Security2FACard() {
     )
     setSecret(r.secret)
     setOtpauth(r.otpauth_url)
-    setStatus("Scan the otpauth URL in your authenticator app, then enter a code.")
+    setStatus("Scan the QR code in your authenticator app, then enter a code.")
   }
   const enable = async () => {
     await apiFetch("/api/auth/totp/enable", { method: "POST", body: JSON.stringify({ code }) })
@@ -3084,11 +3085,9 @@ function Security2FACard() {
           <button type="button" onClick={disable} className="px-3 py-1.5 border rounded-lg text-sm">Disable</button>
         )}
       </div>
-      {secret && (
-        <div className="text-xs break-all space-y-1">
-          <div>Secret: <code>{secret}</code></div>
-          {otpauth && <div>URI: <code>{otpauth}</code></div>}
-        </div>
+      {secret && otpauth && <TotpQrDisplay otpauthUrl={otpauth} secret={secret} />}
+      {secret && !otpauth && (
+        <div className="text-xs break-all">Secret: <code>{secret}</code></div>
       )}
       <input
         className="border rounded-lg px-3 py-1.5 text-sm"
