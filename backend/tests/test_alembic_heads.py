@@ -48,6 +48,16 @@ def test_membership_backfill_quotes_reserved_user_table():
     assert "FROM user" not in src.replace('quote("user")', "")
 
 
+def test_env_widens_alembic_version_num_for_long_revision_ids():
+    """Postgres alembic_version.version_num is VARCHAR(32) by default."""
+    env = (Path(__file__).resolve().parents[1] / "alembic" / "env.py").read_text()
+    assert "VARCHAR(128)" in env
+    script = _script()
+    long_ids = [rev.revision for rev in script.walk_revisions() if len(rev.revision) > 32]
+    assert "0048_hc_patient_email_lab_publish" in long_ids
+    assert all(len(r) <= 128 for r in long_ids)
+
+
 def test_quoted_user_identifier_roundtrips_sqlite(tmp_path):
     from sqlalchemy import create_engine, text
 
