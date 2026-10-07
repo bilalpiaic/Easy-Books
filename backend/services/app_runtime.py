@@ -36,9 +36,20 @@ def postgres_pool_kwargs() -> dict:
 
 
 def _normalize_pg_url(url: str) -> str:
+    """Pin the SQLAlchemy driver to psycopg2 (the package we ship).
+
+    SQLAlchemy 2 maps bare ``postgresql://`` to the psycopg3 dialect
+    (``sqlalchemy.dialects.postgresql.psycopg``). We depend on
+    ``psycopg2-binary``, so an unpinned Neon/Vercel URL crashes the
+    serverless function at import with ``ModuleNotFoundError: psycopg``.
+    Explicit ``+psycopg2`` / ``+psycopg`` / ``+asyncpg`` schemes are left
+    alone. sslmode still defaults to ``require`` for managed Postgres.
+    """
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
-    if url.startswith("postgresql://") and "sslmode" not in url:
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    if url.startswith("postgresql") and "sslmode" not in url:
         sslmode = (os.environ.get("DB_SSLMODE") or "require").strip() or "require"
         sep = "&" if "?" in url else "?"
         url = f"{url}{sep}sslmode={sslmode}"

@@ -38,6 +38,7 @@ def test_alembic_prefers_direct_url(monkeypatch):
     monkeypatch.setenv("DB_SSLMODE", "require")
     app = resolve_database_url()
     alembic = resolve_database_url(for_alembic=True)
+    assert app.startswith("postgresql+psycopg2://")
     assert "pooler" in app
     assert "primary" in alembic
     assert "sslmode=require" in alembic
@@ -47,7 +48,36 @@ def test_sslmode_disable(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@postgres:5432/db")
     monkeypatch.setenv("DB_SSLMODE", "disable")
     url = resolve_database_url()
+    assert url.startswith("postgresql+psycopg2://")
     assert url.endswith("sslmode=disable")
+
+
+def test_postgres_scheme_pins_psycopg2(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgres://u:p@host/db")
+    monkeypatch.setenv("DB_SSLMODE", "require")
+    url = resolve_database_url()
+    assert url.startswith("postgresql+psycopg2://")
+    assert "sslmode=require" in url
+
+
+def test_explicit_driver_is_preserved(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://u:p@host/db")
+    monkeypatch.setenv("DB_SSLMODE", "require")
+    url = resolve_database_url()
+    assert url.startswith("postgresql+psycopg://")
+    assert "+psycopg2" not in url
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg2://u:p@host/db?sslmode=require")
+    assert resolve_database_url() == "postgresql+psycopg2://u:p@host/db?sslmode=require"
+
+
+def test_sqlalchemy_selects_psycopg2_not_psycopg(monkeypatch):
+    """Bare postgresql:// must not load sqlalchemy.dialects.postgresql.psycopg."""
+    from sqlalchemy.engine.url import make_url
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@localhost/db")
+    monkeypatch.setenv("DB_SSLMODE", "disable")
+    dialect = make_url(resolve_database_url()).get_dialect()
+    assert dialect.driver == "psycopg2"
 
 
 def test_create_all_forbidden_in_production(monkeypatch):
