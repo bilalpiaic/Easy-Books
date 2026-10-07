@@ -3059,7 +3059,7 @@ function Security2FACard() {
     setStatus("Scan the QR code in your authenticator app, then enter a code.")
   }
   const enable = async () => {
-    await apiFetch("/api/auth/totp/enable", { method: "POST", body: JSON.stringify({ code }) })
+    await apiFetch("/api/auth/totp/enable", { method: "POST", body: JSON.stringify({ code: code.replace(/\D/g, "") }) })
     setEnabled(true)
     setMustSetupTotp(false)
     setStatus("2FA enabled.")

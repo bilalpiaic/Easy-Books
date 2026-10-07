@@ -14,8 +14,10 @@ import contextlib
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from db import create_db_and_tables
 from services.app_runtime import allow_create_all_bootstrap, run_in_process_schedulers
@@ -172,6 +174,10 @@ async def lifespan(_app: FastAPI):
     # from the migrate role — create_all is fail-closed (#424).
     if allow_create_all_bootstrap():
         create_db_and_tables()
+    else:
+        # Vercel has no APP_ROLE=migrate replica; upgrade Neon on cold start.
+        from services.schema_migrate import maybe_auto_upgrade
+        maybe_auto_upgrade()
 
     from local_config import (
         acquire_instance_lock,
@@ -233,6 +239,77 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "X-CSRF-Token", "Idempotency-Key"],
 )
+
+
+def _cors_json(request: Request, status_code: int, content: dict) -> JSONResponse:
+    """CORSMiddleware sits inside @app.middleware('http') + ServerErrorMiddleware,
+    so unhandled 500s never get Access-Control-Allow-Origin. The browser then
+    reports Failed to fetch and the UI shows a fake 'Can't reach the API'."""
+    response = JSONResponse(content, status_code=status_code)
+    origin = request.headers.get("origin")
+    if origin and origin in _allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Vary"] = "Origin"
+    return response
+
+
+def _unwrap_exc(exc: BaseException) -> BaseException:
+    while isinstance(exc, BaseExceptionGroup) and getattr(exc, "exceptions", None):
+        exc = exc.exceptions[0]
+    return exc
+
+
+def _response_for_unhandled(request: Request, exc: BaseException) -> JSONResponse:
+    from sqlalchemy.exc import ProgrammingError
+
+    inner = _unwrap_exc(exc)
+    if isinstance(inner, ProgrammingError):
+        text = str(getattr(inner, "orig", None) or inner)
+        if "does not exist" in text or "UndefinedColumn" in text:
+            return _cors_json(
+                request,
+                503,
+                {
+                    "detail": (
+                        "The database schema is behind this app version. "
+                        "An owner can run POST /api/system/schema-upgrade, "
+                        "or set DATABASE_URL_DIRECT and redeploy so cold start "
+                        "can finish alembic upgrade head."
+                    )
+                },
+            )
+        return _cors_json(request, 500, {"detail": "Database error"})
+    import traceback
+    traceback.print_exc()
+    return _cors_json(request, 500, {"detail": "Internal server error"})
+
+
+class _CatchAllASGIMiddleware:
+    """Starlette ``BaseHTTPMiddleware`` wraps failures in ``ExceptionGroup``
+    (a ``BaseException``), which ``ServerErrorMiddleware`` does not catch.
+    Vercel then returns a CORS-less 500 and the SPA shows 'Can't reach the API'."""
+
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        try:
+            await self.app(scope, receive, send)
+        except BaseException as exc:
+            if isinstance(exc, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+                raise
+            request = Request(scope, receive)
+            response = _response_for_unhandled(request, exc)
+            await response(scope, receive, send)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    return _response_for_unhandled(request, exc)
 
 
 @app.middleware("http")
@@ -321,6 +398,11 @@ async def check_owner_totp_setup(request, call_next):
         except Exception:
             pass
     return await call_next(request)
+
+
+# Outermost user middleware so ExceptionGroup from BaseHTTPMiddleware
+# becomes a CORS-bearing JSON 500/503 instead of a naked ASGI crash.
+app.add_middleware(_CatchAllASGIMiddleware)
 
 
 # Routers are listed roughly in the order the UI exercises them so the
@@ -447,13 +529,23 @@ _APP_VERSION = _read_app_version()
 @app.get("/api/version")
 def get_version():
     """Return the app version and current Alembic revision. No auth required."""
+    from services.schema_migrate import file_head as _file_head
+
     try:
         with _engine.connect() as _conn:
             row = _conn.execute(_text("SELECT version_num FROM alembic_version LIMIT 1")).fetchone()
             alembic_head = row[0] if row else "none"
     except Exception:
         alembic_head = "unknown"
-    return {"version": _APP_VERSION, "alembic_head": alembic_head}
+    file_rev = _file_head() or "unknown"
+    return {
+        "version": _APP_VERSION,
+        "alembic_head": alembic_head,
+        "alembic_file_head": file_rev,
+        "schema_behind": bool(
+            alembic_head not in ("unknown", "none", file_rev) and file_rev != "unknown"
+        ),
+    }
 
 
 # v1 alias: a thin pass-through that re-mounts every /api/* route at /api/v1/*

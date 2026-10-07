@@ -136,6 +136,125 @@ def test_explicit_flags_override_production(monkeypatch):
     assert sp.demo_login_allowed() is True
 
 
+def test_totp_enable_accepts_spaced_code_and_stores_aware_timestamp(client, admin_headers):
+    setup = client.post("/api/auth/totp/setup", headers=admin_headers)
+    assert setup.status_code == 200, setup.text
+    secret = setup.json()["secret"]
+    code = pyotp.TOTP(secret).now()
+    enabled = client.post(
+        "/api/auth/totp/enable",
+        headers=admin_headers,
+        json={"code": f"{code[:3]} {code[3:]}"},
+    )
+    assert enabled.status_code == 200, enabled.text
+    import db as dbmod
+    from models import User
+    from sqlmodel import Session, select
+
+    with Session(dbmod.engine) as session:
+        user = session.exec(select(User).where(User.email == "owner@acme.test")).first()
+        assert user is not None
+        assert user.totp_enabled is True
+        assert user.totp_verified_at is not None
+    client.post(
+        "/api/auth/totp/disable",
+        headers=admin_headers,
+        json={"code": pyotp.TOTP(secret).now()},
+    )
+
+
+def test_totp_verify_writes_aware_last_login(client, admin_headers):
+    setup = client.post("/api/auth/totp/setup", headers=admin_headers)
+    secret = setup.json()["secret"]
+    client.post("/api/auth/totp/enable", headers=admin_headers, json={"code": pyotp.TOTP(secret).now()})
+    client.cookies.clear()
+    login = client.post(
+        "/api/auth/login",
+        data={"username": "owner@acme.test", "password": "pw12345678"},
+    )
+    assert login.json().get("requires_totp") is True
+    verify = client.post(
+        "/api/auth/totp/verify",
+        json={
+            "partial_token": login.json()["partial_token"],
+            "code": pyotp.TOTP(secret).now(),
+        },
+    )
+    assert verify.status_code == 200, verify.text
+    import db as dbmod
+    from models import User
+    from sqlmodel import Session, select
+
+    with Session(dbmod.engine) as session:
+        user = session.exec(select(User).where(User.email == "owner@acme.test")).first()
+        assert user is not None
+        assert user.last_login_at is not None
+    client.post(
+        "/api/auth/totp/disable",
+        headers=admin_headers,
+        json={"code": pyotp.TOTP(secret).now()},
+    )
+
+
+def test_unhandled_500_includes_cors_for_frontend_origin(client):
+    from main import app
+
+    async def boom():
+        raise RuntimeError("simulated totp commit failure")
+
+    app.add_api_route("/api/__test_boom_cors", boom, methods=["GET"], include_in_schema=False)
+    r = client.get(
+        "/api/__test_boom_cors",
+        headers={"Origin": "http://localhost:3000"},
+    )
+    assert r.status_code == 500
+    assert r.json()["detail"] == "Internal server error"
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+
+def test_missing_column_error_is_503_with_cors(client):
+    from main import app
+    from sqlalchemy.exc import ProgrammingError
+
+    async def boom():
+        raise ProgrammingError(
+            "SELECT invoice.buyer_registration_type",
+            {},
+            Exception("column invoice.buyer_registration_type does not exist"),
+        )
+
+    app.add_api_route("/api/__test_schema_cors", boom, methods=["GET"], include_in_schema=False)
+    r = client.get(
+        "/api/__test_schema_cors",
+        headers={"Origin": "http://localhost:3000"},
+    )
+    assert r.status_code == 503
+    assert "schema is behind" in r.json()["detail"]
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+
+def test_vercel_bundle_includes_alembic_scripts():
+    from pathlib import Path
+    import json
+
+    cfg = json.loads((Path(__file__).resolve().parents[1] / "vercel.json").read_text())
+    exclude = cfg["functions"]["api/index.py"]["excludeFiles"]
+    assert "alembic" not in exclude
+
+
+def test_schema_upgrade_requires_auth(client):
+    r = client.post("/api/system/schema-upgrade")
+    assert r.status_code == 401
+
+
+def test_schema_migrate_file_head_is_current():
+    from services.schema_migrate import file_head
+
+    head = file_head()
+    assert head is not None
+    assert head.startswith("00")
+
+
 def test_partial_totp_token_cannot_call_me(client, admin_headers):
     r = client.post("/api/auth/totp/setup", headers=admin_headers)
     secret = r.json()["secret"]
