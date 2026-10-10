@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Wallet, Download, Printer } from "lucide-react"
+import { Wallet, Download } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
@@ -11,6 +11,7 @@ import { apiFetch } from "@/lib/api"
 import PrintHeader from "@/components/PrintHeader"
 import { downloadCSV } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface Operator { id: number; name: string; operator_code: string; commission_settlement_cycle: string }
 interface TrackerAccount { id: number; operator_id: number; account_number: string; deposit_balance: string; load_balance: string }
@@ -111,11 +112,7 @@ export default function TrackerPage() {
       <PrintHeader title="Tracker & Load" orientation="landscape" />
       <div className="flex items-center justify-between">
         <PageHeader icon={Wallet} title="Tracker & Load" subtitle="Operator deposit wallet, load orders, and stock procurement." />
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
-        >
-          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+        <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
       </div>
 
       <HelpCallout title="The 3% load uplift, explained" tone="tip">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, RefreshCw, Play, Trash2, ToggleLeft, ToggleRight, Pencil, Download, Printer } from 'lucide-react'
+import { Plus, RefreshCw, Play, Trash2, ToggleLeft, ToggleRight, Pencil, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useDp } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
@@ -9,6 +9,7 @@ import DocLink from '@/components/DocLink'
 import PrintHeader from '@/components/PrintHeader'
 import { useTranslation } from "react-i18next"
 import { useMessages } from "@/context/MessageContext"
+import PrintButton from "@/components/PrintButton"
 
 interface RecurringEntry {
   account_id: number
@@ -209,11 +210,7 @@ export default function RecurringPage() {
           <p className="text-sm text-[var(--text-muted)] mt-1">Scheduled journal entries that post automatically</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
-          >
-            <Printer className="w-4 h-4" />{tr('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button
             onClick={() => downloadCSV('recurring-templates.csv', templates.map(tmpl => ({ Name: tmpl.name, Description: tmpl.description ?? '', Frequency: FREQ_LABELS[tmpl.frequency] ?? tmpl.frequency, "Next Run": tmpl.next_run, "Last Run": tmpl.last_run ?? '', Active: tmpl.is_active ? 'Yes' : 'No' })))}
             disabled={templates.length === 0}

@@ -1,12 +1,13 @@
 "use client"
 
 import { use, useEffect, useState } from "react"
-import { Printer, ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface POLine {
   id: number
@@ -66,18 +67,14 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 text-[var(--text-primary)]">
       {/* Screen-only toolbar */}
-      <div className="flex items-center justify-between mb-6 print:hidden">
+      <div data-print-hide className="flex items-center justify-between mb-6 print:hidden">
         <Link
           href={`/manufacturing/purchase-orders/${id}`}
           className="flex items-center gap-1.5 text-sm text-[var(--text-primary)]/60 hover:text-[var(--primary)]"
         >
           <ArrowLeft className="w-4 h-4" /> Back to PO
         </Link>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-xl text-sm font-bold hover:bg-[var(--primary-dark)] transition-colors"
-        >
-          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+        <PrintButton variant="toolbar" buttonClassName="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-xl text-sm font-bold hover:bg-[var(--primary-dark)] transition-colors" />
       </div>
 
       <PrintHeader title="Purchase Order" />

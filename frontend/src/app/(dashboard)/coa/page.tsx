@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { Plus, Search, Trash2, Printer, ChevronRight, ChevronDown, Download } from "lucide-react"
+import { Plus, Search, Trash2, ChevronRight, ChevronDown, Download } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
@@ -13,6 +13,7 @@ import SkeletonRow from "@/components/SkeletonRow"
 import CsvImportButton from "@/components/CsvImportButton"
 import { useTranslation } from "react-i18next"
 import { useMessages } from "@/context/MessageContext"
+import PrintButton from "@/components/PrintButton"
 
 interface Account {
   id: number
@@ -170,12 +171,7 @@ export default function COAPage() {
             <Download className="w-4 h-4" />
             Export
           </button>
-          <button
-            onClick={() => window.print()}
-            className="border border-[var(--border)] px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-page)] transition-colors font-bold text-sm"
-            title="Print"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="border border-[var(--border)] px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[var(--bg-page)] transition-colors font-bold text-sm" />
           <button
             onClick={() => { setEditAccount(null); setModalOpen(true) }}
             className="bg-[var(--primary)] text-black font-bold px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#a38338] transition-colors"

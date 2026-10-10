@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { BarChart2, Printer, AlertTriangle, PackageCheck, Users, Download } from "lucide-react"
+import { BarChart2, AlertTriangle, PackageCheck, Users, Download } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 /* ── Types ── */
 
@@ -152,9 +153,7 @@ export default function ManufacturingReportsPage() {
           >
             <Download className="w-4 h-4" /> CSV
           </button>
-          <button onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm hover:bg-[var(--bg-page)] transition-colors">
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm hover:bg-[var(--bg-page)] transition-colors" />
         </div>
       </header>
 

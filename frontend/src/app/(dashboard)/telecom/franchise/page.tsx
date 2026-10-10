@@ -1,6 +1,6 @@
 "use client"
 
-import { ScrollText, Download, Printer } from "lucide-react"
+import { ScrollText, Download } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
@@ -9,6 +9,7 @@ import {
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface Agreement {
@@ -68,11 +69,7 @@ export default function FranchisePage() {
       <PrintHeader title="Franchise Admin" />
       <div className="flex items-center justify-between">
         <PageHeader icon={ScrollText} title="Franchise Admin" subtitle="Franchise fee amortisation and operator royalty." />
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
-        >
-          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+        <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
       </div>
 
       <HelpCallout title="Fee is an asset, royalty is an expense" tone="tip">

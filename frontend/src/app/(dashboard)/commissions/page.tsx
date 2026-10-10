@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Percent, Plus, Trash2, RefreshCw, CheckCircle, BookOpen, ChevronDown, ChevronRight, AlertCircle, Download, Printer } from "lucide-react"
+import { Percent, Plus, Trash2, RefreshCw, CheckCircle, BookOpen, ChevronDown, ChevronRight, AlertCircle, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useDp } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import { useMessages } from "@/context/MessageContext"
+import PrintButton from "@/components/PrintButton"
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -216,11 +217,7 @@ export default function CommissionsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 print:hidden">
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button
             onClick={() => downloadCSV('commissions.csv', ledger.map(r => ({ Staff: r.user_name, Period: r.period, Amount: r.total_payable, Status: r.status })))}
             disabled={ledger.length === 0}

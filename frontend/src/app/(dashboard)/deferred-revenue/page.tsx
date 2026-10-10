@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Calendar, Play, TrendingUp, Download, Printer } from "lucide-react"
+import { Calendar, Play, TrendingUp, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
+import PrintButton from "@/components/PrintButton"
 
 interface DeferredSchedule {
   id: number
@@ -27,7 +28,6 @@ interface RecognitionResult {
   recognised_count: number
   details: { schedule_id: number; charge: string; jv: string }[]
 }
-
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -87,11 +87,7 @@ export default function DeferredRevenuePage() {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">Deferred Revenue</h1>
             <div className="flex items-center gap-2 print:hidden">
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] transition-colors"
-              >
-                <Printer className="w-3.5 h-3.5" />{t('common.print', 'Print')}</button>
+              <PrintButton buttonClassName="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] transition-colors" />
               <button
                 onClick={() => downloadCSV('deferred-revenue.csv', schedules.map(s => ({ "Invoice ID": s.invoice_id, "Total Amount": s.total_amount, "Recognised": s.recognised_amount, "Remaining": s.total_amount - s.recognised_amount, "Start Date": s.start_date, "End Date": s.end_date, Frequency: s.frequency, "Next Recognition": s.next_recognition_date, Status: s.status })))}
                 disabled={schedules.length === 0}

@@ -6,6 +6,7 @@ import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import PrintButton from "@/components/PrintButton"
 
 type Ogp = {
   id: number; number: string; date: string; qty_mtr: number
@@ -34,7 +35,7 @@ export default function GreyRejOutwardPrintPage() {
     <div className="p-4 max-w-3xl mx-auto space-y-4">
       <div className="flex justify-between print:hidden">
         <Link href="/processing/rejection" className="text-sm text-[var(--primary)]">← Rejection / OGP</Link>
-        <button type="button" onClick={() => window.print()} className="rounded-lg bg-[var(--primary)] text-white text-sm px-3 py-1.5">Print</button>
+        <PrintButton variant="toolbar" buttonClassName="rounded-lg bg-[var(--primary)] text-white text-sm px-3 py-1.5" />
       </div>
       <PrintHeader title="Grey Rej Outward" subtitle={`${row.number} · ${fmtDate(row.date)}`} />
       <div className="grid grid-cols-2 gap-3 text-sm border border-[var(--border)] rounded-xl p-4">

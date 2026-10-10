@@ -1,6 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import { Download, Printer, Share2 } from "lucide-react"
+import { saveScreenPdf } from "@/lib/saveScreenPdf"
 
 interface DocumentActionsProps {
   onPrint?: () => void
@@ -31,8 +33,26 @@ export default function DocumentActions({
   shareLabel = "Share",
   className = "",
 }: DocumentActionsProps) {
+  const [screenBusy, setScreenBusy] = useState(false)
+  const busy = pdfBusy || screenBusy
+
+  async function handleSave() {
+    if (onSavePdf) {
+      onSavePdf()
+      return
+    }
+    setScreenBusy(true)
+    try {
+      await saveScreenPdf()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "PDF save failed")
+    } finally {
+      setScreenBusy(false)
+    }
+  }
+
   return (
-    <div className={`print:hidden flex flex-wrap items-center gap-2 ${className}`}>
+    <div className={`eb-print-save-bar print:hidden flex flex-wrap items-center gap-2 ${className}`}>
       {onPrint && (
         <button
           type="button"
@@ -44,16 +64,14 @@ export default function DocumentActions({
           <Printer className="w-4 h-4" /> Print
         </button>
       )}
-      {onSavePdf && (
-        <button
-          type="button"
-          onClick={onSavePdf}
-          disabled={pdfDisabled || pdfBusy}
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-[var(--primary)] text-white rounded-lg hover:opacity-90 disabled:opacity-50"
-        >
-          <Download className="w-4 h-4" /> {pdfBusy ? "Saving…" : "Save PDF"}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => void handleSave()}
+        disabled={pdfDisabled || busy}
+        className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-[var(--primary)] text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+      >
+        <Download className="w-4 h-4" /> {busy ? "Saving…" : "Save PDF"}
+      </button>
       {onShare && (
         <button
           type="button"

@@ -1,5 +1,6 @@
 "use client"
 import type { ReportConfig } from "@/lib/reportTypes"
+import { saveScreenPdf } from "@/lib/saveScreenPdf"
 
 interface Props { sourceKey: string; config: ReportConfig }
 
@@ -27,6 +28,7 @@ export default function ExportMenu({ sourceKey, config }: Props) {
         <button onClick={() => download(sourceKey, config, "csv")} className="w-full text-left px-2 py-1 text-sm hover:bg-[var(--bg-page)] rounded">CSV</button>
         <button onClick={() => download(sourceKey, config, "xlsx")} className="w-full text-left px-2 py-1 text-sm hover:bg-[var(--bg-page)] rounded">Excel (XLSX)</button>
         <button onClick={() => window.print()} className="w-full text-left px-2 py-1 text-sm hover:bg-[var(--bg-page)] rounded">Print</button>
+        <button onClick={() => void saveScreenPdf({ filename: `${sourceKey}.pdf` })} className="w-full text-left px-2 py-1 text-sm hover:bg-[var(--bg-page)] rounded">Save PDF</button>
       </div>
     </details>
   )

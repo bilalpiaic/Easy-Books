@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Printer, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
 import DateRangePicker from '@/components/DateRangePicker'
 import PrintHeader from '@/components/PrintHeader'
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface TaxSummary {
   period: { start: string; end: string }
@@ -77,9 +78,7 @@ export default function TaxReports() {
           <button onClick={exportCsv} disabled={!data} className="p-3 bg-white border border-[var(--border)] rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-40 print:hidden" title="Export CSV">
             <Download className="w-5 h-5" />
           </button>
-          <button onClick={() => window.print()} className="p-3 bg-white border border-[var(--border)] rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 print:hidden" title="Print">
-            <Printer className="w-5 h-5" />
-          </button>
+          <PrintButton variant="icon" buttonClassName="p-3 bg-white border border-[var(--border)] rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60" />
         </div>
       </div>
 

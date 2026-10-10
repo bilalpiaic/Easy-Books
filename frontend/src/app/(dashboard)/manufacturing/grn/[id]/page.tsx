@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { Printer, Package } from "lucide-react"
+import { SavePdfButton } from "@/components/PrintButton"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
@@ -88,11 +89,14 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
             {grn.number}
           </h1>
         </div>
-        <Link
-          href={`/manufacturing/grn/${grn.id}/print`}
-          className="inline-flex items-center gap-2 border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors print:hidden"
-        >
-          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
+        <div className="flex items-center gap-2 print:hidden">
+          <Link
+            href={`/manufacturing/grn/${grn.id}/print`}
+            className="inline-flex items-center gap-2 border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
+          >
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
+          <SavePdfButton buttonClassName="inline-flex items-center gap-2 border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors" />
+        </div>
       </div>
 
       {/* Header card */}

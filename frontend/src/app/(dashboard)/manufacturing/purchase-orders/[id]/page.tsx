@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ShoppingCart, CheckCircle, FileText, AlertCircle, ArrowLeft, Printer, DoorOpen } from "lucide-react"
+import { SavePdfButton } from "@/components/PrintButton"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -117,6 +118,7 @@ export default function PurchaseOrderDetailPage() {
             className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-xl text-xs font-bold hover:bg-[var(--bg-page)] print:hidden"
           >
             <Printer className="w-3.5 h-3.5" />{t('common.print', 'Print')}</Link>
+          <SavePdfButton buttonClassName="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-xl text-xs font-bold hover:bg-[var(--bg-page)]" />
           <Link
             href="/manufacturing/purchase-orders"
             className="flex items-center gap-1.5 text-sm text-[var(--text-primary)]/60 hover:text-[var(--text-primary)] transition-colors"

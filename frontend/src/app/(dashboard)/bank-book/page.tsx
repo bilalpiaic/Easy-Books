@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Landmark, Printer, Download } from "lucide-react"
+import { Landmark, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { VOUCHER_TYPES } from "@/lib/voucherTypes"
 import { downloadCSV } from "@/lib/utils"
@@ -9,6 +9,7 @@ import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import LedgerEntriesTable, { LedgerPayload } from "@/components/LedgerEntriesTable"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -151,14 +152,12 @@ export default function BankBookPage() {
           >
             <Download className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => window.print()}
+          <PrintButton
+            variant="icon"
+            buttonClassName="p-2.5 bg-white border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-30 disabled:cursor-not-allowed"
             disabled={!ledgerData}
-            className="p-2.5 bg-white border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-30 disabled:cursor-not-allowed"
-            title={!ledgerData ? "No data to print" : "Print Bank Book"}
-          >
-            <Printer className="w-4 h-4" />
-          </button>
+            printTitle={!ledgerData ? "No data to print" : "Print Bank Book"}
+          />
         </div>
       </div>
 

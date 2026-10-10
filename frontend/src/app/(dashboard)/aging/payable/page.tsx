@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Clock, Printer, Download } from "lucide-react"
+import { Clock, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
 import { downloadCSV, fmtDateJs } from "@/lib/utils"
 import { isForeignCurrency } from "@/lib/fx"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface AgingItem {
   id: number
@@ -93,13 +94,7 @@ export default function APAgingPage() {
           >
             <Download className="w-5 h-5" />
           </button>
-          <button
-            onClick={() => window.print()}
-            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60"
-            title="Print"
-          >
-            <Printer className="w-5 h-5" />
-          </button>
+          <PrintButton variant="icon" buttonClassName="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60" />
           <Clock className="w-7 h-7 text-[var(--primary)] hidden md:block ml-2" />
         </div>
       </div>

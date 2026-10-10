@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Printer, ChevronLeft, CheckCircle, AlertCircle } from 'lucide-react'
+import { SavePdfButton } from "@/components/PrintButton"
 import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
@@ -273,11 +274,14 @@ export default function ProductionOrderDetailPage() {
         <Link href="/manufacturing/production-orders" className="flex items-center gap-1 text-sm text-[var(--text-primary)]/60 hover:text-[var(--primary)]">
           <ChevronLeft className="w-4 h-4" /> Production Orders
         </Link>
-        <a
-          href={`/manufacturing/production-orders/${po.id}/print`}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-xl text-xs font-bold hover:bg-[var(--bg-page)] print:hidden"
-        >
-          <Printer className="w-3.5 h-3.5" />{t('common.print', 'Print')}</a>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/manufacturing/production-orders/${po.id}/print`}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-xl text-xs font-bold hover:bg-[var(--bg-page)] print:hidden"
+          >
+            <Printer className="w-3.5 h-3.5" />{t('common.print', 'Print')}</a>
+          <SavePdfButton buttonClassName="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-xl text-xs font-bold hover:bg-[var(--bg-page)]" />
+        </div>
       </div>
 
       {/* Header card */}

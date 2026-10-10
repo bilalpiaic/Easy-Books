@@ -11,6 +11,7 @@ import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV, fmtDate } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface BillPaymentRecord {
   id: number
@@ -70,11 +71,7 @@ export default function BillPayments() {
           >
             <Download className="w-4 h-4" /> CSV
           </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)]">
             <Plus className="w-4 h-4" /> Pay Bill
           </button>

@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Building2, Printer, AlertCircle, CheckCircle, TrendingDown, RotateCcw, Archive } from "lucide-react"
+import { Building2, AlertCircle, CheckCircle, TrendingDown, RotateCcw, Archive } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -10,6 +10,7 @@ import DocLink from "@/components/DocLink"
 import { fmtDate, todayLocal } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 import { useMessages } from "@/context/MessageContext"
+import PrintButton from "@/components/PrintButton"
 
 interface DepreciationEntry {
   id: number
@@ -284,9 +285,7 @@ export default function FixedAssetRegisterPage({ params }: { params: Promise<{ i
             )}
           </div>
         </div>
-        <button onClick={() => window.print()} className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] text-[var(--text-primary)]/60 print:hidden" title="Print">
-          <Printer className="w-5 h-5" />
-        </button>
+        <PrintButton variant="icon" buttonClassName="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] text-[var(--text-primary)]/60" />
       </div>
 
       {/* Summary tiles */}

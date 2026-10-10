@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet, LayoutDashboard, CircleDot, Scale } from "lucide-react"
+import { ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet, LayoutDashboard, CircleDot, Scale } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise" | "yarn_spinning"
 const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise", "yarn_spinning"]
@@ -1031,7 +1032,6 @@ function DashboardCustomizationFlow() {
 export default function WorkflowPage() {
   const { t } = useTranslation()
 
-  const handlePrint = () => window.print()
   const [businessModel, setBusinessModel] = useState<BusinessModel | null>(null)
 
   // Fetch the tenant's business model so only the relevant cycles are shown.
@@ -1066,11 +1066,10 @@ export default function WorkflowPage() {
             Double-entry accounting cycle reference
           </p>
         </div>
-        <button
-          onClick={handlePrint}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-[var(--border)] rounded-xl text-sm text-[var(--text-primary)]/70 hover:border-[var(--primary)]/50 hover:text-[var(--primary)] transition-all print:hidden shadow-sm self-start"
-        >
-          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+        <PrintButton
+          className="self-start"
+          buttonClassName="flex items-center gap-2 px-4 py-2 bg-white border border-[var(--border)] rounded-xl text-sm text-[var(--text-primary)]/70 hover:border-[var(--primary)]/50 hover:text-[var(--primary)] transition-all shadow-sm"
+        />
       </div>
 
       {/* Double-Entry callout */}

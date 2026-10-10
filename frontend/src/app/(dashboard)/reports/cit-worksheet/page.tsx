@@ -1,12 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Plus, Printer, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import DateRangePicker from '@/components/DateRangePicker'
 import PrintHeader from '@/components/PrintHeader'
 import { fmtDate } from '@/lib/utils'
+import PrintButton from "@/components/PrintButton"
 
 interface CitAdj {
   id: number
@@ -113,13 +114,7 @@ export default function CitWorksheetPage() {
             Accounting profit → addbacks / deductions → estimated tax
           </p>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="p-3 bg-white border border-[var(--border)] rounded-xl hover:bg-[var(--bg-page)] self-start"
-          title="Print"
-        >
-          <Printer className="w-5 h-5" />
-        </button>
+        <PrintButton variant="icon" buttonClassName="p-3 bg-white border border-[var(--border)] rounded-xl hover:bg-[var(--bg-page)] self-start" />
       </div>
 
       <div className="flex flex-wrap gap-3 print:hidden p-4 bg-white border border-[var(--border)] rounded-xl">

@@ -1,6 +1,6 @@
 "use client"
 
-import { Tablet, Download, Printer } from "lucide-react"
+import { Tablet, Download } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
@@ -9,6 +9,7 @@ import {
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface Product { id: number; code: string; name: string; product_type: string }
 interface DeviceImei { id: number; imei_number: string; serial_number: string | null; status: string; product_id: number }
@@ -52,11 +53,7 @@ export default function DevicesPage() {
       <PrintHeader title="Devices (IMEI)" orientation="landscape" />
       <div className="flex items-center justify-between">
         <PageHeader icon={Tablet} title="Devices (IMEI)" subtitle="Track handset & router stock by IMEI for warranty and resale." />
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
-        >
-          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+        <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
       </div>
 
       <HelpCallout title="IMEI is serial-level tracking" tone="tip">

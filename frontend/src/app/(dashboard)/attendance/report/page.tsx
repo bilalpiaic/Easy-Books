@@ -3,11 +3,12 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useTranslation } from "react-i18next"
-import { ArrowLeft, Printer, Download, Search } from "lucide-react"
+import { ArrowLeft, Download, Search } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import DateRangePicker from "@/components/DateRangePicker"
+import PrintButton from "@/components/PrintButton"
 
 interface Employee {
   id: number
@@ -149,10 +150,7 @@ export default function AttendanceReportPage() {
         </button>
         {hasRun && (
           <>
-            <button onClick={() => window.print()}
-              className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50">
-              <Printer className="w-4 h-4" /> Print
-            </button>
+            <PrintButton buttonClassName="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50" />
             <button onClick={exportCsv}
               className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50">
               <Download className="w-4 h-4" /> Export CSV

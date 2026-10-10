@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Printer, XCircle, AlertCircle } from "lucide-react"
+import { ArrowLeft, XCircle, AlertCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import StatusBadge from "@/components/StatusBadge"
+import PrintButton from "@/components/PrintButton"
 
 type GILine = {
   id: number; po_line_id: number; product_id?: number; qty_received: number
@@ -22,7 +23,6 @@ type GateInward = {
   lines: GILine[]
   po_number?: string; vendor_name?: string
 }
-
 
 export default function GateInwardDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -139,10 +139,7 @@ export default function GateInwardDetailPage() {
 
       {/* Actions */}
       <div className="flex flex-wrap items-start gap-2 print:hidden">
-        <button onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] text-sm hover:bg-[var(--bg-page)]">
-          <Printer className="w-4 h-4" /> Print
-        </button>
+        <PrintButton buttonClassName="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] text-sm hover:bg-[var(--bg-page)]" />
         {gi.status === "open" && !showCancel && (
           <button onClick={() => setShowCancel(true)} disabled={busy}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-300 text-red-700 text-sm disabled:opacity-50">

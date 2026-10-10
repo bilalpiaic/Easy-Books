@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { ScrollText, Search, Printer } from "lucide-react"
+import { ScrollText, Search } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import DocLink, { DocKind } from "@/components/DocLink"
 import Pagination from "@/components/Pagination"
@@ -10,6 +10,7 @@ import SkeletonRow from "@/components/SkeletonRow"
 import PrintHeader from "@/components/PrintHeader"
 import DateRangePicker from "@/components/DateRangePicker"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface AuditEntry {
   id: number
@@ -164,11 +165,7 @@ function AuditLogPageContent() {
           <p className="text-sm text-[var(--text-muted)] mt-1">Every change made in your organisation, with a link to the affected record.</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button onClick={exportCsv} className="px-4 py-2 text-sm font-bold border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] transition-colors">{t('common.exportCsv', 'Export CSV')}</button>
         </div>
       </div>

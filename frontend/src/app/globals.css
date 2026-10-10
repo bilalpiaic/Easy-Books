@@ -844,6 +844,32 @@ div.freeze-col > table tbody tr:hover td:first-child {
 .print-landscape { /* meaningful only inside @media print */ }
 
 /* ═══════════════════════════════════════════════════════════════════
+   SCREEN-FAITHFUL SAVE PDF
+   html.eb-saving-pdf is set while capturing the on-screen document.
+   This is NOT @media print — the Courier / black dot-matrix rules
+   above must not apply. Expand overflow so full tables snapshot.
+   ═══════════════════════════════════════════════════════════════════ */
+html.eb-saving-pdf,
+html.eb-saving-pdf body {
+  height: auto !important;
+  overflow: visible !important;
+}
+html.eb-saving-pdf .h-screen { height: auto !important; }
+html.eb-saving-pdf .table-freeze,
+html.eb-saving-pdf .overflow-hidden,
+html.eb-saving-pdf .overflow-y-auto,
+html.eb-saving-pdf .overflow-x-auto {
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+html.eb-saving-pdf .eb-print-save-bar,
+html.eb-saving-pdf [data-print-hide],
+html.eb-saving-pdf [data-eb-chrome] {
+  display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    DARK MODE  —  [data-theme="dark"] on <html>
    All overrides use !important to win over Tailwind's arbitrary
    value classes which are generated with no specificity advantage.

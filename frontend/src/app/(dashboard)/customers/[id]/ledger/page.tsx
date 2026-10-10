@@ -10,6 +10,7 @@ import { VOUCHER_TYPES } from "@/lib/voucherTypes"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface LedgerEntry {
   date: string
@@ -94,9 +95,7 @@ export default function CustomerLedgerPage({ params }: { params: Promise<{ id: s
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--primary)]/40 rounded-lg text-sm font-bold text-[var(--primary)] hover:bg-[var(--bg-page)] print:hidden">
             <Printer className="w-4 h-4" /> Print Statement
           </Link>
-          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] print:hidden">
-            <Printer className="w-4 h-4" /> Print Ledger
-          </button>
+          <PrintButton label="Print Ledger" buttonClassName="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]" />
         </div>
       </div>
 

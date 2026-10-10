@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Edit2, Trash2, Check, X, Home, ArrowLeft, Printer, Download } from "lucide-react"
+import { Plus, Edit2, Trash2, Check, X, Home, ArrowLeft, Download } from "lucide-react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { useTranslation } from "react-i18next"
 import PrintHeader from "@/components/PrintHeader"
 import { useMessages } from "@/context/MessageContext"
+import PrintButton from "@/components/PrintButton"
 
 interface Account {
   id: number
@@ -245,10 +246,7 @@ export default function SalaryComponentsPage() {
           <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">{t("Salary Components")}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm">
-            <Printer className="w-4 h-4" /> Print
-          </button>
+          <PrintButton buttonClassName="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm" />
           <button onClick={exportCsv}
             className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm">
             <Download className="w-4 h-4" /> Export CSV

@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Printer } from 'lucide-react'
+
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import DateRangePicker from '@/components/DateRangePicker'
 import PrintHeader from '@/components/PrintHeader'
 import { fmtDate } from '@/lib/utils'
+import PrintButton from "@/components/PrintButton"
 
 interface WhtRow {
   vendor_id: number | null
@@ -63,13 +64,7 @@ export default function WhtReportPage() {
           <div className="p-3 bg-white border border-[var(--border)] rounded-xl">
             <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
           </div>
-          <button
-            onClick={() => window.print()}
-            className="p-3 bg-white border border-[var(--border)] rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60"
-            title="Print"
-          >
-            <Printer className="w-5 h-5" />
-          </button>
+          <PrintButton variant="icon" buttonClassName="p-3 bg-white border border-[var(--border)] rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60" />
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Banknote, Download, Printer } from "lucide-react"
+import { Banknote, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
@@ -11,6 +11,7 @@ import {
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface MmAccount { id: number; account_number: string; account_type: string; current_float_balance: string }
@@ -81,11 +82,7 @@ export default function MobileMoneyPage() {
       <PrintHeader title="Mobile Money" orientation="landscape" />
       <div className="flex items-center justify-between">
         <PageHeader icon={Banknote} title="Mobile Money" subtitle="Agency float for JazzCash / Easypaisa deposits, withdrawals and commission." />
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
-        >
-          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+        <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
       </div>
 
       <HelpCallout title="Float moves opposite to cash" tone="tip">

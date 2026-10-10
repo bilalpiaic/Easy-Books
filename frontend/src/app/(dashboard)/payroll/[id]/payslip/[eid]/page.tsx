@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Printer } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt, useCurrency } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface PayslipData {
   run: {
@@ -68,7 +69,7 @@ export default function PayslipPage() {
       />
 
       {/* ── Screen-only toolbar ───────────────────────────────────── */}
-      <div className="print:hidden flex items-center justify-between">
+      <div data-print-hide className="print:hidden flex items-center justify-between">
         <Link
           href={`/payroll/${runId}`}
           className="inline-flex items-center gap-2 text-[var(--primary)] hover:underline text-sm"
@@ -76,12 +77,7 @@ export default function PayslipPage() {
           <ArrowLeft className="w-4 h-4" />
           {t("common.back", "Back to Payroll Run")}
         </Link>
-        <button
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm hover:bg-[var(--bg-page)]"
-        >
-          <Printer className="w-4 h-4" /> {t("common.print", "Print")}
-        </button>
+        <PrintButton buttonClassName="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm hover:bg-[var(--bg-page)]" />
       </div>
 
       {/* ── Screen card view ─────────────────────────────────────── */}

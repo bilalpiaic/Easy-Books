@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, ChevronDown, ChevronRight, ArrowLeftRight, Users, Download, Printer } from "lucide-react"
+import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, ChevronDown, ChevronRight, ArrowLeftRight, Users, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface StockLocation {
   id: number
@@ -155,11 +156,7 @@ export default function StockLocationsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
-          <button
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="inline-flex items-center gap-2 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button
             onClick={() => downloadCSV('stock-locations.csv', locations.map(l => ({ Code: l.code, Name: l.name, Type: TYPE_LABELS[l.type] ?? l.type, Active: l.is_active ? 'Yes' : 'No' })))}
             disabled={locations.length === 0}

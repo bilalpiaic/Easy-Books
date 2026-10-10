@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Pencil, ToggleLeft, ToggleRight, Layers, TrendingUp, Download, Printer, Settings2 } from "lucide-react"
+import { Plus, Pencil, ToggleLeft, ToggleRight, Layers, TrendingUp, Download, Settings2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import type { AnalyticDimension } from "@/components/DimensionPickers"
+import PrintButton from "@/components/PrintButton"
 
 interface AnalyticAccount {
   id: number
@@ -207,11 +208,7 @@ export default function AnalyticAccountsPage() {
           >
             <Settings2 className="w-4 h-4" /> Dimension
           </button>
-          <button
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button
             onClick={() => downloadCSV('analytic-accounts.csv', items.map(a => ({
               Code: a.code, Name: a.name,

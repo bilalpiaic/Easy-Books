@@ -3,13 +3,14 @@
 import { Suspense, use, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Printer, Download } from 'lucide-react'
+import { ArrowLeft, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV, fmtDate, fmtDateJs } from '@/lib/utils'
 import PrintHeader from '@/components/PrintHeader'
 import DateRangePicker from '@/components/DateRangePicker'
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface StatementBill {
   id: number
@@ -93,9 +94,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]">
             <Download className="w-4 h-4" /> CSV
           </button>
-          <button onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] print:hidden">
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]" />
         </div>
       </div>
 
