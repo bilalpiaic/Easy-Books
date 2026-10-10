@@ -9,7 +9,15 @@ import {
 } from "lucide-react"
 import { useModules, type ModuleInfo } from "@/context/ModuleContext"
 import { useMessages } from "@/context/MessageContext"
-import { ADDON_PACKS, HOME_PREF_KEY, type AddonPack } from "@/lib/addonPacks"
+import {
+  ADDON_PACKS,
+  ADDON_PACK_GROUPS,
+  HOME_PREF_KEY,
+  MODULE_CATEGORY_META,
+  MODULE_CATEGORY_ORDER,
+  type AddonPack,
+  type ModuleCategory,
+} from "@/lib/addonPacks"
 import { getCurrentUser } from "@/lib/auth"
 import { apiFetch } from "@/lib/api"
 
@@ -19,14 +27,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
 }
 
 /** Allowlist of MODULE_REGISTRY categories shown on this page (sort + filter). */
-const CATEGORY_ORDER = [
-  "Core",
-  "Operations",
-  "HR",
-  "Industry",
-  "Intelligence",
-  "Localization",
-] as const
+const CATEGORY_ORDER = MODULE_CATEGORY_ORDER
+const MARKETPLACE_CAT_ORDER = [...CATEGORY_ORDER, "Integrations"] as const
 
 type ViewMode = "tabs" | "list"
 type Bucket = "default" | "recommended" | "optional" | "marketplace"
@@ -34,8 +36,8 @@ type Bucket = "default" | "recommended" | "optional" | "marketplace"
 const VIEW_KEY = "eb.addons.view"
 const BUCKET_TABS: { id: Bucket; label: string; hint: string }[] = [
   { id: "default", label: "Default", hint: "Always on — core accounting" },
-  { id: "recommended", label: "Recommended", hint: "Industry packs for a quick start" },
-  { id: "optional", label: "Optional", hint: "Install modules one at a time" },
+  { id: "recommended", label: "Recommended", hint: "Grouped by use — business nature, country & statutory, intelligence" },
+  { id: "optional", label: "Optional", hint: "Install modules one at a time, grouped by category of use" },
   { id: "marketplace", label: "Marketplace", hint: "Curated third-party extensions (declarative manifests only)" },
 ]
 
@@ -358,6 +360,40 @@ function AppsPageInner() {
     }),
   })), [installedModules, modules])
 
+  const optionalByCategory = useMemo(() => {
+    const buckets = new Map<ModuleCategory, ModuleInfo[]>()
+    for (const mod of optionalMods) {
+      const cat = (CATEGORY_ORDER.includes(mod.category as ModuleCategory)
+        ? mod.category
+        : "Operations") as ModuleCategory
+      const list = buckets.get(cat) ?? []
+      list.push(mod)
+      buckets.set(cat, list)
+    }
+    return CATEGORY_ORDER
+      .filter(cat => cat !== "Core" && (buckets.get(cat)?.length ?? 0) > 0)
+      .map(cat => ({ cat, mods: buckets.get(cat) ?? [] }))
+  }, [optionalMods])
+
+  const catalogByCategory = useMemo(() => {
+    const buckets = new Map<string, CatalogEntry[]>()
+    for (const entry of catalog) {
+      const cat = entry.category || "Other"
+      const list = buckets.get(cat) ?? []
+      list.push(entry)
+      buckets.set(cat, list)
+    }
+    const ordered = MARKETPLACE_CAT_ORDER
+      .filter(cat => (buckets.get(cat)?.length ?? 0) > 0)
+      .map(cat => ({ cat, entries: buckets.get(cat) ?? [] }))
+    for (const [cat, entries] of buckets) {
+      if (!MARKETPLACE_CAT_ORDER.includes(cat as typeof MARKETPLACE_CAT_ORDER[number])) {
+        ordered.push({ cat, entries })
+      }
+    }
+    return ordered
+  }, [catalog])
+
   const handleInstall = useCallback(async (id: string) => {
     setBusyId(id); setError(null); setSuccess(null)
     try {
@@ -484,9 +520,9 @@ function AppsPageInner() {
     </div>
   )
 
-  const renderRecommended = () => (
+  const renderPackGrid = (packs: typeof packsWithStatus) => (
     <div className={view === "tabs" ? "grid grid-cols-1 md:grid-cols-2 gap-2" : "space-y-2"}>
-      {packsWithStatus.map(pack => (
+      {packs.map(pack => (
         <PackTile
           key={pack.id}
           pack={pack}
@@ -499,18 +535,53 @@ function AppsPageInner() {
     </div>
   )
 
+  const renderRecommended = () => (
+    <div className="space-y-6">
+      {ADDON_PACK_GROUPS.map(group => {
+        const packs = packsWithStatus.filter(p => p.group === group.id)
+        if (packs.length === 0) return null
+        return (
+          <section key={group.id} className="space-y-2">
+            <div>
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">{group.label}</h2>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">{group.hint}</p>
+            </div>
+            {renderPackGrid(packs)}
+          </section>
+        )
+      })}
+    </div>
+  )
+
   const renderOptional = () => (
-    <div className={view === "tabs" ? "grid grid-cols-1 md:grid-cols-2 gap-2" : "space-y-2"}>
-      {optionalMods.map(mod => (
-        <ModuleTile
-          key={mod.id}
-          mod={mod}
-          busy={busyId === mod.id}
-          onInstall={handleInstall}
-          onUninstall={handleUninstall}
-          detail={detail}
-        />
-      ))}
+    <div className="space-y-6">
+      {optionalByCategory.map(({ cat, mods }) => {
+        const meta = MODULE_CATEGORY_META[cat as Exclude<ModuleCategory, "Core">]
+        return (
+          <section key={cat} className="space-y-2">
+            <div>
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+                {meta?.label ?? cat}
+              </h2>
+              {meta && (
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{meta.hint}</p>
+              )}
+            </div>
+            <div className={view === "tabs" ? "grid grid-cols-1 md:grid-cols-2 gap-2" : "space-y-2"}>
+              {mods.map(mod => (
+                <ModuleTile
+                  key={mod.id}
+                  mod={mod}
+                  busy={busyId === mod.id}
+                  onInstall={handleInstall}
+                  onUninstall={handleUninstall}
+                  detail={detail}
+                />
+              ))}
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 
@@ -540,8 +611,27 @@ function AppsPageInner() {
       ) : catalog.length === 0 ? (
         <div className="text-center py-10 text-sm text-[var(--text-muted)]">No marketplace listings.</div>
       ) : (
+        <div className="space-y-6">
+          {catalogByCategory.map(({ cat, entries }) => (
+            <section key={cat} className="space-y-2">
+              <div>
+                <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+                  {MODULE_CATEGORY_META[cat as Exclude<ModuleCategory, "Core">]?.label
+                    ?? (cat === "Integrations" ? "Integrations" : cat)}
+                </h2>
+                {MODULE_CATEGORY_META[cat as Exclude<ModuleCategory, "Core">]?.hint && (
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                    {MODULE_CATEGORY_META[cat as Exclude<ModuleCategory, "Core">].hint}
+                  </p>
+                )}
+                {cat === "Integrations" && (
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                    Partner bridges and webhook opt-in — declarative manifests only
+                  </p>
+                )}
+              </div>
         <div className={view === "tabs" ? "grid grid-cols-1 md:grid-cols-2 gap-2" : "space-y-2"}>
-          {catalog.map(entry => {
+          {entries.map(entry => {
             const Icon = ICON_MAP[entry.icon] ?? Store
             return (
               <div
@@ -632,6 +722,9 @@ function AppsPageInner() {
             )
           })}
         </div>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   )
@@ -678,7 +771,7 @@ function AppsPageInner() {
       {welcome && (
         <div className="rounded-xl border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-4 py-3 text-sm text-[var(--text-primary)]">
           Welcome — you start with <strong>Base Accounting</strong>.
-          Open <strong>Recommended</strong> for an industry pack, or <strong>Optional</strong> for individual modules.
+          Open <strong>Recommended</strong> for a business-nature or country pack, or <strong>Optional</strong> for individual modules.
         </div>
       )}
 
@@ -791,7 +884,7 @@ function AppsPageInner() {
           <BucketSection title="Default" hint="Always on — core accounting" count={defaultMods.length}>
             {renderDefault()}
           </BucketSection>
-          <BucketSection title="Recommended" hint="Industry packs for a quick start" count={packsWithStatus.length}>
+          <BucketSection title="Recommended" hint="Business nature, country & statutory, and intelligence packs" count={packsWithStatus.length}>
             {renderRecommended()}
           </BucketSection>
           <BucketSection title="Optional" hint="Install modules one at a time" count={optionalMods.length}>

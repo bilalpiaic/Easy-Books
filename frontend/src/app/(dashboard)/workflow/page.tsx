@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet, LayoutDashboard, CircleDot, Scale } from "lucide-react"
+import { ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet, LayoutDashboard, CircleDot, Scale, Layers, Printer, Stethoscope } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useTranslation } from "react-i18next"
 import PrintButton from "@/components/PrintButton"
 
-type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise" | "yarn_spinning"
-const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise", "yarn_spinning"]
+type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise" | "yarn_spinning" | "hospital" | "pra_einvoice" | "textile_processing"
+const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise", "yarn_spinning", "hospital", "textile_processing"]
 
 // ── Primitive building blocks ────────────────────────────────────────────────
 
@@ -882,6 +882,76 @@ function WeighbridgeFlow() {
   )
 }
 
+function ProcessingFlow() {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed">
+        Textile processing (ballor/jobber) takes customer-owned grey in, mends, processes through PPC
+        stages, packs, and dispatches. Grey is custody stock — not mill inventory — until billed.
+      </p>
+      <VFlow>
+        <StepBox title="Grey inward lot" accent="teal" impact="Against a sales order. Customer grey sits in custody." />
+        <StepBox title="Mending + kachi parchi" accent="gold" impact="Repair and ticket the lot before the floor." />
+        <StepBox title="PPC stages" accent="blue" impact="Process, inspect, wastage. Pakki parchi when packed." />
+        <StepBox title="Dispatch + labour bill" accent="purple" impact="Fresh dispatch; leftover grey settled; contractor labour billed." />
+      </VFlow>
+    </div>
+  )
+}
+
+function HealthcareFlow() {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed">
+        Every patient is a Customer (MR-YYYYNNNN). OPD bills on visit; IPD accumulates charges until
+        discharge; lab/pharmacy/dialysis hang off the same AR sub-ledger.
+      </p>
+      <HFlow>
+        <StepBox title="OPD visit" accent="gold" gl="Dr 1100 / Cr 4100" impact="Token → record visit → invoice posts." />
+        <Arrow />
+        <StepBox title="IPD admission" accent="blue" impact="Deposit liability + occupied bed. Charges memo until discharge." />
+        <Arrow />
+        <StepBox title="Discharge" accent="green" impact="One invoice for all charges; deposit applied to AR." />
+      </HFlow>
+    </div>
+  )
+}
+
+function LocalizationFlow() {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed">
+        Country &amp; statutory packs (Pakistan FBR, UAE VAT, ZATCA, India GST, Peppol, UK MTD,
+        MyInvois) live together on Add-ons. They add a dashboard + log; they never rewrite posted GL.
+      </p>
+      <HFlow>
+        <StepBox title="Add-ons → Country & statutory" accent="gold" impact="Install beside any business-nature pack." />
+        <Arrow />
+        <StepBox title="Settings credentials" accent="blue" impact="NTN, GSTIN, TRN, AP URL, HMRC sandbox…" />
+        <Arrow />
+        <StepBox title="Submit posted invoice" accent="green" impact="Log accepted/rejected. Voucher stays posted on failure." />
+      </HFlow>
+    </div>
+  )
+}
+
+function PrintSaveFlow() {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed">
+        Print and Save PDF are paired on every report and voucher. They are not the same file.
+      </p>
+      <HFlow>
+        <StepBox title="Print" accent="gold" impact="Browser dialog. Courier, black-and-white, low-ink / dot-matrix." />
+        <Arrow />
+        <StepBox title="Save PDF" accent="blue" impact="On-screen cream/gold snapshot (html-to-image + jsPDF)." />
+        <Arrow />
+        <StepBox title="Download PDF (docs)" accent="green" impact="Server WeasyPrint on invoices/bills when the engine is installed." />
+      </HFlow>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 // ── New-module flows (Sprint 7–12 improvement roadmap) ───────────────────────
@@ -1046,6 +1116,8 @@ export default function WorkflowPage() {
   const isTelecom = businessModel === "telecom_franchise"
   const isYarnSpinning = businessModel === "yarn_spinning"
   const isServices = businessModel === "services"
+  const isHospital = businessModel === "hospital"
+  const isProcessing = businessModel === "textile_processing"
 
   return (
     <div className="space-y-6">
@@ -1223,6 +1295,46 @@ export default function WorkflowPage() {
           <WeighbridgeFlow />
         </SectionCard>
       )}
+
+      {isProcessing && (
+        <SectionCard
+          icon={Layers}
+          title="Textile Processing"
+          subtitle="Grey inward → mending → PPC → packed dispatch (custody stock)"
+          iconColor="text-indigo-600"
+        >
+          <ProcessingFlow />
+        </SectionCard>
+      )}
+
+      {isHospital && (
+        <SectionCard
+          icon={Stethoscope}
+          title="Healthcare / Hospital"
+          subtitle="OPD visit invoice · IPD accumulate → discharge · lab / dialysis"
+          iconColor="text-rose-600"
+        >
+          <HealthcareFlow />
+        </SectionCard>
+      )}
+
+      <SectionCard
+        icon={Globe}
+        title="Country & statutory packs"
+        subtitle="FBR · UAE VAT · ZATCA · India GST · Peppol · UK MTD · MyInvois — dashboard + log, no GL rewrite"
+        iconColor="text-sky-700"
+      >
+        <LocalizationFlow />
+      </SectionCard>
+
+      <SectionCard
+        icon={Printer}
+        title="Print vs Save PDF"
+        subtitle="Print = dot-matrix paper · Save PDF = on-screen colours"
+        iconColor="text-stone-700"
+      >
+        <PrintSaveFlow />
+      </SectionCard>
 
       {/* 13 — Credit Note flow (all models) */}
       <SectionCard
