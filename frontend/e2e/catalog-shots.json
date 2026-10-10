@@ -250,6 +250,36 @@
     "tenant": "pra"
   },
   {
+    "id": "hospital--leave",
+    "path": "/leave",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--expense-claims",
+    "path": "/expense-claims",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-dialysis",
+    "path": "/healthcare/dialysis",
+    "tenant": "hospital"
+  },
+  {
+    "id": "services--agent-forecast",
+    "path": "/agent/forecast",
+    "tenant": "services"
+  },
+  {
+    "id": "manufacturing--consolidation",
+    "path": "/consolidation",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--intercompany-recon",
+    "path": "/intercompany/recon",
+    "tenant": "manufacturing"
+  },
+  {
     "id": "anon--login",
     "path": "/login",
     "tenant": "anon"
@@ -795,16 +825,6 @@
     "tenant": "hospital"
   },
   {
-    "id": "hospital--leave",
-    "path": "/leave",
-    "tenant": "hospital"
-  },
-  {
-    "id": "hospital--expense-claims",
-    "path": "/expense-claims",
-    "tenant": "hospital"
-  },
-  {
     "id": "hospital--payroll-components",
     "path": "/payroll/components",
     "tenant": "hospital"
@@ -827,11 +847,6 @@
   {
     "id": "hospital--healthcare-procedures",
     "path": "/healthcare/procedures",
-    "tenant": "hospital"
-  },
-  {
-    "id": "hospital--healthcare-dialysis",
-    "path": "/healthcare/dialysis",
     "tenant": "hospital"
   },
   {
@@ -1632,11 +1647,6 @@
   {
     "id": "services--alerts",
     "path": "/alerts",
-    "tenant": "services"
-  },
-  {
-    "id": "services--agent-forecast",
-    "path": "/agent/forecast",
     "tenant": "services"
   },
   {

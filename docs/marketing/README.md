@@ -19,6 +19,8 @@ Narrated pictograph presentation, voiceover script, and social copy for commerci
 | [`../../ship-catalog-ad.sh`](../../ship-catalog-ad.sh) · [`.ps1`](../../ship-catalog-ad.ps1) · [`.bat`](../../ship-catalog-ad.bat) | One-click rebuild + zip from the project root (prints every required path) |
 | [`build_presentation.py`](./build_presentation.py) | Regenerates slides, audio, and MP4 |
 
+Add-ons on the live product are grouped by **category of use** (business nature vs country & statutory vs operations vs HR vs intelligence). Catalogue: [`../ADDONS.md`](../ADDONS.md) and in-app `/settings/catalog`.
+
 ## Segments covered (voiceover)
 
 1. Product thesis  

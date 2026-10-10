@@ -26,6 +26,10 @@
    - 6.10 [Weaving Unit Control (#140)](#410-weaving-unit-control-140)
    - 6.11 [Yarn Spinning Unit (#319)](#411-yarn-spinning-unit-319)
    - 6.12 [Mill Weighbridge](#412-mill-weighbridge)
+   - 6.13 [Textile Processing](#413-textile-processing)
+   - 6.14 [POS & eCommerce](#414-pos--ecommerce)
+   - 6.15 [Country & statutory packs](#415-country--statutory-packs)
+   - 6.16 [Print vs Save PDF](#416-print-vs-save-pdf)
 7. [Cross-Cutting Features](#5-cross-cutting-features)
    - 7.1 [Multi-Currency & FX](#51-multi-currency--fx)
    - 7.2 [Tax Codes](#52-tax-codes)
@@ -58,6 +62,7 @@
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
 | Demo tenants | 9 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice/hospital/yarn_spinning/textile_processing (emails `demo.{model}@easy-books.app` — spinning uses `demo.spinning@easy-books.app`, processing uses `demo.processing@easy-books.app`; password `demo1234`). **Weighbridge** is a public Marketplace listing (gate pass + lot on invoices; no GL) for every demo tenant; mills also get the ticket workspace pre-installed. |
+| Add-ons | Grouped by use on `/apps`: Operations · HR · Business nature · Country & statutory · Intelligence. See [`docs/ADDONS.md`](./docs/ADDONS.md). |
 | Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **dual-home dashboard (v4)** — Financial \| Operations toggle on `/dashboard`, each home drag/resize/add/remove independently, per-breakpoint (desktop/tablet/phone), saved per user via `/api/dashboard/layout`; home preference in Settings → Advanced (`eb.home_dashboard`); ops aggregate `GET /api/dashboard/operations-summary`; staff rights `dashboard.financial` / `dashboard.operations`; **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+); **PRA portal mode** — admin/owner can toggle between Full Accounting view and a clean 7-item PRA-focused sidebar; non-admin users always land in portal mode (v2.8.1+); **Ctrl+K universal search** — 3-tier command palette (open tabs → nav index → API, 8 entity types, prefix filter syntax, recent searches) (v3.0+); **in-app auto-update** — `UpdateAvailablePopup` + `UpdateProgressScreen` with 4-phase progress and changelog (v3.0+); **mobile navigation** — `BottomNav`, `FAB`, `MoreDrawer` (v3.0+); **QB token system** — all 155+ pages migrated to CSS custom properties, dark mode entirely token-driven (v3.0+) |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
@@ -191,7 +196,7 @@ Dispatch-side mirror of Gate Inward, covering goods leaving via sales invoice, p
 - **Scrap is the exception** — no source document exists at all, so the Gate Outward entry *is* the transaction. Created as `draft` (free to fix/cancel, no side effects); `PATCH /{id}/approve` (admin+, blocks self-approval, row-locked to prevent a double-posting race) calls `consume_stock(..., source_doc_type="gate_outward")` and posts two separate JVs: `Dr Cash / Cr Scrap Sales` when there's salvage value, always `Dr Scrap Disposal Expense / Cr Inventory` — mirroring how invoice posting splits Revenue and COGS. Once `approved`, immutable.
 - **`GateOutward`** (`GO-YYYY-seq`, `source_doc_type` discriminator) — one shared table for all three exit kinds, so one register shows everything leaving the gate regardless of reason (mirrors the existing `StockMovement.source_doc_type`/`source_doc_id` polymorphic pattern).
 - **Reports** — Gate Outward Register (`/store/gate-outward-register`) and Dispatch Reconciliation (`/store/dispatch-reconciliation`, flags any posted invoice/debit-note with no recorded gate exit).
-- **Nav** — a brand-new top-level **Store** section (7 distinct `nav.ts` edits: `NAV`, `ALL_SECTIONS`, `TopNavSection.forModule` union, `TOP_NAV`, `SECTION_PREFIXES`, `SUB_NAV`, `getSectionHref`) — this module was Purchases-only before Phase 2b; Store now hosts Gate Outward and (eventually) Phase 3's Store Issue.
+- **Nav** — a brand-new top-level **Store** section (7 distinct `nav.ts` edits: `NAV`, `ALL_SECTIONS`, `TopNavSection.forModule` union, `TOP_NAV`, `SECTION_PREFIXES`, `SUB_NAV`, `getSectionHref`) — this module was Purchases-only before Phase 2b; Store now hosts Gate Outward **and Store Issue** (departmental consumption posts Dr Expense / Cr Inventory immediately on create).
 
 ### In-App Auto-Update System (v3.0)
 
@@ -1137,6 +1142,28 @@ Mill login → Weighbridge (top nav) / Ctrl+K
 | Hospital / simple / ungranted | Nav hidden; API 403 |
 
 Private Marketplace listing still installs Studio Gate pass (`x.gate_pass_no`) + Lot ref (`x.lot_ref`) on invoices. Uninstall archives definitions. End-user steps: [USER_GUIDE.md §41](./USER_GUIDE.md#41-weighbridge-mill-workspace).
+
+### 4.13 TEXTILE PROCESSING
+
+Business nature pack `textile_processing`. Customer-owned grey lots → mending → kachi parchi → PPC stages → pakki parchi → dispatch; leftover grey settled; contractor labour billed. Demo: `demo.processing@easy-books.app`. Pair with a country pack from Add-ons → Country & statutory.
+
+### 4.14 POS & ECOMMERCE
+
+**POS** (`pos`): open shift → register sale (same GL as invoices + COGS) → cash-up. Variance on the shift.
+
+**eCommerce** (`ecommerce`): Shopify/WooCommerce → SKU map → draft invoices. Connector never writes the GL.
+
+### 4.15 COUNTRY & STATUTORY PACKS
+
+Localization category on Add-ons (not Industry): `pra` (Pakistan FBR), `uae_vat`, `sa_zatca`, `in_gst`, `eu_peppol`, `uk_mtd`, `my_invois`. Dashboard + log; **never rewrite posted GL**. Canonical grouping: [`docs/ADDONS.md`](./docs/ADDONS.md).
+
+### 4.16 PRINT VS SAVE PDF
+
+Every Print control has Save PDF beside it.
+
+- **Print** — `@media print` Courier black-and-white for paper.
+- **Save PDF** — on-screen cream/gold snapshot (`html-to-image` + jsPDF).
+- **Download PDF** (invoices/bills) — server WeasyPrint when the engine is present.
 
 ---
 

@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-09-06 · **Version:** 5.2.0
+**Last updated:** 2026-10-10 · **Version:** 5.3.0
 
 ---
 
@@ -35,15 +35,18 @@
 21. [Granular User Permissions (Access Control)](#21-granular-user-permissions-access-control)
 22. [Section Hub Pages](#22-section-hub-pages)
 23. [3-Mode Voucher Entry](#23-3-mode-voucher-entry)
-24. [Printing & Report Formats](#24-printing--report-formats)
+24. [Printing & Save PDF](#24-printing--report-formats)
 25. [UI Preferences — Theme, Language & Layout](#25-ui-preferences--theme-language--layout)
 26. [Payroll](#26-payroll)
 27. [Attendance Register](#27-attendance-register)
-28. [PRA e-Invoice (Pakistan)](#28-pra-e-invoice-pakistan)
+28. [Country & statutory packs](#28-pra-e-invoice-pakistan)
 28a. [Saudi ZATCA e-Invoice](#28a-saudi-zatca-e-invoice)
 28b. [Peppol / EU VAT e-Invoice](#28b-peppol--eu-vat-e-invoice)
 28c. [India GST](#28c-india-gst)
 28d. [Withholding Tax & CIT Worksheet](#28d-withholding-tax--cit-worksheet)
+28e. [UAE VAT e-Invoice](#28e-uae-vat-e-invoice)
+28f. [UK MTD VAT](#28f-uk-mtd-vat)
+28g. [Malaysia MyInvois](#28g-malaysia-myinvois)
 29. [Modules & the Add-ons Page](#29-modules--the-add-ons-page)
     - 29.5 [Marketplace](#295-marketplace)
     - 29.6 [Settings Studio](#296-settings-studio)
@@ -60,6 +63,10 @@
 39. [Inventory Valuation Depth](#39-inventory-valuation-depth)
 40. [Save PDF troubleshooting](#40-save-pdf-troubleshooting)
 41. [Weighbridge](#41-weighbridge-mill-workspace)
+42. [Weaving](#42-weaving)
+43. [Textile Processing](#43-textile-processing)
+44. [Point of Sale](#44-point-of-sale)
+45. [eCommerce Connectors](#45-ecommerce-connectors)
 
 ---
 
@@ -1223,11 +1230,21 @@ Mirror of Payment mode — the chosen cash/bank account appears on the credit si
 
 ---
 
-## 24. PRINTING & REPORT FORMATS
+## 24. PRINTING & SAVE PDF
 
-### 24.1 How to Print
+Every report, list, and voucher toolbar that has **Print** also has **Save PDF**. They produce different files on purpose.
 
-Every report and list page has a **Print** button (printer icon) in the toolbar. Clicking it triggers the browser's native print dialog. The page automatically:
+### 24.1 Print vs Save PDF vs Download PDF
+
+| Control | What you get | When to use it |
+|---------|--------------|----------------|
+| **Print** (printer icon) | Browser print dialog. Courier New, black-and-white, no fills (`@media print`). Chrome (filters, pagination, action columns) is hidden. | Paper / dot-matrix / low-ink printers |
+| **Save PDF** (download icon, beside Print) | Client snapshot of the **on-screen** cream/gold layout (colours, DM Sans type, cards, badges) via `html-to-image` + jsPDF. Print stylesheet is **not** applied. Nav chrome and the Print/Save bar are omitted. | Email, archive, or a PDF that looks like the screen |
+| **Download PDF** (on some invoices/bills/portal docs) | Server WeasyPrint template. Needs Pango/Cairo. A 503 means the engine is missing — use Save PDF instead. | Official document template when the engine is installed |
+
+### 24.2 How to Print
+
+Click **Print**. The page automatically:
 - Hides all UI controls (filters, pagination, sort handles, action buttons, checkboxes).
 - Applies the correct paper orientation for the content.
 - Renders in black-and-white dot-matrix style (no coloured backgrounds or fills).
@@ -1737,44 +1754,115 @@ The **Demo Trading Co.** tenant (`demo.trader@easy-books.app`) ships with `in_gs
 
 ---
 
+## 28e. UAE VAT e-Invoice
+
+> Requires: **UAE VAT e-Invoice** from **System → Add-ons → Country & statutory** (category Localization).
+
+1. Install the pack (optionally seed sample — 5% tax codes + VAT payable/receivable leaves).
+2. Settings → UAE VAT: enable, set **TRN**.
+3. Sales dashboard `/uae` and submission logs `/uae/logs` (sandbox FTA stub).
+4. Posted invoices keep their GL; the adapter never rewrites Dr/Cr.
+
+Demo: the simple tenant is often seeded with `uae_vat`.
+
+---
+
+## 28f. UK MTD VAT
+
+> Requires: **UK MTD VAT** from Add-ons → Country & statutory.
+
+1. Install `uk_mtd`. Settings → UK MTD: enable, sandbox VAT number / credentials.
+2. Dashboard `/uk-mtd` shows VAT return boxes 1–9 for the period.
+3. Submit to the HMRC sandbox; every attempt is logged at `/uk-mtd/logs`.
+4. Failures retry; the source invoice stays posted.
+
+Demo: `demo.hospital@easy-books.app` may have `uk_mtd` seeded.
+
+---
+
+## 28g. Malaysia MyInvois
+
+> Requires: **Malaysia MyInvois** from Add-ons → Country & statutory.
+
+1. Install `my_invois`. Settings → MyInvois: enable, LHDN sandbox credentials.
+2. Dashboard `/my-invois` tracks UUID per submitted invoice.
+3. Logs at `/my-invois/logs`. GL is unchanged.
+
+Demo: `demo.processing@easy-books.app` may have `my_invois` seeded.
+
+---
+
 ## 29. MODULES & THE ADD-ONS PAGE
 
-Easy-Books uses an installable module system — similar to Odoo — so every tenant only sees the features they actually need.
+Easy-Books uses an installable module system — similar to Odoo — so every tenant only sees the features they actually need. Packs are grouped by **category of use**. Canonical list: [`docs/ADDONS.md`](docs/ADDONS.md).
 
 ### 29.1 What is a module?
 
-A module is a bundle of related features and sidebar sections. The installable set is:
+A module is a bundle of related features and sidebar sections.
+
+**Core**
 
 | Module | What it enables | Always active? |
 |--------|----------------|---------------|
 | **Base Accounting** | GL, Chart of Accounts, invoicing, AR/AP, banking, all reports | Yes (cannot be removed) |
-| **Inventory** | Products, stock, warehouses, product categories, inventory reports | No |
-| **Manufacturing** | BOM, production orders, manufacturing workflows | No — requires Inventory |
-| **Purchases & Store** | Demand → comparative → PO → gate inward/outward, store issues | No — requires Inventory |
-| **Weaving** | Loom/yarn unit-control memos (ops only) | No |
-| **Yarn Spinning** | Spinning mill production with full GL costing | No — requires Inventory + Purchases & Store |
-| **HRM & Payroll** | Employees, salary structures, payroll runs, attendance register | No |
-| **Telecom Franchise** | Full telecom module: trackers, RSOs, MSR, MFS, FCA workflow | No — requires Inventory |
-| **Healthcare** | OPD/IPD/Lab/Procedures/Pharmacy | No |
-| **AI Assistant** | Agentic financial chat (multi-provider) | No |
-| **PRA e-Invoice** | PRA e-invoice submission, fiscal invoice numbers, submission logs | No |
-| **Saudi ZATCA e-Invoice** | KSA Phase 2 sandbox clear/report, TLV QR, submission logs | No |
-| **India GST** | Place of supply, CGST/SGST/IGST, GSTR-1/3B | No |
-| **Peppol / EU VAT e-Invoice** | BIS Billing 3.0 UBL export, Access Point submit, submission logs | No |
-| **UAE VAT e-Invoice** | UAE 5% VAT codes, CoA leaves, FTA sandbox stub | No |
+
+**Operations** (horizontal — used across industries)
+
+| Module | What it enables | Depends on |
+|--------|----------------|------------|
+| **Inventory** | Products, stock, warehouses, categories, inventory reports | Base |
+| **Manufacturing** | BoM, production orders, GRN, job-costing | Inventory |
+| **Purchases & Store** | Demand → comparative → PO → gate inward/outward, store issues | Inventory |
+| **Point of Sale** | Shift, register, cash-up (same GL as invoices) | Inventory |
+| **eCommerce Connectors** | Shopify / WooCommerce → draft invoices | Inventory |
+| **Weighbridge** | Ticket desk (memo/ops, no GL) | Base |
+
+**HR**
+
+| Module | What it enables | Depends on |
+|--------|----------------|------------|
+| **HRM & Payroll** | Employees, leave, expense claims, salary structures, payroll, attendance | Base |
+
+**Business nature** (full industry verticals)
+
+| Module | What it enables | Depends on |
+|--------|----------------|------------|
+| **Telecom Franchise** | Tracker, RSO, FCA, SIM, commissions | Inventory |
+| **Healthcare** | OPD/IPD/Lab/Procedures/Pharmacy/Dialysis | Base + HRM + Inventory |
+| **Weaving** | Loom/yarn unit-control memos (ops only, no GL) | Inventory |
+| **Yarn Spinning** | Bale → lot → cone → dispatch with full GL costing | Inventory + Purchases & Store |
+| **Textile Processing** | Grey lots, mending, PPC, process billing | Inventory + Purchases & Store |
+
+**Country & statutory** (tax / e-invoice by jurisdiction — install beside any business nature)
+
+| Module | Jurisdiction |
+|--------|----------------|
+| **FBR Digital Invoicing** (`pra`) | Pakistan |
+| **UAE VAT e-Invoice** | United Arab Emirates |
+| **Saudi ZATCA e-Invoice** | Saudi Arabia |
+| **India GST** | India |
+| **Peppol / EU VAT e-Invoice** | European Union |
+| **UK MTD VAT** | United Kingdom |
+| **Malaysia MyInvois** | Malaysia |
+
+**Intelligence**
+
+| Module | What it enables |
+|--------|----------------|
+| **AI Financial Assistant** | Chat FAB, `/agent`, forecasts (Pro) |
 
 ### 29.2 The Add-ons page
 
-Go to **System → Add-ons** (`/apps`, admin and owner only) to browse modules. Tabs:
+Go to **System → Add-ons** (`/apps`, admin and owner only). Tabs:
 
 | Tab | What it shows |
 |-----|----------------|
 | **Default** | Always-on Base Accounting |
-| **Recommended** | Industry packs for a quick start |
-| **Optional** | First-party modules one at a time |
-| **Marketplace** | Curated partner listings (declarative manifests; no partner code) |
+| **Recommended** | Packs in three bands: **Business nature**, **Country & statutory**, **Intelligence** |
+| **Optional** | First-party modules one at a time, same bands (plus Operations and HR) |
+| **Marketplace** | Curated partner listings, grouped by category (declarative manifests; no partner code) |
 
-Each first-party card shows name, description, category (Core / Operations / HR / Industry / Intelligence / **Localization**), dependencies, install state, and **Install** / **Uninstall**.
+Each first-party card shows name, description, category, dependencies, install state, and **Install** / **Uninstall**.
 
 **Installing** a module also installs its dependencies automatically. For example, installing Manufacturing also installs Inventory if it is not already active.
 
@@ -2560,13 +2648,18 @@ IAS 2 depth beyond average cost — landed cost, lot/serial, and NRV write-downs
 
 ## 40. SAVE PDF TROUBLESHOOTING
 
-**Save PDF** on invoices, bills, lab reports, and the customer/vendor portal downloads a server-rendered PDF (WeasyPrint).
+There are **two** PDF paths. Do not mix them up.
 
-| Symptom | Likely cause | What to do |
-|---------|--------------|------------|
-| Message about **PDF engine unavailable** / 503 | WeasyPrint or system libs (Pango/Cairo) missing or crashing | **Debian/Ubuntu/WSL2:** `sudo apt-get install -y libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi8 shared-mime-info fonts-dejavu-core` then restart the backend. **Windows:** install the [tschoonj GTK3 runtime](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) (or re-run `install-and-run.ps1`, which installs it) then restart the backend. Avoid the older winget `GtkD.GtkPlusRuntime` package — its Pango is too old for WeasyPrint 68+. Docker images include the Linux libs in `backend/Dockerfile`. Check the backend log; retry |
-| **Cannot reach the API** / connection refused | Backend not running or wrong `NEXT_PUBLIC_API_URL` | Start the API (`python main.py` / installer); confirm the frontend points at the same host:port |
-| Generic **PDF download failed** with HTTP detail | Auth expired, document missing, or permission | Re-login; confirm the document exists and you have view rights |
+**Toolbar Save PDF** (beside Print on reports and vouchers) is a **client** snapshot of the screen (`html-to-image` + jsPDF). It does **not** call WeasyPrint. If it fails, check the browser console and try again; large landscape tables fall back from 2× to 1× pixel ratio automatically.
+
+**Download PDF** on invoices, bills, lab reports, and the customer/vendor portal is a **server** WeasyPrint file.
+
+| Symptom | Which path | What to do |
+|---------|------------|------------|
+| Message about **PDF engine unavailable** / 503 | Download PDF (WeasyPrint) | **Debian/Ubuntu/WSL2:** `sudo apt-get install -y libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi8 shared-mime-info fonts-dejavu-core` then restart the backend. **Windows:** install the [tschoonj GTK3 runtime](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) (or re-run `install-and-run.ps1`) then restart. Avoid the older winget `GtkD.GtkPlusRuntime` package. Docker images include the Linux libs. Use **Save PDF** as a workaround. |
+| **Cannot reach the API** / connection refused | Download PDF | Start the API; confirm `NEXT_PUBLIC_API_URL` |
+| Generic **PDF download failed** with HTTP detail | Download PDF | Re-login; confirm the document exists and you have view rights |
+| Save PDF spinner then “Save PDF failed” | Toolbar Save PDF | Reload; try a smaller date range; allow canvas/clipboard if the browser prompts |
 
 The UI surfaces the server `detail` when available instead of a bare browser “Failed to fetch”.
 
@@ -2635,3 +2728,55 @@ Weighbridge as a **public Marketplace listing** installs a Studio bundle on **in
 - Not hidden from traders or hospitals — Marketplace always lists it; the ticket desk appears after Optional install.
 
 Visual mill cycle is also on **System → Workflow** for manufacturing and spinning companies, and on **System → User Guide** (Weighbridge tab).
+
+---
+
+## 42. WEAVING
+
+> Requires: **Weaving** from Add-ons → Business nature. Demo: manufacturing mill (`demo.manufacturing@easy-books.app`).
+
+v1 is **memo/ops only** — no GL. Weights in Kg; Lbs/Bags derived.
+
+1. Setup: fabric qualities, looms, yarn types, shifts, operators (`/weaving/setup`).
+2. Open a **contract** with embedded quality, construction, and rates.
+3. Yarn inward → sizing → production (shift/operator) → dispatch against the contract.
+4. Daily ops and contract-control reports keep the mill honest.
+
+Do not confuse with **Yarn Spinning**, which posts every approve to the GL.
+
+---
+
+## 43. TEXTILE PROCESSING
+
+> Requires: **Textile Processing**. Demo: `demo.processing@easy-books.app`.
+
+Ballor/jobber printing unit. Customer-owned grey is **custody stock**.
+
+1. Sales order → grey inward lot (`/processing/lots/new`).
+2. Mending and kachi parchi.
+3. PPC stages; pakki parchi when packed.
+4. Fresh dispatch; settle leftover grey; bill contractor labour.
+
+Pair with a country pack from Add-ons → Country & statutory if you need e-invoicing (the processing demo may seed MyInvois).
+
+---
+
+## 44. POINT OF SALE
+
+> Requires: **Point of Sale** (Operations). Demo trader includes it.
+
+1. Open a shift (opening float) at `/pos`.
+2. Ring up counter sales — same GL as invoices plus COGS for stock products.
+3. Close the shift; record actual cash. Variance sits on the shift, not a silent GL plug.
+4. Receipts still allocate to the walk-in/counter customer.
+
+---
+
+## 45. ECOMMERCE CONNECTORS
+
+> Requires: **eCommerce Connectors** (Operations). See also [`docs/ecommerce-adapters.md`](docs/ecommerce-adapters.md).
+
+1. Install from Add-ons → Operations.
+2. Add a Shopify or WooCommerce store (API URL + key) and map SKUs to products.
+3. Import orders — they land as **draft invoices**.
+4. Review, post, and collect like any other sale. The connector never writes the GL itself.

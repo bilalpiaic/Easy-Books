@@ -10,7 +10,9 @@
 > - [`WORKFLOW.md`](./WORKFLOW.md) — narrative walkthroughs of each cycle.
 > - In-app `/guide` and `/workflow` — interactive equivalents.
 >
-> **Last updated:** 2026-09-06 · **Branch:** `main`
+> **Last updated:** 2026-10-10 · **Branch:** `main`
+>
+> Add-ons grouping: [`docs/ADDONS.md`](./docs/ADDONS.md).
 
 ---
 
@@ -31,6 +33,9 @@
 10C. [Healthcare / Hospital Track (V4)](#10c-healthcare--hospital-track-v4)
 10D. [Yarn Spinning Track](#10d-yarn-spinning-track)
 10E. [Marketplace, Studio & Weighbridge](#10e-marketplace-studio--weighbridge)
+10F. [Weaving & Textile Processing](#10f-weaving--textile-processing)
+10G. [POS, eCommerce & Operations modules](#10g-pos-ecommerce--operations-modules)
+10H. [Country & statutory packs](#10h-country--statutory-packs)
 11. [Reports](#11-reports)
 12. [Security Model](#12-security-model)
 13. [Cross-Cutting Concerns](#13-cross-cutting-concerns)
@@ -483,9 +488,10 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 | `trader` | Goods buy-resell | + Finished Goods Inventory, COGS, Freight In, Storage, Inventory Adjustments, GST Receivable |
 | `manufacturing` | Value-addition / contract mfg | + RM/WIP/FG inventory, Customer Goods on Hand (memo 1210), Customer Goods Liability (memo 2150), Direct Labour, Manufacturing Overhead, Indirect Materials, Service Revenue (Value-Add) |
 | `telecom_franchise` | Mobile-operator franchise | + 56-account franchise CoA: Tracker Deposit `1210`, Load Float `1211`, RSO/Retail load receivables `1212/1213`, MM float `1214`, SIM/IMSI/device inventory `1200–1204`, Commission Receivable `1110`, Franchise Intangible `1300`; Operator Payable `2010`, MM Float Liability `2100`, Postpaid Collections Payable `2110`, Royalty Payable `2120`; revenue `4000–4061` (3% load uplift `4020`, FCA target `4060`); fee amortisation `5030`, royalty `5040`, variance `5070`, penalty `5090`. See WORKFLOW §4.8 |
-| `pra_einvoice` | Pakistani retail (PRA-registered) | Same CoA as `simple`; PRA module pre-installed |
+| `pra_einvoice` | Pakistani retail (FBR-registered) | Same CoA as `simple`; FBR Digital Invoicing (`pra`) pre-installed — this is a **country pack**, not a business nature |
 | `hospital` | Healthcare / Hospital | + Hospital CoA: `1100` AR, `2350` Patient Deposit Liability; revenue `4100` OPD / `4110` IPD Ward / `4112` Nursing / `4115` Lab / `4120` Procedures / `4121` Pharmacy; `5010` COGS (drug/supply inventory). Healthcare module pre-installed |
-| `yarn_spinning` | Yarn spinning mill | + Spinning CoA: `1200` Raw Cotton / `1201`–`1203` WIP stages / `1204` Finished Yarn / `5901`–`5904` waste / `5100` Direct Labour / `5200` Overhead / `5010` COGS. Spinning module pre-installed with `purchase_store` |
+| `yarn_spinning` | Yarn spinning mill | + Spinning CoA: `1200` Raw Cotton / `1201`–`1203` WIP stages / `1204` Finished Yarn / `5901`–`5904` waste / `5100` Direct Labour / `5200` Overhead / `5010` COGS. Spinning + `purchase_store` + `weighbridge` pre-installed |
+| `textile_processing` | Ballor / printing unit | Processing CoA + grey custody; `inventory` + `purchase_store` + `textile_processing` pre-installed |
 
 ### 6.2 Module System (UI visibility & billing)
 
@@ -493,31 +499,44 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 
 **`MODULE_REGISTRY`** (defined in `backend/db.py`):
 
+Categories of use on Add-ons: **Core · Operations · HR · Industry (business nature) · Localization (country & statutory) · Intelligence**. Pakistan FBR (`pra`) and UAE VAT are Localization, not Industry. Full table: [`docs/ADDONS.md`](./docs/ADDONS.md).
+
 | Module ID | Label | Category | Deps | Always | Gates |
 |---|---|---|---|---|---|
 | `base` | Base Accounting | Core | — | ✓ | Overview, Ledger, Receivable, Payable, Banking, Reports |
 | `inventory` | Inventory | Operations | base | — | Inventory section |
 | `production` | Manufacturing | Operations | inventory | — | Manufacturing section |
-| `hrm` | HRM & Payroll | HR | base | — | Payroll section |
+| `purchase_store` | Purchases & Store | Operations | inventory | — | Purchases + Store (demands, GI/GO, store issues) |
+| `pos` | Point of Sale | Operations | inventory | — | POS |
+| `ecommerce` | eCommerce Connectors | Operations | inventory | — | eCommerce |
+| `weighbridge` | Weighbridge | Operations | base | — | Weighbridge tickets (memo/ops) |
+| `hrm` | HRM & Payroll | HR | base | — | Payroll, leave, expense claims |
 | `telecom` | Telecom Franchise | Industry | inventory | — | Telecom section |
-| `pra` | PRA e-Invoice | Industry | base | — | PRA Logs in System section |
-| `healthcare` | Healthcare | Industry | base | — | Healthcare section (OPD/IPD/Lab/Procedures/Store/Reports) |
-| `ai_assistant` | AI Financial Assistant | Intelligence | base | — | Chat FAB + full-page `/agent` route + `POST /api/ai/chat` (no sidebar section) |
-| `purchase_store` | Purchases & Store | Operations | inventory | — | Purchases section (Demands, Comparatives, Gate Inward, dual-homed PO/GRN, reports) + Store section (Gate Outward, reports) |
-| `weaving` | Weaving | Industry | inventory | — | Weaving section (contracts, yarn inward, sizing, production, dispatch — memo/ops only) |
-| `spinning` | Yarn Spinning | Industry | inventory, purchase_store | — | Spinning section (setup, plans, lots, bale receipt, stages, cone output, waste, dispatch, reports, calculators) |
+| `healthcare` | Healthcare | Industry | base, hrm, inventory | — | Healthcare (OPD/IPD/Lab/Dialysis/…) |
+| `weaving` | Weaving | Industry | inventory | — | Weaving (memo/ops) |
+| `spinning` | Yarn Spinning | Industry | inventory, purchase_store | — | Spinning (full GL) |
+| `textile_processing` | Textile Processing | Industry | inventory, purchase_store | — | Processing |
+| `pra` | FBR Digital Invoicing | Localization | base | — | PRA Sales + logs |
+| `uae_vat` | UAE VAT e-Invoice | Localization | base | — | UAE dashboard + logs |
+| `sa_zatca` | Saudi ZATCA e-Invoice | Localization | base | — | ZATCA dashboard + logs |
+| `in_gst` | India GST | Localization | base | — | GSTR + GST dashboard |
+| `eu_peppol` | Peppol / EU VAT | Localization | base | — | Peppol dashboard + logs |
+| `uk_mtd` | UK MTD VAT | Localization | base | — | UK MTD dashboard + logs |
+| `my_invois` | Malaysia MyInvois | Localization | base | — | MyInvois dashboard + logs |
+| `ai_assistant` | AI Financial Assistant | Intelligence | base | — | Chat FAB + `/agent` (no sidebar section) |
 
 **`MODULES_BY_MODEL`** (default module set assigned at signup):
 
 ```python
-"simple":            ["base"]
-"services":          ["base"]
-"trader":            ["base", "inventory"]
-"manufacturing":     ["base", "inventory", "production", "purchase_store"]
-"telecom_franchise": ["base", "inventory", "telecom"]
-"pra_einvoice":      ["base", "pra"]
-"hospital":          ["base", "hrm", "inventory", "healthcare"]
-"yarn_spinning":     ["base", "inventory", "purchase_store", "spinning"]
+"simple":             ["base"]
+"services":           ["base"]
+"trader":             ["base", "inventory", "pos"]
+"manufacturing":      ["base", "inventory", "production", "purchase_store", "weaving", "weighbridge"]
+"telecom_franchise":  ["base", "inventory", "telecom"]
+"pra_einvoice":       ["base", "pra"]
+"hospital":           ["base", "hrm", "inventory", "healthcare"]
+"yarn_spinning":      ["base", "inventory", "purchase_store", "spinning", "weighbridge"]
+"textile_processing": ["base", "inventory", "purchase_store", "textile_processing"]
 ```
 
 **Module rules:**
@@ -531,25 +550,16 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 
 ### 6.3 Onboarding Flow
 
-Fresh accounts (only `base` installed, `module_meta == {}`) are routed through `/onboarding` immediately after login:
+**Add-ons-first.** Public signup starts with Base Accounting only. `/onboarding` and `/demo` redirect to `/apps?welcome=1` and `/login?demo=1`. `OnboardingGuard` is a no-op.
 
 ```
 POST /api/auth/login
-  → onboarding_required: true   (backend flag when only base installed & module_meta empty)
-  → login page redirects to /onboarding
-
-/onboarding (standalone — no sidebar, no header)
-  → user selects optional modules
-  → POST /api/modules/{id}/install for each selection
-  → sets localStorage["eb.onboarded.<email>"] = "1"
-  → redirects to /dashboard
-
-OnboardingGuard (inside ModuleProvider in DashboardLayout)
-  → safety-net: redirects to /onboarding if user navigates directly to /dashboard
-     without the localStorage flag and only base is installed
+  → land on /dashboard (or /apps?welcome=1 from the signup CTA)
+  → System → Add-ons: pick a Business nature pack and/or a Country & statutory pack
+  → POST /api/modules/{id}/install (deps auto-installed)
 ```
 
-Demo tenants are unaffected — their `enabled_modules` is already populated, so `onboarding_required` is always `false`.
+Demo tenants already have `MODULES_BY_MODEL` (plus optional localization seeds).
 
 ---
 
@@ -1357,6 +1367,45 @@ Listing id `partner.easybooks.weighbridge` is the optional **public** Studio ove
 
 ---
 
+## 10F. WEAVING & TEXTILE PROCESSING
+
+**Weaving** (`weaving`, Industry): contracts, yarn inward, sizing, production, dispatch. Memo/ops in v1 — **no GL**. Demo manufacturing mill. See WORKFLOW §4.10.
+
+**Textile processing** (`textile_processing`, Industry): customer-owned grey lots, mending, kachi/pakki parchi, PPC stages, process billing, contractor labour, leftover grey settlement. Demo `demo.processing@easy-books.app`. See WORKFLOW §4.13.
+
+---
+
+## 10G. POS, ECOMMERCE & OPERATIONS MODULES
+
+Horizontal Operations modules (Add-ons → Optional → Operations):
+
+| Module | Cycle |
+|--------|--------|
+| `pos` | Open shift → register sale (invoice + COGS) → cash-up. Variance on the shift, not a silent plug. |
+| `ecommerce` | Connect Shopify/WooCommerce → map SKU → import draft invoices. Connector never writes the GL. [`docs/ecommerce-adapters.md`](./docs/ecommerce-adapters.md) |
+| `purchase_store` | Demand → quote → comparative → PO → gate inward → bill; gate outward; **store issue** posts Dr Expense / Cr Inventory on create. |
+| `weighbridge` | See §10E.3 |
+
+---
+
+## 10H. COUNTRY & STATUTORY PACKS
+
+Localization category. Install beside any business nature. Never rewrite posted GL.
+
+| ID | Jurisdiction | Dashboard |
+|----|--------------|-----------|
+| `pra` | Pakistan FBR Digital Invoicing | `/pra-dashboard` |
+| `uae_vat` | UAE VAT | `/uae` |
+| `sa_zatca` | Saudi ZATCA Phase 2 | `/zatca` |
+| `in_gst` | India GST | GSTR + GST nav |
+| `eu_peppol` | Peppol BIS Billing 3.0 | `/peppol` |
+| `uk_mtd` | UK Making Tax Digital VAT | `/uk-mtd` |
+| `my_invois` | Malaysia LHDN MyInvois | `/my-invois` |
+
+WHT + CIT worksheet (#267) are core accounting, not a country pack.
+
+---
+
 ## 11. REPORTS
 
 | Endpoint | Source | Notes |
@@ -1391,6 +1440,13 @@ Listing id `partner.easybooks.weighbridge` is the optional **public** Studio ove
 | `GET /api/spinning/reports/waste` | SpWasteLog | Waste by type and stage |
 | `GET /api/spinning/reports/cost-per-kg` | SpSpinLot | Cost-per-kg across lots |
 | `GET /api/spinning/reports/dispatch` | SpYarnDispatch | Yarn dispatch register |
+| `GET /api/weighbridge/reports/register` | WbTicket | Ticket register (memo/ops) |
+| `GET /api/purchases/reports/*` | Demand/GI/PO/Bill | Gate register, 3-way match |
+| `GET /api/store/reports/*` | GO / StoreIssue | Gate-outward register, dispatch recon, issue register, stock tie-out |
+| `GET /api/reports/product-coa` | Product + category + stock | Main→Sub→Item valuation tree |
+| `GET /api/dashboard/operations-summary` | Module-gated ops KPIs | Dual-home Operations dashboard |
+| Localization log endpoints | Zatca/Peppol/Pra/Uae/UkMtd/MyInvois logs | Submit attempts; never rewrite GL |
+| `GET /api/agent/forecast` | AI Assistant | Revenue/cash/risk/budget panes |
 
 ---
 

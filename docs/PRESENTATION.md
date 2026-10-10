@@ -8,7 +8,7 @@
 >
 > **Ground truth for current implementation:** prefer [`CLAUDE.md`](../CLAUDE.md) over older BLUEPRINT header notes (e.g. migrations — Alembic is source of truth) and over stale “still open” lines in early improvement audits.
 >
-> **Last assembled:** 2026-08-04
+> **Last assembled:** 2026-10-10
 
 ---
 
@@ -18,11 +18,11 @@
 
 It combines:
 
-- Eight **business models** (CoA seed at signup — structural and irreversible) × installable modules (Odoo-style `MODULE_REGISTRY`, orthogonal to the CoA — **15** modules incl. Localization packs)
+- Nine **business models** (CoA seed at signup — structural and irreversible) × installable modules (Odoo-style `MODULE_REGISTRY`, 21 ids, orthogonal to the CoA — grouped **Operations / HR / Business nature / Country & statutory / Intelligence**)
 - **One GL writer** — [`backend/services/posting.py`](../backend/services/posting.py) — so every financial number on screen is derived live from the journal (no shadow-balance drift)
 - Vertical depth rarely bundled in one SME product: contract manufacturing custody, telecom franchise, PRA e-invoice (Pakistan), hospital OPD/IPD/Lab, purchase→gate→store chain, weaving unit control, **yarn spinning with full GL costing**, and a multi-provider agentic AI assistant
 - **IFRS Track A (shipped):** consolidation (IFRS 10), intercompany recon, leases (IFRS 16), IFRS 15 SSP + contract assets, assets depth (IAS 16/36), dimensional analytics, inventory depth (IAS 2), month-end close + auditor pack, tax rate history
-- **Country packs (shipped):** Saudi ZATCA, India GST, Peppol / EU VAT, UAE VAT stub — plus withholding tax & CIT worksheet (#267)
+- **Country & statutory packs (shipped):** Pakistan FBR (`pra`), Saudi ZATCA, India GST, Peppol / EU VAT, UAE VAT, UK MTD, Malaysia MyInvois — plus withholding tax & CIT worksheet (#267)
 
 **Positioning one-liner**
 
@@ -126,32 +126,28 @@ Data for script / Electron installs lives under `~/.easy-books` (never touched b
 flowchart TB
   Signup[Signup picks business_model] --> CoA[Seed hierarchical CoA]
   Signup --> Mods[MODULES_BY_MODEL defaults]
-  Mods --> Registry[MODULE_REGISTRY 9 modules]
+  Mods --> Registry[MODULE_REGISTRY 21 modules]
   Registry --> Base[base always]
-  Registry --> Ops[inventory production purchase_store]
-  Registry --> Ind[telecom pra healthcare]
+  Registry --> Ops[inventory production purchase_store pos ecommerce weighbridge]
+  Registry --> Ind[telecom healthcare weaving spinning textile_processing]
+  Registry --> Loc[pra uae_vat sa_zatca in_gst eu_peppol uk_mtd my_invois]
   Registry --> HR[hrm]
   Registry --> AI[ai_assistant]
-  Apps[/apps store] --> Registry
+  Apps[/apps store grouped by use] --> Registry
 ```
 
-**Business models (CoA seed):** `simple` · `services` · `trader` · `manufacturing` · `telecom_franchise` · `pra_einvoice` · `hospital` · `yarn_spinning`
+**Business models (CoA seed):** `simple` · `services` · `trader` · `manufacturing` · `telecom_franchise` · `pra_einvoice` · `hospital` · `yarn_spinning` · `textile_processing`
 
-**Modules (`MODULE_REGISTRY`):**
+**Modules (`MODULE_REGISTRY`)** — grouped by category of use ([`ADDONS.md`](./ADDONS.md)):
 
 | ID | Category | Gates |
 |----|----------|-------|
 | `base` | Core | Overview, Ledger, AR, AP, Banking, Reports (always installed) |
-| `inventory` | Operations | Inventory section |
-| `production` | Operations | Manufacturing |
-| `purchase_store` | Operations | Purchases + Store |
-| `hrm` | HR | Payroll |
-| `telecom` | Industry | Telecom franchise |
-| `pra` | Industry | FBR Digital Invoicing (PRAL DI API v1.12; historic key `pra`) |
-| `healthcare` | Industry | OPD / IPD / Lab / Procedures |
-| `weaving` | Industry | Weaving unit control (memo/ops) |
-| `spinning` | Industry | Yarn spinning mill (full GL) |
-| `ai_assistant` | Intelligence | FAB + `/agent` (no sidebar section) |
+| `inventory` `production` `purchase_store` `pos` `ecommerce` `weighbridge` | Operations | Stock, mfg, P2P/store, POS, eCom, weigh tickets |
+| `hrm` | HR | Payroll, leave, expense claims |
+| `telecom` `healthcare` `weaving` `spinning` `textile_processing` | Industry (business nature) | Verticals |
+| `pra` `uae_vat` `sa_zatca` `in_gst` `eu_peppol` `uk_mtd` `my_invois` | Localization (country & statutory) | Tax / e-invoice dashboards + logs |
+| `ai_assistant` | Intelligence | FAB + `/agent` |
 
 `business_model` seeds the CoA once; `enabled_modules` controls UI and feature gates afterward — they are **orthogonal**.
 

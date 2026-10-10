@@ -188,7 +188,7 @@ cd backend && uv run alembic downgrade -1
 
 | Area | Change |
 |------|--------|
-| **Module registry** | 6 installable modules: `base` (always locked), `inventory`, `production`, `hrm`, `telecom`, `pra`. Defined in `MODULE_REGISTRY` in `backend/db.py` with label, description, category, icon, deps, tier, and `nav_sections`. |
+| **Module registry** | 21 registry ids in `MODULE_REGISTRY` (`backend/db.py`), grouped by use: Core (`base`, always locked), Operations, HR, Industry (business nature), Localization (country & statutory — including Pakistan FBR `pra`), Intelligence. See [`docs/ADDONS.md`](./docs/ADDONS.md). |
 | **`/api/modules` endpoints** | `GET /api/modules` — list all modules with install status. `POST /api/modules/{id}/install` — dep-aware install (transitive deps auto-installed). `POST /api/modules/{id}/uninstall` — blocked when dependents are installed or module is always-locked. Admin/owner only. |
 | **Tenant.module_meta** | New JSON column: `{module_id: {tier, installed_at, expires_at}}` — shape ready for per-module SaaS billing without a future destructive migration. |
 | **Apps page** | New page at `/apps` (System → Apps, admin only): module store grid grouped by category, install/uninstall buttons, dependency display, confirm-before-uninstall dialog. |
