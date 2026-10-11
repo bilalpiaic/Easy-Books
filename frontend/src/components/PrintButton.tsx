@@ -66,7 +66,7 @@ export function SavePdfButton({
   )
 }
 
-/** Print (dot-matrix @media print) + Save PDF (on-screen colours/type/layout). */
+/** Print (dot-matrix @media print) + Save PDF (formatted A4 document, not a UI screenshot). */
 export default function PrintButton({
   label,
   saveLabel,

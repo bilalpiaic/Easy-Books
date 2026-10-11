@@ -182,7 +182,7 @@ export default function COAPage() {
         </div>
       </div>
 
-      <div className="mb-4 relative">
+      <div className="mb-4 relative print:hidden" data-eb-print-chrome>
         <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-primary)]/40" />
         <input
           type="text"
@@ -193,9 +193,9 @@ export default function COAPage() {
         />
       </div>
 
-      <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden print:shadow-none print:rounded-none print:border-0">
         <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[640px]">
+          <table className="w-full text-left min-w-[640px] print:min-w-0">
             <thead>
               <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
                 <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">Code</th>
@@ -216,18 +216,20 @@ export default function COAPage() {
                   </td>
                 </tr>
               ) : (
-                displayAccounts.filter(acc => isVisible(acc)).map(acc => {
+                displayAccounts.map(acc => {
                   const depth = acc.depth ?? 0
                   const isGroupAccount = acc.is_group || acc.has_children
                   const isCollapsed = collapsed.has(acc.id)
                   const isInactive = !(acc.is_active ?? true)
+                  const screenHidden = !isVisible(acc)
 
                   return (
                     <tr
                       key={acc.id}
                       className={cn(
                         "hover:bg-[var(--bg-page)]/50 transition-colors",
-                        isInactive && "opacity-50"
+                        isInactive && "opacity-50",
+                        screenHidden && "hidden eb-print-expand"
                       )}
                     >
                       {/* Code with indentation */}
@@ -237,7 +239,7 @@ export default function COAPage() {
                             <button
                               type="button"
                               onClick={() => toggleCollapse(acc.id)}
-                              className="text-[var(--text-primary)]/40 hover:text-[var(--primary)] transition-colors shrink-0"
+                              className="text-[var(--text-primary)]/40 hover:text-[var(--primary)] transition-colors shrink-0 print:hidden"
                               aria-label={isCollapsed ? "Expand" : "Collapse"}
                             >
                               {isCollapsed

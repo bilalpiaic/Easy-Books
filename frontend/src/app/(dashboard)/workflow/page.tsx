@@ -944,7 +944,7 @@ function PrintSaveFlow() {
       <HFlow>
         <StepBox title="Print" accent="gold" impact="Browser dialog. Courier, black-and-white, low-ink / dot-matrix." />
         <Arrow />
-        <StepBox title="Save PDF" accent="blue" impact="On-screen cream/gold snapshot (html-to-image + jsPDF)." />
+        <StepBox title="Save PDF" accent="blue" impact="Formatted A4 document — ruled tables, no filters, footer n / N." />
         <Arrow />
         <StepBox title="Download PDF (docs)" accent="green" impact="Server WeasyPrint on invoices/bills when the engine is installed." />
       </HFlow>
@@ -1330,7 +1330,7 @@ export default function WorkflowPage() {
       <SectionCard
         icon={Printer}
         title="Print vs Save PDF"
-        subtitle="Print = dot-matrix paper · Save PDF = on-screen colours"
+        subtitle="Print = dot-matrix paper · Save PDF = formatted A4 document"
         iconColor="text-stone-700"
       >
         <PrintSaveFlow />

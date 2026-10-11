@@ -1240,8 +1240,8 @@ Every report, list, and voucher toolbar that has **Print** also has **Save PDF**
 
 | Control | What you get | When to use it |
 |---------|--------------|----------------|
-| **Print** (printer icon) | Browser print dialog. Courier New, black-and-white, no fills (`@media print`). Chrome (filters, pagination, action columns) is hidden. | Paper / dot-matrix / low-ink printers |
-| **Save PDF** (download icon, beside Print) | Client snapshot of the **on-screen** cream/gold layout (colours, DM Sans type, cards, badges) via `html-to-image` + jsPDF. Print stylesheet is **not** applied. Nav chrome and the Print/Save bar are omitted. | Email, archive, or a PDF that looks like the screen |
+| **Print** (printer icon) | Browser print dialog. Courier New, black-and-white, no fills (`@media print`). Chrome (filters, pagination, action columns, LOVs) is hidden. Multi-page paper uses `Page n / N`. | Paper / dot-matrix / low-ink printers |
+| **Save PDF** (download icon, beside Print) | Formatted A4 document of the report/voucher/ledger — ruled tables, branded PrintHeader, no on-screen filters or LOVs. Content is laid out inside A4 print margins; multi-page files stamp `n / N` at the footer. Not a screenshot of the live UI. | Email, archive, or a printable PDF of the document |
 | **Download PDF** (on some invoices/bills/portal docs) | Server WeasyPrint template. Needs Pango/Cairo. A 503 means the engine is missing — use Save PDF instead. | Official document template when the engine is installed |
 
 ### 24.2 How to Print
@@ -2652,7 +2652,7 @@ IAS 2 depth beyond average cost — landed cost, lot/serial, and NRV write-downs
 
 There are **two** PDF paths. Do not mix them up.
 
-**Toolbar Save PDF** (beside Print on reports and vouchers) is a **client** snapshot of the screen (`html-to-image` + jsPDF). It does **not** call WeasyPrint. If it fails, check the browser console and try again; large landscape tables fall back from 2× to 1× pixel ratio automatically.
+**Toolbar Save PDF** (beside Print on reports and vouchers) builds a **formatted A4 document** (clone of the printable content, chrome stripped) then writes it with jsPDF. It does **not** call WeasyPrint and it is **not** a screenshot of the live UI. If it fails, check the browser console and try again; large landscape tables fall back from 2× to 1× pixel ratio automatically.
 
 **Download PDF** on invoices, bills, lab reports, and the customer/vendor portal is a **server** WeasyPrint file.
 

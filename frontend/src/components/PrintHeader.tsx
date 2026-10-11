@@ -30,7 +30,7 @@ interface CompanyInfo {
 /**
  * Branded report header for printed/PDF output.
  *
- * Renders only on print (hidden on screen via `hidden print:block`).
+ * Hidden on screen (`hidden print:block`); shown for Print and Save PDF.
  * Pulls company name and tagline from /api/settings; falls back to defaults.
  *
  * Use at the top of every report page:

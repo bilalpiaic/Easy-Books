@@ -409,7 +409,8 @@ div.freeze-col > table tbody tr:hover td:first-child {
   /* ── 1. CHROME SUPPRESSION ─────────────────────────────────────── */
   nav, aside, header,
   [data-sidebar], [data-header],
-  .print\:hidden { display: none !important; }
+  .print\:hidden,
+  [data-eb-print-chrome] { display: none !important; }
 
   /* All form controls — date pickers, dropdowns, search bars */
   input, select, textarea { display: none !important; }
@@ -421,6 +422,9 @@ div.freeze-col > table tbody tr:hover td:first-child {
   button { display: none !important; }
   article button { display: revert !important; }
 
+  /* Collapsed tree rows (COA) still print in full */
+  tr.eb-print-expand { display: table-row !important; }
+
   /* ── 2. SCROLL-CONTAINER RESET ─────────────────────────────────── */
   /* The dashboard shell clips content to viewport height — override so
      all content flows across as many printed pages as needed. */
@@ -428,7 +432,8 @@ div.freeze-col > table tbody tr:hover td:first-child {
   .h-screen        { height: auto !important; }
   .overflow-hidden { overflow: visible !important; }
   .overflow-y-auto { overflow: visible !important; height: auto !important; }
-  .overflow-x-auto { overflow: auto !important; }
+  .overflow-x-auto { overflow: visible !important; }
+  table { min-width: 0 !important; width: 100% !important; }
   main, [data-main] {
     margin: 0 !important; padding: 0 !important;
     width: 100% !important; height: auto !important; overflow: visible !important;
@@ -844,29 +849,205 @@ div.freeze-col > table tbody tr:hover td:first-child {
 .print-landscape { /* meaningful only inside @media print */ }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SCREEN-FAITHFUL SAVE PDF
-   html.eb-saving-pdf is set while capturing the on-screen document.
-   This is NOT @media print — the Courier / black dot-matrix rules
-   above must not apply. Expand overflow so full tables snapshot.
+   FORMATTED A4 SAVE PDF
+   html.eb-saving-pdf is set while capturing an off-live clone
+   ([data-eb-pdf-host]). Apply the same document rules as @media print:
+   Courier, ruled tables, PrintHeader visible, filters/LOVs hidden,
+   content constrained to A4 width. Page n / N is stamped by jsPDF.
    ═══════════════════════════════════════════════════════════════════ */
-html.eb-saving-pdf,
-html.eb-saving-pdf body {
-  height: auto !important;
-  overflow: visible !important;
+html.eb-saving-pdf [data-eb-pdf-host] {
+  background: #fff !important;
+  color: #000 !important;
+  font-family: "Courier New", Courier, monospace !important;
+  font-size: 10pt !important;
+  line-height: 1.15 !important;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
-html.eb-saving-pdf .h-screen { height: auto !important; }
-html.eb-saving-pdf .table-freeze,
-html.eb-saving-pdf .overflow-hidden,
-html.eb-saving-pdf .overflow-y-auto,
-html.eb-saving-pdf .overflow-x-auto {
+html.eb-saving-pdf [data-eb-pdf-host],
+html.eb-saving-pdf [data-eb-pdf-host] * {
+  color: #000 !important;
+  box-shadow: none !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] * { background: transparent !important; }
+html.eb-saving-pdf [data-eb-pdf-host] {
+  background: #fff !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .h-screen { height: auto !important; }
+html.eb-saving-pdf [data-eb-pdf-host] .table-freeze,
+html.eb-saving-pdf [data-eb-pdf-host] .overflow-hidden,
+html.eb-saving-pdf [data-eb-pdf-host] .overflow-y-auto,
+html.eb-saving-pdf [data-eb-pdf-host] .overflow-x-auto {
   max-height: none !important;
   height: auto !important;
   overflow: visible !important;
+  width: 100% !important;
 }
-html.eb-saving-pdf .eb-print-save-bar,
-html.eb-saving-pdf [data-print-hide],
-html.eb-saving-pdf [data-eb-chrome] {
+html.eb-saving-pdf [data-eb-pdf-host] .print\:hidden,
+html.eb-saving-pdf [data-eb-pdf-host] .eb-print-save-bar,
+html.eb-saving-pdf [data-eb-pdf-host] [data-print-hide],
+html.eb-saving-pdf [data-eb-pdf-host] [data-eb-chrome],
+html.eb-saving-pdf [data-eb-pdf-host] [data-eb-print-chrome],
+html.eb-saving-pdf [data-eb-pdf-host] input,
+html.eb-saving-pdf [data-eb-pdf-host] select,
+html.eb-saving-pdf [data-eb-pdf-host] textarea,
+html.eb-saving-pdf [data-eb-pdf-host] [role="tab"],
+html.eb-saving-pdf [data-eb-pdf-host] [role="tablist"],
+html.eb-saving-pdf [data-eb-pdf-host] nav,
+html.eb-saving-pdf [data-eb-pdf-host] aside,
+html.eb-saving-pdf [data-eb-pdf-host] button {
   display: none !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] article button {
+  display: revert !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .print-header {
+  display: block !important;
+  visibility: visible !important;
+  font-family: "Courier New", Courier, monospace !important;
+  background: transparent !important;
+  border-top: 1.5pt solid #000 !important;
+  border-bottom: 1.5pt solid #000 !important;
+  padding: 6pt 0 !important;
+  margin-bottom: 10pt !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .print-brand-row {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 8pt !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .print-brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8pt !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .print-logo {
+  width: auto !important;
+  height: auto !important;
+  background: transparent !important;
+  color: #000 !important;
+  border: 1pt solid #000 !important;
+  border-radius: 0 !important;
+  font-size: 13.5pt !important;
+  font-weight: 700 !important;
+  padding: 2pt 5pt !important;
+  display: inline-block !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .print-org-name {
+  font-size: 11.5pt !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .print-org-sub {
+  font-size: 9pt !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  margin-top: 1pt !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .print-meta {
+  font-size: 9.5pt !important;
+  text-align: right !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .print-title-row {
+  margin-top: 6pt !important;
+  padding: 4pt 0 3pt !important;
+  border-top: 1pt solid #000 !important;
+  border-bottom: 1pt solid #000 !important;
+  text-align: center !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .print-title {
+  font-size: 11.5pt !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  margin: 0 !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .print-subtitle {
+  font-size: 10pt !important;
+  text-transform: uppercase !important;
+  margin-top: 1.5pt !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] .print-stamp {
+  font-size: 8pt !important;
+  margin-top: 4pt !important;
+  text-align: right !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] [class*="rounded"] { border-radius: 0 !important; }
+html.eb-saving-pdf [data-eb-pdf-host] table {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  border-collapse: collapse !important;
+  font-family: "Courier New", Courier, monospace !important;
+  font-size: 9.5pt !important;
+  border: 0 !important;
+  margin-bottom: 4pt !important;
+  table-layout: auto !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] thead { display: table-header-group !important; }
+html.eb-saving-pdf [data-eb-pdf-host] tfoot { display: table-footer-group !important; }
+html.eb-saving-pdf [data-eb-pdf-host] tr { page-break-inside: avoid; }
+html.eb-saving-pdf [data-eb-pdf-host] tr.eb-print-expand { display: table-row !important; }
+html.eb-saving-pdf [data-eb-pdf-host] th,
+html.eb-saving-pdf [data-eb-pdf-host] .ui-th {
+  background: transparent !important;
+  font-size: 9pt !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  padding: 1.5pt 4pt !important;
+  border: 0 !important;
+  border-top: 1pt solid #000 !important;
+  border-bottom: 1pt solid #000 !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] td,
+html.eb-saving-pdf [data-eb-pdf-host] .ui-td {
+  background: transparent !important;
+  padding: 1pt 4pt !important;
+  font-size: 9.5pt !important;
+  border: 0 !important;
+  border-bottom: 0.5pt dotted #000 !important;
+  vertical-align: middle !important;
+  overflow-wrap: anywhere;
+}
+html.eb-saving-pdf [data-eb-pdf-host] td + td,
+html.eb-saving-pdf [data-eb-pdf-host] th + th { border-left: 0.5pt solid #000 !important; }
+html.eb-saving-pdf [data-eb-pdf-host] td span,
+html.eb-saving-pdf [data-eb-pdf-host] th span {
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  font-size: inherit !important;
+  font-weight: 700 !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] tfoot tr td {
+  font-weight: 700 !important;
+  border-top: 2pt double #000 !important;
+  border-bottom: 1pt solid #000 !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] td.text-right,
+html.eb-saving-pdf [data-eb-pdf-host] th.text-right {
+  white-space: nowrap !important;
+  text-align: right !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] h1,
+html.eb-saving-pdf [data-eb-pdf-host] h2,
+html.eb-saving-pdf [data-eb-pdf-host] h3 {
+  font-family: "Courier New", Courier, monospace !important;
+  font-weight: 700 !important;
+  margin: 2pt 0 1pt !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] h1 {
+  font-size: 11.5pt !important;
+  text-transform: uppercase !important;
+}
+html.eb-saving-pdf [data-eb-pdf-host] a {
+  color: #000 !important;
+  text-decoration: none !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
