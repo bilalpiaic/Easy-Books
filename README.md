@@ -227,7 +227,9 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 
 No Python, Node, or terminal knowledge required. The scripts auto-install everything they need (first run fetches uv/Python and a local portable Node; later runs start in seconds).
 
-**Windows** — double-click `install-and-run.bat` in Explorer.
+**Windows (nothing installed yet)** — download [`docs/Easy-Books_Installer.bat`](./docs/Easy-Books_Installer.bat) and double-click it. Choose a folder (for example `C:\Apps`). The installer installs Git if needed, clones this repo as `Easy-Books`, puts an **Easy-Books** launcher on the Desktop, then runs `install-and-run.bat`.
+
+**Windows (already cloned)** — double-click `install-and-run.bat` in Explorer.
 
 **macOS / Linux:**
 ```bash
@@ -498,6 +500,7 @@ uv run arq worker.WorkerSettings
 | [`USER_GUIDE.md`](./USER_GUIDE.md) | End-user walkthrough for every feature |
 | [`docs/ADDONS.md`](./docs/ADDONS.md) | Add-ons grouped by category of use (business nature vs country packs) |
 | [`WORKFLOW.md`](./WORKFLOW.md) | Accounting workflows, GL Dr/Cr maps, report-linking matrix, API catalog |
+| [`docs/Easy-Books_Installer.bat`](./docs/Easy-Books_Installer.bat) | Windows first-time installer — Git, clone, Desktop launcher, then `install-and-run.bat` |
 | [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md) | One-click installer, Electron desktop app, data safety, update paths |
 | [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Cloud deploy: frontend + API on Vercel, database on Neon |
 | [`BLUEPRINT.md`](./BLUEPRINT.md) | Complete project blueprint: every model, endpoint, flow, and decision |

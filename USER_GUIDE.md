@@ -102,6 +102,8 @@ Easy-Books provides **9 pre-seeded demo tenants** for immediate exploration:
 
 ### 1.2 Sample / Demo Data (standalone and desktop installs)
 
+**Windows first PC:** download [`docs/Easy-Books_Installer.bat`](./docs/Easy-Books_Installer.bat) and double-click it. Pick a folder (for example `C:\Apps`). It installs Git if needed, clones the repo, puts **Easy-Books** on the Desktop, then runs `install-and-run.bat`. Later launches: the Desktop shortcut. Later updates: `update.bat` in the Easy-Books folder.
+
 **Both standalone script installs** (`install-and-run.bat` / `.sh`) **and the desktop (Electron) app** come **pre-loaded with the 9 demo companies on first install** — log straight in with password `demo1234`, no setup required:
 
 | Email | Business Model |
