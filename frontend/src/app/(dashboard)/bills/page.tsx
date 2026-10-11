@@ -165,7 +165,7 @@ function BillsContent() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => downloadCSV('bills.csv', bills.map(b => ({ Number: b.number, Vendor: b.vendor_name, Date: b.bill_date, Due: b.due_date, Currency: b.currency ?? '', Subtotal: b.subtotal, GST: b.gst_amount, Total: b.total, Status: b.status })))}
+            onClick={() => downloadCSV('bills.csv', bills.map(b => ({ Number: b.number, Vendor: b.vendor_name, Date: fmtDate(b.bill_date), Due: fmtDate(b.due_date), Currency: b.currency ?? '', Subtotal: b.subtotal, GST: b.gst_amount, Total: b.total, Status: b.status })))}
             className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Download className="w-4 h-4" /> Export

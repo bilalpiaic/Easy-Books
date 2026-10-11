@@ -11,6 +11,7 @@ import PrintHeader from "@/components/PrintHeader"
 import DateRangePicker from "@/components/DateRangePicker"
 import { useTranslation } from "react-i18next"
 import PrintButton from "@/components/PrintButton"
+import { fmtDateTime } from "@/lib/utils"
 
 interface AuditEntry {
   id: number
@@ -139,7 +140,7 @@ function AuditLogPageContent() {
   const exportCsv = () => {
     const headers = ["Timestamp", "User", "Action", "Entity", "Detail"]
     const rows = items.map(l => [
-      new Date(l.timestamp).toLocaleString(), l.user_name, l.action,
+      fmtDateTime(l.timestamp), l.user_name, l.action,
       entityLabel(l), prettyDetail(l.detail),
     ])
     const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n")
@@ -217,7 +218,7 @@ function AuditLogPageContent() {
               <tbody className="divide-y divide-[var(--border)]">
                 {timelinePage.map(e => (
                   <tr key={e.id} className="hover:bg-[var(--bg-page)]/50">
-                    <td className="ui-td text-[var(--text-muted)] whitespace-nowrap">{new Date(e.timestamp).toLocaleString()}</td>
+                    <td className="ui-td text-[var(--text-muted)] whitespace-nowrap">{fmtDateTime(e.timestamp)}</td>
                     <td className="ui-td font-medium text-[var(--text-primary)]">{e.user_name}</td>
                     <td className="ui-td"><ActionBadge action={e.action} /></td>
                     <td className="ui-td"><EntityCell entry={e} /></td>
@@ -247,7 +248,7 @@ function AuditLogPageContent() {
               <div className="divide-y divide-[var(--border)] max-h-72 overflow-y-auto">
                 {entries.slice(0, 50).map(e => (
                   <div key={e.id} className="px-4 py-2 flex items-center gap-3 text-xs">
-                    <span className="text-[var(--text-muted)] w-40 flex-shrink-0">{new Date(e.timestamp).toLocaleString()}</span>
+                    <span className="text-[var(--text-muted)] w-40 flex-shrink-0">{fmtDateTime(e.timestamp)}</span>
                     <ActionBadge action={e.action} />
                     {view === "by_user"
                       ? <EntityCell entry={e} />

@@ -6,6 +6,7 @@ import { User as UserIcon, Save, KeyRound, Camera, Trash2, Loader2, CheckCircle2
 import { apiFetch, apiBase } from "@/lib/api"
 import { getAuthHeader, setMustChangePwd, setMustSetupTotp } from "@/lib/auth"
 import { TotpQrDisplay } from "@/components/TotpQrDisplay"
+import { fmtDateTime } from "@/lib/utils"
 
 interface Me {
   id: number
@@ -27,10 +28,9 @@ const ROLE_LABEL: Record<string, string> = {
   owner: "Owner", admin: "Admin", accountant: "Accountant", viewer: "Viewer",
 }
 
-function fmtDate(s: string | null): string {
+function fmtStamp(s: string | null): string {
   if (!s) return "—"
-  const d = new Date(s)
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString()
+  return fmtDateTime(s) || "—"
 }
 
 /** Fetch an avatar with the Bearer header and render it as an object URL,
@@ -505,8 +505,8 @@ function AccountInfoCard({ me }: { me: Me }) {
   const rows: [string, string][] = [
     ["Role", ROLE_LABEL[me.role] ?? me.role],
     ["Organisation", me.tenant.name],
-    ["Member since", fmtDate(me.created_at)],
-    ["Last login", fmtDate(me.last_login_at)],
+    ["Member since", fmtStamp(me.created_at)],
+    ["Last login", fmtStamp(me.last_login_at)],
   ]
   return (
     <Card title="Account" icon={ShieldCheck}>

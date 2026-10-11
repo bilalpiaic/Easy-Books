@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ShoppingCart, Plus, CheckCircle, FileText, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
 import PrintHeader from "@/components/PrintHeader"
 import StatusBadge from "@/components/StatusBadge"
@@ -60,7 +60,7 @@ export default function PurchaseOrdersPage() {
         <div className="flex items-center gap-2 print:hidden">
           <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button
-            onClick={() => downloadCSV('purchase-orders.csv', pos.map(p => ({ "PO #": p.number, Vendor: p.vendor_name ?? '', "Order Date": p.order_date, "Expected Date": p.expected_date ?? '', Total: p.total, Status: p.status })))}
+            onClick={() => downloadCSV('purchase-orders.csv', pos.map(p => ({ "PO #": p.number, Vendor: p.vendor_name ?? '', "Order Date": fmtDate(p.order_date), "Expected Date": p.expected_date ? fmtDate(p.expected_date) : '', Total: p.total, Status: p.status })))}
             disabled={pos.length === 0}
             className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
@@ -130,7 +130,7 @@ export default function PurchaseOrdersPage() {
                     <Link href={`/manufacturing/purchase-orders/${po.id}`}>{po.number}</Link>
                   </td>
                   <td className="px-4 py-2">{po.vendor_name ?? "—"}</td>
-                  <td className="px-4 py-2">{po.order_date}</td>
+                  <td className="px-4 py-2">{fmtDate(po.order_date)}</td>
                   <td className="px-4 py-2">{po.expected_date ?? "—"}</td>
                   <td className="px-4 py-2 text-right font-mono">{fmt(Number(po.total))}</td>
                   <td className="px-4 py-2 text-center">

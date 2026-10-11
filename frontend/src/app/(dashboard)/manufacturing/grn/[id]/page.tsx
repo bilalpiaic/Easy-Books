@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 import { useTranslation } from "react-i18next"
+import { fmtDate } from "@/lib/utils"
 
 interface GrnLine {
   id: number
@@ -105,7 +106,7 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
           <Field label="Customer">
             {customerMap[grn.customer_id] ?? `Customer #${grn.customer_id}`}
           </Field>
-          <Field label="Received Date">{grn.received_date}</Field>
+          <Field label="Received Date">{fmtDate(grn.received_date)}</Field>
           <Field label="Location">
             {locationMap[grn.location_id] ?? `Location #${grn.location_id}`}
           </Field>

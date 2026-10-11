@@ -13,7 +13,7 @@
 - Branch: `feat/report-period-presets` off `main`.
 - Frontend checks: `cd frontend && npm run lint && npm run build`. New unit tests: `npm run test` (vitest).
 - Backend tests: `cd backend && PYTHONPATH=. uv run pytest` — 2 pre-existing failures (`test_account_hierarchy`, `test_update_migration`) are the baseline.
-- Dates in UI always render via `fmtDate`/`fmtDateJs` (`dd-mm-yy`); resolver emits ISO `YYYY-MM-DD` for API params.
+- Dates in UI always render via `fmtDate`/`fmtDateJs` (`dd-mmm-yy`); resolver emits ISO `YYYY-MM-DD` for API params.
 - All date math is local-time with day-clamped month arithmetic; no new runtime dependency.
 - Only **range filters driving report queries** are converted in the sweep. Document forms and single-date "as of" filters stay untouched. If a page's date inputs turn out not to be a range filter on inspection, skip it and note it in the commit message.
 - Next.js 16: check `node_modules/next/dist/docs/` conventions before non-trivial frontend changes (`frontend/AGENTS.md`).
@@ -523,7 +523,7 @@ Note: when the incoming dates happen to equal a preset's range, the dropdown sho
 
 - [ ] **Step 2: Build + lint**: `npm run lint && npm run build` — expect clean; all 14 consumers compile untouched.
 
-- [ ] **Step 3: Manual verify** on `/trial-balance` (uses DateRangePicker): presets fill From/To and disable them; Custom re-enables; hint label shows `dd-mm-yy` range; a July fiscal tenant (`demo.pra` or set Settings → Fiscal Year Start = July) shifts the fiscal presets.
+- [ ] **Step 3: Manual verify** on `/trial-balance` (uses DateRangePicker): presets fill From/To and disable them; Custom re-enables; hint label shows `dd-mmm-yy` range; a July fiscal tenant (`demo.pra` or set Settings → Fiscal Year Start = July) shifts the fiscal presets.
 
 - [ ] **Step 4: Commit**
 

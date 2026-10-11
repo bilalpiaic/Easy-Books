@@ -1663,7 +1663,7 @@ function PrintSavePanel() {
         <li><b>Download PDF</b> on some documents (invoice/bill) — server WeasyPrint template. Needs Pango/Cairo; a 503 means the engine is missing, not that Save PDF failed.</li>
       </ul>
       <TipCallout>
-        Dates are always <CodeBadge>dd-mm-yy</CodeBadge>. Landscape vs portrait follows the page (PrintHeader). Negative amounts print as (1,234.56).
+        Dates are always <CodeBadge>dd-mmm-yy</CodeBadge> (e.g. 11-Oct-26). Landscape vs portrait follows the page (PrintHeader). Negative amounts print as (1,234.56).
       </TipCallout>
     </div>
   )

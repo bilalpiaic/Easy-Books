@@ -2039,7 +2039,7 @@ New `WidgetDef.defaultOnGrid: boolean` field gates Add-panel discoverability. He
 | **Section Hub Pages** | `/receivable`, `/payable`, `/inventory`, `/banking` — generic `HubPage` renderer driven by `hubConfigs`; band components `AgingBand`, `LowStockBand`, `AccountListBand`; sidebar section headers navigate to hub; `TITLE_MAP` in `(dashboard)/layout.tsx` |
 | **Collapsible sidebar** | 3-state (collapsed / open / pinned) via `localStorage`; hover expands with tooltip nav panel; auto-pin on wide screens; backdrop excludes `top-12` header; z-index layering corrected |
 | **3-mode voucher form** | New Entry supports Journal / Payment (CP/BP) / Receipt (CR/BR); mode-specific Cash/Bank GL pickers; JV prefix auto-applies per mode; distinct PV/RV print templates |
-| **Print system overhaul** | Dot-matrix B&W format; `dd-mm-yy` date format via `fmtDate()`/`fmtDateJs()` across 37+ files; dynamic `@page { size: A4 landscape }` injection in `PrintHeader` via `useEffect`; print hygiene (filter UI, pagination, sort, action cols, checkboxes all `print:hidden`); currency prefix in column headers only; negative amounts as `(1,234.56)`; `whitespace-nowrap` on Date/JV# cells; voucher type badges removed |
+| **Print system overhaul** | Dot-matrix B&W format; `dd-mmm-yy` date format via `fmtDate()`/`fmtDateJs()` across 37+ files; dynamic `@page { size: A4 landscape }` injection in `PrintHeader` via `useEffect`; print hygiene (filter UI, pagination, sort, action cols, checkboxes all `print:hidden`); currency prefix in column headers only; negative amounts as `(1,234.56)`; `whitespace-nowrap` on Date/JV# cells; voucher type badges removed |
 
 ### Sprint 19 Shipped ✅ (Healthcare / Hospital Track V4)
 

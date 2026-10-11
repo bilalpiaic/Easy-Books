@@ -205,7 +205,7 @@ export default function CreditNotesPage() {
               <tr key={cn.id} className="border-t border-[var(--text-primary)]/5 hover:bg-[var(--bg-page)]/50">
                 <td className="ui-td font-mono font-bold"><DocLink type="credit_note" id={cn.id} label={cn.number} className="text-[var(--primary)]" /></td>
                 <td className="ui-td text-[var(--text-primary)]/70">{cn.customer_name ?? '—'}</td>
-                <td className="ui-td text-[var(--text-primary)]/70">{cn.issue_date}</td>
+                <td className="ui-td text-[var(--text-primary)]/70">{fmtDate(cn.issue_date)}</td>
                 <td className="ui-td font-mono">{fmt(cn.total)}</td>
                 <td className="ui-td">
                   <StatusBadge status={cn.status} />

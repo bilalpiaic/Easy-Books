@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { fmtDateTime } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import PrintButton from "@/components/PrintButton"
@@ -117,9 +118,9 @@ export default function POPrintPage({ params }: { params: Promise<{ id: string }
             <table className="w-full text-sm border border-[var(--border)]">
               <tbody className="divide-y divide-[var(--border)]">
                 {timeline.map(t => (
-                  <Row key={t.state} k={t.label} v={new Date(t.at as string).toLocaleString()} />
+                  <Row key={t.state} k={t.label} v={fmtDateTime(t.at as string)} />
                 ))}
-                {po.cancelled_at && <Row k="Cancelled" v={new Date(po.cancelled_at).toLocaleString()} />}
+                {po.cancelled_at && <Row k="Cancelled" v={fmtDateTime(po.cancelled_at)} />}
               </tbody>
             </table>
           </section>

@@ -155,10 +155,18 @@ def _import_weasyprint_html():
         raise PdfEngineError(_import_hint(e)) from e
 
 
+def _jinja_env() -> Environment:
+    from services.display_dates import fmt_display_date, fmt_display_datetime
+
+    env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=True)
+    env.filters["fmt_date"] = fmt_display_date
+    env.filters["fmt_datetime"] = fmt_display_datetime
+    return env
+
+
 def render_template_html(template_name: str, context: dict) -> str:
     """Render a Jinja2 template under templates/ to an HTML string."""
-    env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=True)
-    return env.get_template(template_name).render(**context)
+    return _jinja_env().get_template(template_name).render(**context)
 
 
 def _html_to_pdf(html_str: str) -> bytes:
@@ -211,8 +219,10 @@ def render_invoice_pdf(
     custom_fields: dict | None = None,
 ) -> bytes:
     """Render an invoice as PDF bytes (back-compat wrapper)."""
+    from services.display_dates import apply_display_dates
+
     ctx = {
-        "invoice": invoice,
+        "invoice": apply_display_dates(invoice, ("issue_date", "due_date")),
         "lines": lines,
         "company_name": company_name,
         "tagline": tagline,
@@ -247,8 +257,10 @@ def render_bill_pdf(
     custom_fields: dict | None = None,
 ) -> bytes:
     """Render a vendor bill as PDF bytes."""
+    from services.display_dates import apply_display_dates
+
     ctx = {
-        "bill": bill,
+        "bill": apply_display_dates(bill, ("bill_date", "due_date")),
         "lines": lines,
         "company_name": company_name,
         "tagline": tagline,

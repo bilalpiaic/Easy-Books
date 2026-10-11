@@ -10,6 +10,7 @@ import {
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { useTranslation } from "react-i18next"
+import { fmtDate } from "@/lib/utils"
 import StatusBadge from "@/components/StatusBadge"
 
 interface Customer {
@@ -240,8 +241,8 @@ export default function CustomerHubPage() {
                       {inv.number}
                     </Link>
                   </td>
-                  <td className="px-4 py-2 text-[var(--text-primary)]/60 text-xs tabular-nums">{inv.issue_date}</td>
-                  <td className="px-4 py-2 text-[var(--text-primary)]/60 text-xs tabular-nums">{inv.due_date}</td>
+                  <td className="px-4 py-2 text-[var(--text-primary)]/60 text-xs tabular-nums">{fmtDate(inv.issue_date)}</td>
+                  <td className="px-4 py-2 text-[var(--text-primary)]/60 text-xs tabular-nums">{fmtDate(inv.due_date)}</td>
                   <td className="px-4 py-2">
                     <StatusBadge status={inv.status} />
                   </td>

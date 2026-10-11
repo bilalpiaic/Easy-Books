@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   Bell, CheckCheck, AlertTriangle, Package, ClipboardCheck, Info, MessageSquareWarning, Sparkles,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, fmtDateTime } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { useSettings } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
@@ -37,15 +37,7 @@ function KindIcon({ kind, severity }: { kind: string; severity: string }) {
 }
 
 function fmtWhen(iso?: string | null): string {
-  if (!iso) return ""
-  const d = new Date(iso.endsWith("Z") ? iso : iso + "Z")
-  if (Number.isNaN(d.getTime())) return ""
-  const dd = String(d.getDate()).padStart(2, "0")
-  const mm = String(d.getMonth() + 1).padStart(2, "0")
-  const yy = String(d.getFullYear()).slice(-2)
-  const hh = String(d.getHours()).padStart(2, "0")
-  const mi = String(d.getMinutes()).padStart(2, "0")
-  return `${dd}-${mm}-${yy} ${hh}:${mi}`
+  return fmtDateTime(iso)
 }
 
 export default function AlertsPage() {

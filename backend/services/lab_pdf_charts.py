@@ -13,15 +13,12 @@ PAD_B = 28
 
 
 def _fmt_date(iso: Optional[str]) -> str:
-    """ISO YYYY-MM-DD (or datetime) → dd-mm-yy for PDF axis labels."""
+    """ISO YYYY-MM-DD (or datetime) → dd-mmm-yy for PDF axis labels."""
+    from services.display_dates import fmt_display_date
+
     if not iso:
         return "—"
-    s = str(iso)[:10]
-    parts = s.split("-")
-    if len(parts) != 3:
-        return s
-    y, m, d = parts
-    return f"{d}-{m}-{y[2:]}"
+    return fmt_display_date(iso) or "—"
 
 
 def build_trend_svg(

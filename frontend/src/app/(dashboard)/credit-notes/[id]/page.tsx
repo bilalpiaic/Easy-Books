@@ -10,6 +10,7 @@ import { useFmt, useSettings } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
 import { isForeignCurrency, toBase } from "@/lib/fx"
 import { useTranslation } from "react-i18next"
+import { fmtDate } from "@/lib/utils"
 
 interface Line { id: number; description: string; qty: number; rate: number; amount: number; unit: string | null }
 interface CreditNoteDetail {
@@ -91,7 +92,7 @@ export default function CreditNoteDetailPage({ params }: { params: Promise<{ id:
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-widest text-[var(--text-primary)]/50">Issue Date</p>
-          <p className="mt-0.5 text-[var(--text-primary)]/70">{cn.issue_date}</p>
+          <p className="mt-0.5 text-[var(--text-primary)]/70">{fmtDate(cn.issue_date)}</p>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-widest text-[var(--text-primary)]/50">Journal Entry</p>

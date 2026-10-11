@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-10",
+  "generated": "2026-10-11",
   "entries": [
     {
       "id": "tenant-simple",
@@ -1515,7 +1515,7 @@
       "title": "Month-end report pack",
       "kind": "workflow",
       "href": "/trial-balance",
-      "explanation": "Read the books in order: Trial Balance (tree with opening/period/closing) → Income Statement → Balance Sheet (RE-CUR synthetic equity) → Cash Flow. Comparison mode (compare_start/end) flattens to current vs prior. PrintHeader landscape is used on wide tables; dates always fmtDate (dd-mm-yy).",
+      "explanation": "Read the books in order: Trial Balance (tree with opening/period/closing) → Income Statement → Balance Sheet (RE-CUR synthetic equity) → Cash Flow. Comparison mode (compare_start/end) flattens to current vs prior. PrintHeader landscape is used on wide tables; dates always fmtDate (dd-mmm-yy).",
       "steps": [
         "Set the date range (presets follow fiscal_year_start and week_start_day).",
         "Trial Balance — drill a leaf into the GL.",
@@ -7300,7 +7300,7 @@
       "title": "Invoice print",
       "kind": "form",
       "href": "/invoices",
-      "explanation": "Printable invoice using the Studio print template (or built-in). Dates fmtDate dd-mm-yy; IAS 1.49 company block from Settings.",
+      "explanation": "Printable invoice using the Studio print template (or built-in). Dates fmtDate dd-mmm-yy; IAS 1.49 company block from Settings.",
       "tags": [
         "sales",
         "studio"

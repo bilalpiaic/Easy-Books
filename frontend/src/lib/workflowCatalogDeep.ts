@@ -164,7 +164,7 @@ const DETAILS: CatalogEntry[] = [
   row({ id: "form-invoice-print", kind: "form", title: "Invoice print", href: "/invoices",
     capturePath: "/invoices/{id}/print", captureIdFrom: "/api/invoices",
     captureTenant: "services", segment: "Sales", tags: ["sales", "studio"],
-    explanation: "Printable invoice using the Studio print template (or built-in). Dates fmtDate dd-mm-yy; IAS 1.49 company block from Settings." }),
+    explanation: "Printable invoice using the Studio print template (or built-in). Dates fmtDate dd-mmm-yy; IAS 1.49 company block from Settings." }),
   row({ id: "form-invoice-receipt", kind: "form", title: "Invoice receipt slip", href: "/invoices",
     capturePath: "/invoices/{id}/receipt", captureIdFrom: "/api/invoices",
     captureTenant: "services", segment: "Sales", tags: ["sales"],

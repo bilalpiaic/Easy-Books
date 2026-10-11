@@ -427,7 +427,7 @@ const WORKFLOW_ENTRIES: CatalogEntry[] = [
     id: "wf-reports", kind: "workflow", title: "Month-end report pack", href: "/trial-balance",
     captureTenant: "services", segment: "Reports", modules: ["base"], tenants: tenantsForModules(["base"]),
     tags: ["reports", "workflow", "ifrs", "ledger"],
-    explanation: "Read the books in order: Trial Balance (tree with opening/period/closing) → Income Statement → Balance Sheet (RE-CUR synthetic equity) → Cash Flow. Comparison mode (compare_start/end) flattens to current vs prior. PrintHeader landscape is used on wide tables; dates always fmtDate (dd-mm-yy).",
+    explanation: "Read the books in order: Trial Balance (tree with opening/period/closing) → Income Statement → Balance Sheet (RE-CUR synthetic equity) → Cash Flow. Comparison mode (compare_start/end) flattens to current vs prior. PrintHeader landscape is used on wide tables; dates always fmtDate (dd-mmm-yy).",
     steps: ["Set the date range (presets follow fiscal_year_start and week_start_day).", "Trial Balance — drill a leaf into the GL.", "P&L then Balance Sheet; confirm net profit rolls to equity.", "Cash Flow and Tax Reports to finish the pack."],
   },
   {

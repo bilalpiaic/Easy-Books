@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import {
   Bell, CheckCheck, AlertTriangle, Package, ClipboardCheck, Info, X, MessageSquareWarning, Sparkles,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, fmtDateJs } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { useSettings } from "@/context/SettingsContext"
 
@@ -31,7 +31,7 @@ function relativeTime(iso?: string | null): string {
   if (sec < 3600) return `${Math.floor(sec / 60)}m ago`
   if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`
   if (sec < 86400 * 7) return `${Math.floor(sec / 86400)}d ago`
-  return new Date(t).toLocaleDateString()
+  return fmtDateJs(new Date(t))
 }
 
 function KindIcon({ kind, severity }: { kind: string; severity: string }) {

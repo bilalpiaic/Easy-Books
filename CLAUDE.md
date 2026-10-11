@@ -221,8 +221,9 @@ Store Issue lives under the **Store** nav section (`/store/issues`), not Purchas
 - **`PrintHeader` (`components/PrintHeader.tsx`):** accepts `orientation?: "portrait" | "landscape"`. When `"landscape"`, a `useEffect` dynamically injects `<style data-print-landscape>@media print { @page { size: A4 landscape; margin: 12mm 15mm; } }</style>` and removes it on unmount. Portrait is the default via `globals.css` (`@page { size: A4 portrait; }`). **Do NOT use CSS classes to control `@page` size** — they have no effect in standard CSS.
 - **Orientation rules:** landscape for wide tables (aging, performance reports, product ledger, journal list, invoices/bills list, customer/vendor ledgers); portrait for all other pages (GL, cash/bank book, statements, trial balance, balance sheet, P&L, cash flow, voucher prints, CoA).
 - **Date formatting (always use these — never `toLocaleDateString()` or raw ISO strings):**
-  - `fmtDate(str: string)` in `src/lib/utils.ts` — converts ISO `"YYYY-MM-DD"` or datetime string → `"dd-mm-yy"`. Splits on `"T"` first to handle datetimes.
-  - `fmtDateJs(date: Date)` — converts a JS `Date` object → `"dd-mm-yy"`.
+  - `fmtDate(str: string)` in `src/lib/utils.ts` — converts ISO `"YYYY-MM-DD"` or datetime string → `"dd-mmm-yy"` (e.g. `11-Oct-26`). Splits on `"T"` first to handle datetimes.
+  - `fmtDateJs(date: Date)` — converts a JS `Date` object → `"dd-mmm-yy"`.
+  - `fmtDateTime(str)` / `fmtDateTimeJs(date)` — same date plus `HH:mm` for timestamps.
 - **Print hygiene classes:**
   - `print:hidden` — hides filter controls, pagination, sort handles, toolbar buttons, action columns, checkbox columns.
   - `@media print { td span, th span { ... } }` in `globals.css` flattens any badge pills to plain text.
@@ -308,7 +309,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - **JWT payload** — must include both `sub` and `tenant_id`; auth middleware depends on both fields.
 - **Migrations via Alembic** — for schema changes run `uv run alembic revision --autogenerate` then `uv run alembic upgrade head`. `create_all()` still runs in dev for zero-setup boot, so new-table migrations must guard with `bind.dialect.has_table(...)`. SQLite cannot `ADD CONSTRAINT`, so strip auto-generated FK lines on ALTER (app-level tenant checks enforce integrity).
 - **WSL2 npm issue** — `dev.sh` resolves the Linux node binary automatically; never invoke Windows `npm` inside WSL2 paths.
-- **Date display** — always use `fmtDate()` / `fmtDateJs()` from `src/lib/utils.ts`; never use `toLocaleDateString()` or render raw ISO strings in the UI. Output format is `dd-mm-yy`.
+- **Date display** — always use `fmtDate()` / `fmtDateJs()` from `src/lib/utils.ts`; never use `toLocaleDateString()` or render raw ISO strings in the UI. Output format is `dd-mmm-yy` (e.g. `11-Oct-26`). HTML `<input type="date">` and APIs stay ISO `YYYY-MM-DD`.
 - **Print orientation** — set `orientation="landscape"` on `<PrintHeader>` only for wide multi-column tables; leave it unset (portrait) for everything else. The prop works via dynamic `<style>` injection in `useEffect` — CSS classes cannot control `@page` size.
 - **No voucher-type badges in tables** — the JV number prefix (CP / SL / BR / JV etc.) already identifies the type. Adding a separate badge span is redundant and was intentionally removed.
 

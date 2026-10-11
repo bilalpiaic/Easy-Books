@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
 import { AuthFileImg } from "@/components/AuthFileImg"
+import { fmtDateTimeJs } from "@/lib/utils"
 
 interface PrintHeaderProps {
   /** Title of the report — e.g. "Trial Balance" */
   title: string
-  /** Optional subtitle — e.g. "As of 2026-05-21" or "Period: Jan 2026 — May 2026" */
+  /** Optional subtitle — e.g. "As of 21-May-26" or "Period: Jan 2026 — May 2026" */
   subtitle?: string
   /** Set to "landscape" to add a class that switches the page orientation. */
   orientation?: "portrait" | "landscape"
@@ -34,7 +35,7 @@ interface CompanyInfo {
  * Pulls company name and tagline from /api/settings; falls back to defaults.
  *
  * Use at the top of every report page:
- *   <PrintHeader title="Trial Balance" subtitle="As of 2026-05-21" />
+ *   <PrintHeader title="Trial Balance" subtitle="As of 21-May-26" />
  *
  * Add the `print-landscape` className to a containing element (or
  * pass orientation="landscape") to switch to landscape A4.
@@ -75,12 +76,7 @@ export default function PrintHeader({
   }, [orientation])
 
   const now = new Date()
-  const dd = String(now.getDate()).padStart(2, "0")
-  const mm = String(now.getMonth() + 1).padStart(2, "0")
-  const yy = String(now.getFullYear()).slice(2)
-  const hh = String(now.getHours()).padStart(2, "0")
-  const min = String(now.getMinutes()).padStart(2, "0")
-  const printedAt = `${dd}-${mm}-${yy} ${hh}:${min}`
+  const printedAt = fmtDateTimeJs(now)
 
   return (
     <div

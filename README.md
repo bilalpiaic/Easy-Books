@@ -100,7 +100,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Save PDF** — beside every Print control. Snapshots the **on-screen** cream/gold layout (colours, type, cards) via `html-to-image` + jsPDF — not the print stylesheet
 - **Download PDF** on invoices/bills — server WeasyPrint template when Pango/Cairo are present (503 if the engine is missing; that is not a Save PDF failure)
 - **Font-size caps** — Tailwind v4 font-size CSS variables are overridden in print so screen sizing never leaks into printouts; row spacing is compressed for denser data fit per page
-- **Date format** — `dd-mm-yy` used everywhere (e.g. `20-06-26`); `fmtDate()` / `fmtDateJs()` helpers in `utils.ts`
+- **Date format** — `dd-mmm-yy` used everywhere (e.g. `20-Jun-26`); `fmtDate()` / `fmtDateJs()` helpers in `utils.ts`
 - **Portrait / landscape auto-selection** — PrintHeader injects the correct `@page { size: A4 … }` rule via `useEffect`; landscape for wide tables (aging, performance, product ledger, **General Ledger**, journal list), portrait for everything else
 - **Freeze-pane reset** — all `.table-freeze`/`.freeze-col` sticky positioning is neutralised under `@media print` so reports always paginate in full
 - **Currency prefix** — amount column headers show the currency code once; individual cells contain bare numbers

@@ -10,6 +10,7 @@ import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from '@/components/AttachmentPanel'
 import { useTranslation } from "react-i18next"
+import { fmtDateTime } from "@/lib/utils"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -114,10 +115,7 @@ function nextAction(state: string): 'start' | 'complete' | 'deliver' | 'bill' | 
 
 function fmt_date(iso: string | null) {
   if (!iso) return null
-  return new Date(iso).toLocaleString(undefined, {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
+  return fmtDateTime(iso)
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────

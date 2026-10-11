@@ -14,7 +14,7 @@ import { usePRAPortal } from "@/hooks/usePRAPortal"
 import { useModules } from "@/context/ModuleContext"
 import StatusBadge from "@/components/StatusBadge"
 import { useMessages } from "@/context/MessageContext"
-import { fmtDate } from "@/lib/utils"
+import { fmtDate, fmtDateTime } from "@/lib/utils"
 
 interface AuditEntry {
   id: number
@@ -427,7 +427,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">Invoice {inv.number}</h1>
             <p className="text-sm text-[var(--text-primary)]/60">
-              Issued {inv.issue_date} · Due {inv.due_date}
+              Issued {fmtDate(inv.issue_date)} · Due {fmtDate(inv.due_date)}
               {inv.currency && inv.currency !== baseCurrency && (
                 <> · {inv.currency} @ {Number(inv.carrying_rate ?? inv.exchange_rate)} · {baseCurrency} {fmt(Number(inv.total) * Number((inv.carrying_rate ?? inv.exchange_rate) || 1))}</>
               )}
@@ -892,7 +892,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 <div key={entry.id} className="px-4 py-3 text-sm">
                   <p className="text-[var(--text-primary)]/65 text-xs mb-1">
                     Edited by <span className="font-semibold text-[var(--text-primary)]">{entry.user_name}</span>
-                    {" "}on {new Date(entry.timestamp).toLocaleString()}
+                    {" "}on {fmtDateTime(entry.timestamp)}
                   </p>
                   {changedFields.length > 0 ? (
                     <table className="ui-table text-xs mt-1">

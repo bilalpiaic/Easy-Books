@@ -12,6 +12,7 @@ import { downloadPdf } from "@/lib/downloadPdf"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
 import { useMessages } from "@/context/MessageContext"
+import { fmtDate, fmtDateTime } from "@/lib/utils"
 
 interface AuditEntry {
   id: number
@@ -229,7 +230,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">Bill {bill.number}</h1>
             <p className="text-sm text-[var(--text-primary)]/60">
-              Dated {bill.bill_date} · Due {bill.due_date}
+              Dated {fmtDate(bill.bill_date)} · Due {fmtDate(bill.due_date)}
               {bill.currency && bill.currency !== baseCurrency && (
                 <> · {bill.currency} @ {Number(bill.carrying_rate ?? bill.exchange_rate)} · {baseCurrency} {fmt(Number(bill.total) * Number((bill.carrying_rate ?? bill.exchange_rate) || 1))}</>
               )}
@@ -359,7 +360,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
                 <div key={entry.id} className="px-4 py-3 text-sm">
                   <p className="text-[var(--text-primary)]/65 text-xs mb-1">
                     Edited by <span className="font-semibold text-[var(--text-primary)]">{entry.user_name}</span>
-                    {" "}on {new Date(entry.timestamp).toLocaleString()}
+                    {" "}on {fmtDateTime(entry.timestamp)}
                   </p>
                   {changedFields.length > 0 ? (
                     <table className="ui-table text-xs mt-1">
