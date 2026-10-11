@@ -97,7 +97,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 
 **Print & Save PDF**
 - **Print** — browser print dialog. **Courier New** black-and-white, no background fills (`@media print`) for low-ink / dot-matrix paper; strips UI chrome (buttons, filters, pagination, sort handles, checkbox columns, action columns)
-- **Save PDF** — beside every Print control. Snapshots the **on-screen** cream/gold layout (colours, type, cards) via `html-to-image` + jsPDF — not the print stylesheet
+- **Save PDF** — beside every Print control. Formatted A4 document (Courier, ruled tables, PrintHeader, no filters/LOVs). Multi-page files stamp `n / N` in the footer; content stays inside A4 print margins
 - **Download PDF** on invoices/bills — server WeasyPrint template when Pango/Cairo are present (503 if the engine is missing; that is not a Save PDF failure)
 - **Font-size caps** — Tailwind v4 font-size CSS variables are overridden in print so screen sizing never leaks into printouts; row spacing is compressed for denser data fit per page
 - **Date format** — `dd-mm-yy` used everywhere (e.g. `20-06-26`); `fmtDate()` / `fmtDateJs()` helpers in `utils.ts`

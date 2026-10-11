@@ -1162,7 +1162,7 @@ Localization category on Add-ons (not Industry): `pra` (Pakistan FBR), `uae_vat`
 Every Print control has Save PDF beside it.
 
 - **Print** — `@media print` Courier black-and-white for paper.
-- **Save PDF** — on-screen cream/gold snapshot (`html-to-image` + jsPDF).
+- **Save PDF** — formatted A4 document (ruled tables, PrintHeader, no filters/LOVs, footer `n / N`).
 - **Download PDF** (invoices/bills) — server WeasyPrint when the engine is present.
 
 ---

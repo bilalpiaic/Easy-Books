@@ -54,7 +54,7 @@ export default function DateRangePicker({
   const showCustomDates = selected === "custom"
 
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 w-full">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 w-full print:hidden" data-eb-print-chrome>
       <div className="flex items-center gap-1.5 shrink-0">
         <Calendar className="w-3.5 h-3.5 text-[var(--text-muted)]" />
         <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">{label}</span>

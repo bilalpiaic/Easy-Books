@@ -1659,7 +1659,7 @@ function PrintSavePanel() {
       </p>
       <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
         <li><b>Print</b> — browser print dialog. Courier New, black-and-white, no fills — for low-ink / dot-matrix paper.</li>
-        <li><b>Save PDF</b> — snapshots the on-screen cream/gold layout (colours, type, cards) via html-to-image + jsPDF. Chrome and filters are omitted.</li>
+        <li><b>Save PDF</b> — formatted A4 document (ruled tables, PrintHeader, no filters/LOVs). Multi-page files stamp n / N at the footer. Not a screenshot of the live UI.</li>
         <li><b>Download PDF</b> on some documents (invoice/bill) — server WeasyPrint template. Needs Pango/Cairo; a 503 means the engine is missing, not that Save PDF failed.</li>
       </ul>
       <TipCallout>

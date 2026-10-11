@@ -497,8 +497,8 @@ const WORKFLOW_ENTRIES: CatalogEntry[] = [
     id: "wf-print-save", kind: "workflow", title: "Print vs Save PDF", href: "/trial-balance",
     captureTenant: "services", segment: "Reports", modules: ["base"], tenants: tenantsForModules(["base"]),
     tags: ["reports", "workflow", "settings"],
-    explanation: "Every Print control has a Save PDF beside it. Print uses the browser dialog and a black-and-white Courier (dot-matrix) stylesheet for low-ink paper. Save PDF snapshots the on-screen cream/gold layout (html-to-image + jsPDF) so the file matches what you see. Server WeasyPrint PDFs remain on document Download PDF where that engine is wired.",
-    steps: ["Open any report or voucher with Print in the toolbar.", "Print — confirm the preview is monochrome Courier.", "Save PDF — the download keeps on-screen colours, type, and cards.", "On an invoice, Download PDF (if shown) is the server template, distinct from Save PDF."],
+    explanation: "Every Print control has a Save PDF beside it. Print uses the browser dialog and a black-and-white Courier (dot-matrix) stylesheet for low-ink paper. Save PDF builds a formatted A4 document (ruled tables, PrintHeader, filters/LOVs omitted, footer n / N) — not a screenshot of the live UI. Server WeasyPrint PDFs remain on document Download PDF where that engine is wired.",
+    steps: ["Open any report or voucher with Print in the toolbar.", "Print — confirm the preview is monochrome Courier with no filter chrome.", "Save PDF — the download is a formatted A4 document with page numbers when it spans pages.", "On an invoice, Download PDF (if shown) is the server template, distinct from Save PDF."],
   },
 ]
 
