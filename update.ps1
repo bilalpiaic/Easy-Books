@@ -11,10 +11,21 @@ if (-not (Test-Path (Join-Path $PSScriptRoot '.git'))) {
   exit 1
 }
 
+$InstallerDrift = @(
+  'backend/uv.lock',
+  'frontend/public/version.json',
+  'frontend/package-lock.json',
+  'package-lock.json',
+  'mobile/package-lock.json'
+)
 function Discard-InstallerDrift {
   # uv sync can rewrite backend/uv.lock; older installers dirtied
-  # frontend/public/version.json - both block git pull --ff-only (#138).
-  git checkout -- backend/uv.lock frontend/public/version.json 2>$null
+  # frontend/public/version.json; npm install rewrites package-lock.json
+  # when npm/OS differ. All three block git pull --ff-only (#138 + Debian).
+  # Per-path: a missing file must not abort the rest of the list.
+  foreach ($f in $InstallerDrift) {
+    git checkout -- $f 2>$null
+  }
 }
 
 Discard-InstallerDrift
@@ -40,7 +51,7 @@ if ($LASTEXITCODE -ne 0) {
   git status -sb
   Write-Host ""
   Write-Host "Safe fix for a script install (discards local commits in this folder only):" -ForegroundColor Yellow
-  Write-Host "  git checkout -- backend/uv.lock frontend/public/version.json"
+  Write-Host ("  git checkout -- " + ($InstallerDrift -join ' '))
   Write-Host "  git fetch origin; git reset --hard origin/main"
   Write-Host "  .\update.bat"
   Write-Host "Your data under %USERPROFILE%\.easy-books is never touched." -ForegroundColor Yellow
