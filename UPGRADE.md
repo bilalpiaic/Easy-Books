@@ -55,7 +55,12 @@ bash update.sh
 
 ## Script Installer (Windows — `install-and-run.bat` / `install-and-run.ps1`)
 
-Double-click **`update.bat`** in the Easy-Books folder, or run:
+**First install on a PC with nothing cloned yet:** download and double-click
+[`docs/Easy-Books_Installer.bat`](./docs/Easy-Books_Installer.bat). It installs Git if needed,
+clones the repo into the folder you choose, creates a Desktop launcher, then runs
+`install-and-run.bat`.
+
+**Already installed:** Double-click **`update.bat`** in the Easy-Books folder, or run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File update.ps1
