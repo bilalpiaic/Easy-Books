@@ -383,7 +383,7 @@ function AppsPageInner() {
       list.push(entry)
       buckets.set(cat, list)
     }
-    const ordered = MARKETPLACE_CAT_ORDER
+    const ordered: { cat: string; entries: CatalogEntry[] }[] = MARKETPLACE_CAT_ORDER
       .filter(cat => (buckets.get(cat)?.length ?? 0) > 0)
       .map(cat => ({ cat, entries: buckets.get(cat) ?? [] }))
     for (const [cat, entries] of buckets) {
