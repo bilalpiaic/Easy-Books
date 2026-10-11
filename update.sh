@@ -34,10 +34,23 @@ fi
 # Installer / tool churn that must not block `git pull --ff-only` (#138 + Debian):
 #   • uv sync can rewrite backend/uv.lock (platform resolution drift)
 #   • next build used to overwrite tracked frontend/public/version.json
+#   • npm install (not ci) rewrites frontend/package-lock.json when npm/OS
+#     differ — the live Debian failure: dirty lockfile vs origin/main
 # These files are machine-generated; discarding local edits is always safe —
-# the next install regenerates them.
+# the next install regenerates them from the committed copies.
+INSTALLER_DRIFT=(
+  backend/uv.lock
+  frontend/public/version.json
+  frontend/package-lock.json
+  package-lock.json
+  mobile/package-lock.json
+)
 discard_installer_drift() {
-  git checkout -- backend/uv.lock frontend/public/version.json 2>/dev/null || true
+  local f
+  # Per-path: a missing file must not abort the rest of the list.
+  for f in "${INSTALLER_DRIFT[@]}"; do
+    git checkout -- "$f" 2>/dev/null || true
+  done
 }
 
 discard_installer_drift
@@ -65,7 +78,7 @@ if ! git pull --ff-only; then
   git status -sb >&2 || true
   echo "" >&2
   echo "  Safe fixes for a script install (no local commits you care about):" >&2
-  echo "    git checkout -- backend/uv.lock frontend/public/version.json" >&2
+  echo "    git checkout -- ${INSTALLER_DRIFT[*]}" >&2
   echo "    git fetch origin && git reset --hard origin/main" >&2
   echo "    bash update.sh" >&2
   echo "" >&2

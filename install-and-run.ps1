@@ -192,14 +192,17 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
   # update. Serwist bundles the SW with esbuild (useNativeEsbuild: true in
   # serwist/route.ts), so @swc/core is unused - we only re-run the installers
   # we actually need.
-  npm install --ignore-scripts
+  # npm ci installs the committed lockfile and never rewrites it. Plain
+  # `npm install` dirties frontend/package-lock.json when npm/OS differ and
+  # then blocks the next `git pull --ff-only` in update.ps1.
+  npm ci --ignore-scripts
   if ($LASTEXITCODE -ne 0) {
     Pop-Location
-    throw 'npm install failed'
+    throw 'npm ci failed (lockfile out of sync with package.json?)'
   }
   if (-not (Test-Path 'node_modules\esbuild\install.js')) {
     Pop-Location
-    throw 'esbuild missing after npm install'
+    throw 'esbuild missing after npm ci'
   }
   node node_modules\esbuild\install.js
   if ($LASTEXITCODE -ne 0) {

@@ -319,6 +319,16 @@ def _git(*args: str) -> str:
     ).stdout.strip()
 
 
+# Keep in sync with update.sh / update.ps1 INSTALLER_DRIFT.
+_INSTALLER_DRIFT = (
+    "backend/uv.lock",
+    "frontend/public/version.json",
+    "frontend/package-lock.json",
+    "package-lock.json",
+    "mobile/package-lock.json",
+)
+
+
 def _discard_installer_drift(repo: Path) -> None:
     """Discard machine-generated files that block `git pull --ff-only`.
 
@@ -327,18 +337,20 @@ def _discard_installer_drift(repo: Path) -> None:
     - `frontend/public/version.json`: older installers wrote the live build
       identity into this *tracked* path, leaving it dirty after every rebuild
       and blocking the next update on Debian/script installs.
+    - `*/package-lock.json`: `npm install` (not `npm ci`) rewrites the lock
+      when npm or OS optional-deps differ — the live Debian `./update.sh`
+      failure against origin/main.
 
-    Both files are regenerated on the next install/build, so discarding local
+    These files are regenerated on the next install/build, so discarding local
     edits is always safe.
     """
-    subprocess.run(
-        [
-            "git", "checkout", "--",
-            "backend/uv.lock",
-            "frontend/public/version.json",
-        ],
-        capture_output=True, text=True, cwd=str(repo),
-    )
+    # Per-path: a missing file must not abort the rest of the list
+    # (`git checkout -- a b missing` restores nothing).
+    for path in _INSTALLER_DRIFT:
+        subprocess.run(
+            ["git", "checkout", "--", path],
+            capture_output=True, text=True, cwd=str(repo),
+        )
 
 
 # Back-compat alias for tests / callers that still use the #138 name.

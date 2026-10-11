@@ -125,11 +125,14 @@ if [ "${1:-}" = "--rebuild" ] || [ ! -f frontend/.next/standalone/server.js ] \
     # the whole update. Serwist bundles the SW with esbuild (useNativeEsbuild:
     # true in serwist/route.ts), so @swc/core is unused — we only re-run the
     # installers we actually need.
-    npm install --ignore-scripts \
-      || die "npm install failed"
+    # npm ci installs the committed lockfile and never rewrites it. Plain
+    # `npm install` dirties frontend/package-lock.json on Debian (different
+    # npm/optional-deps) and then blocks the next `git pull --ff-only`.
+    npm ci --ignore-scripts \
+      || die "npm ci failed (lockfile out of sync with package.json?)"
     # esbuild is required (Serwist SW bundler); fail the update if it can't install.
     [ -f node_modules/esbuild/install.js ] \
-      || die "esbuild missing after npm install"
+      || die "esbuild missing after npm ci"
     node node_modules/esbuild/install.js \
       || die "esbuild native binary install failed"
     # Optional / best-effort — build can proceed without these.

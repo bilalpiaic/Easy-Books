@@ -1,9 +1,10 @@
 """Installer drift must not block git pull --ff-only (#138 + version.json).
 
 `uv sync` can rewrite tracked backend/uv.lock; older install-and-run scripts
-also overwrote tracked frontend/public/version.json on every rebuild. Either
-file left dirty blocks `git pull --ff-only` once upstream also touches it —
-a common failure of ./update.sh on Debian script installs.
+also overwrote tracked frontend/public/version.json on every rebuild; `npm
+install` (not ci) rewrites frontend/package-lock.json when npm/OS differ.
+Any of those left dirty blocks `git pull --ff-only` once upstream also
+touches the file — a common failure of ./update.sh on Debian script installs.
 """
 import subprocess
 from pathlib import Path
@@ -37,6 +38,7 @@ def repo_with_upstream_lock_change(tmp_path):
     pub = upstream / "frontend" / "public"
     pub.mkdir(parents=True)
     (pub / "version.json").write_text('{"version":"1.0.0","commit":"dev"}\n')
+    (upstream / "frontend" / "package-lock.json").write_text('{"lockfileVersion":3,"packages":{}}\n')
     _git(upstream, "add", ".")
     _git(upstream, "commit", "-q", "-m", "initial")
 
@@ -50,6 +52,9 @@ def repo_with_upstream_lock_change(tmp_path):
     (upstream / "frontend" / "public" / "version.json").write_text(
         '{"version":"1.1.0","commit":"dev"}\n'
     )
+    (upstream / "frontend" / "package-lock.json").write_text(
+        '{"lockfileVersion":3,"packages":{"":{"name":"frontend"}}}\n'
+    )
     _git(upstream, "add", ".")
     _git(upstream, "commit", "-q", "-m", "bump a dependency")
 
@@ -59,6 +64,10 @@ def repo_with_upstream_lock_change(tmp_path):
     # Old installer wrote live build identity into the tracked public path.
     (local / "frontend" / "public" / "version.json").write_text(
         '{"version":"1.0.0","commit":"deadbeef","built":"2026-01-01T00:00:00Z"}\n'
+    )
+    # `npm install` on Debian rewrote the lockfile (npm/optional-deps drift).
+    (local / "frontend" / "package-lock.json").write_text(
+        '{"lockfileVersion":3,"packages":{},"locally-resolved":true}\n'
     )
 
     return local
@@ -83,6 +92,7 @@ def test_discard_lockfile_drift_unblocks_pull(repo_with_upstream_lock_change):
 
     assert (local / "backend" / "uv.lock").read_text() == "version = 2\nnewer-release\n"
     assert '"1.1.0"' in (local / "frontend" / "public" / "version.json").read_text()
+    assert '"name":"frontend"' in (local / "frontend" / "package-lock.json").read_text()
 
 
 def test_discard_lockfile_drift_is_a_safe_noop_when_clean(tmp_path):
@@ -101,3 +111,19 @@ def test_discard_lockfile_drift_is_a_safe_noop_when_clean(tmp_path):
 
     _discard_lockfile_drift(repo)  # must not raise
     assert (repo / "backend" / "uv.lock").read_text() == "version = 1\n"
+
+
+def test_update_scripts_discard_frontend_package_lock():
+    """update.sh / update.ps1 / in-app updater must all reset package-lock.json."""
+    root = Path(__file__).resolve().parents[2]
+    for rel in ("update.sh", "update.ps1"):
+        text = (root / rel).read_text(encoding="utf-8")
+        assert "frontend/package-lock.json" in text, rel
+    py = (root / "backend" / "routers" / "system_update.py").read_text(encoding="utf-8")
+    assert "frontend/package-lock.json" in py
+    installer = (root / "install-and-run.sh").read_text(encoding="utf-8")
+    assert "npm ci --ignore-scripts" in installer
+    assert "npm install --ignore-scripts" not in installer
+    ps1 = (root / "install-and-run.ps1").read_text(encoding="utf-8")
+    assert "npm ci --ignore-scripts" in ps1
+    assert "npm install --ignore-scripts" not in ps1

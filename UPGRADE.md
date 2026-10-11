@@ -31,12 +31,13 @@ On Debian/Ubuntu, run with bash (not `sh`):
 bash update.sh
 ```
 
-If pull fails because of local installer drift (common after older builds rewrote
+If pull fails because of local installer drift (common after `npm install`
+rewrote `frontend/package-lock.json`, or older builds rewrote
 `frontend/public/version.json`), the script prints a recovery hint. Safe reset of
 the *code* folder only (data in `~/.easy-books` is untouched):
 
 ```bash
-git checkout -- backend/uv.lock frontend/public/version.json
+git checkout -- backend/uv.lock frontend/public/version.json frontend/package-lock.json
 git fetch origin && git reset --hard origin/main
 bash update.sh
 ```
