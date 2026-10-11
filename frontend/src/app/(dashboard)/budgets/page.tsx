@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { TrendingUp, Plus, Trash2, AlertCircle, Download, Printer } from "lucide-react"
+import { TrendingUp, Plus, Trash2, AlertCircle, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface BudgetRow {
   account_id: number
@@ -162,11 +163,7 @@ export default function BudgetsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 print:hidden">
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           {tab === "variance" && rows.length > 0 && (
             <button
               onClick={() => downloadCSV(`budget-vs-actual.csv`, rows.map(r => ({

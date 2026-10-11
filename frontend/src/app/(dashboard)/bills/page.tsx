@@ -19,6 +19,7 @@ import { NoAccessBanner } from "@/components/NoAccessBanner"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
 import { useMessages } from "@/context/MessageContext"
+import PrintButton from "@/components/PrintButton"
 
 interface Bill {
   id: number
@@ -169,11 +170,7 @@ function BillsContent() {
           >
             <Download className="w-4 h-4" /> Export
           </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)]">
             <Plus className="w-4 h-4" /> New Bill
           </button>

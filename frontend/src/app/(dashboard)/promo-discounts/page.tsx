@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Trash2, Pencil, Tags, Check, X, Download, Printer } from "lucide-react"
+import { Plus, Trash2, Pencil, Tags, Check, X, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import { useMessages } from "@/context/MessageContext"
+import PrintButton from "@/components/PrintButton"
 
 interface PromoRule {
   id: number
@@ -149,11 +150,7 @@ export default function PromoDiscountsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 print:hidden">
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button
             onClick={() => downloadCSV('promo-discounts.csv', rules.map(r => ({ Rule: r.name, Product: r.product_id ? products.find(p => p.id === r.product_id)?.name ?? '' : 'All', "Min Qty": r.min_qty ?? '', Discount: discountLabel(r), Active: r.is_active ? 'Yes' : 'No' })))}
             disabled={rules.length === 0}

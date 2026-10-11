@@ -1,6 +1,6 @@
 "use client"
 
-import { ReceiptText, Download, Printer } from "lucide-react"
+import { ReceiptText, Download } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
@@ -9,6 +9,7 @@ import {
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface Connection { id: number; msisdn: string; customer_name: string; plan_name: string; monthly_rental: string; activation_date: string }
@@ -82,11 +83,7 @@ export default function PostpaidPage() {
       <PrintHeader title="Postpaid Billing" orientation="landscape" />
       <div className="flex items-center justify-between">
         <PageHeader icon={ReceiptText} title="Postpaid Billing" subtitle="Bill postpaid customers, collect, then remit net of commission." />
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
-        >
-          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+        <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
       </div>
 
       <HelpCallout title="You collect on the operator's behalf" tone="tip">

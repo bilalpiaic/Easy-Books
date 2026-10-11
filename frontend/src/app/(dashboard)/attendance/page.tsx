@@ -3,12 +3,11 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useTranslation } from "react-i18next"
-import {
-  ChevronLeft, ChevronRight, Plus, FileText, Upload, Printer, Users, Clock, Calendar, TrendingUp, Home, Download,
-} from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, FileText, Upload, Users, Clock, Calendar, TrendingUp, Home, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import PrintButton from "@/components/PrintButton"
 
 interface AttendanceRecord {
   id: number
@@ -174,10 +173,7 @@ export default function AttendancePage() {
             className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[var(--text-primary)]">
             <Upload className="w-4 h-4" /> Import
           </Link>
-          <button onClick={() => window.print()}
-            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[var(--text-primary)]">
-            <Printer className="w-4 h-4" /> Print
-          </button>
+          <PrintButton buttonClassName="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[var(--text-primary)]" />
           <button onClick={exportCsv}
             className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[var(--text-primary)]">
             <Download className="w-4 h-4" /> Export CSV

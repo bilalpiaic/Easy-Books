@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Printer, XCircle, CheckCircle, AlertCircle } from "lucide-react"
+import { ArrowLeft, XCircle, CheckCircle, AlertCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt } from "@/context/SettingsContext"
 import { getCurrentUser } from "@/lib/auth"
 import PrintHeader from "@/components/PrintHeader"
 import StatusBadge from "@/components/StatusBadge"
+import PrintButton from "@/components/PrintButton"
 
 type GOLine = { id: number; product_id: number; qty: number; unit_cost: number; unit_value: number }
 
@@ -181,10 +182,7 @@ export default function GateOutwardDetailPage() {
 
       {/* Actions */}
       <div className="flex flex-wrap items-start gap-2 print:hidden">
-        <button onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] text-sm hover:bg-[var(--bg-page)]">
-          <Printer className="w-4 h-4" /> Print
-        </button>
+        <PrintButton buttonClassName="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] text-sm hover:bg-[var(--bg-page)]" />
         {canApprove && isAdmin && (
           <button
             onClick={approve}

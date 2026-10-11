@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { Receipt, Printer } from "lucide-react"
+import { SavePdfButton } from "@/components/PrintButton"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
@@ -67,9 +68,12 @@ export default function CreditNoteDetailPage({ params }: { params: Promise<{ id:
             </p>
           </div>
         </div>
-        <Link href={`/credit-notes/${id}/print`} className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] text-[var(--text-primary)]/60 print:hidden" title="Print">
-          <Printer className="w-5 h-5" />
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/credit-notes/${id}/print`} className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] text-[var(--text-primary)]/60 print:hidden" title="Print">
+            <Printer className="w-5 h-5" />
+          </Link>
+          <SavePdfButton variant="icon" buttonClassName="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] text-[var(--text-primary)]/60" />
+        </div>
       </div>
 
       <div className="bg-white border border-[var(--border)] rounded-xl p-5 grid grid-cols-2 gap-4 text-sm">

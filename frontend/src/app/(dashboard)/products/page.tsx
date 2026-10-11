@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Search, Trash2, Download, Package, Printer, List, FolderTree } from 'lucide-react'
+import { Plus, Search, Trash2, Download, Package, List, FolderTree } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import BulkActionBar from '@/components/BulkActionBar'
@@ -17,6 +17,7 @@ import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
 import { useTranslation } from "react-i18next"
 import { useMessages } from "@/context/MessageContext"
+import PrintButton from "@/components/PrintButton"
 
 interface Product {
   id: number
@@ -193,12 +194,7 @@ function ProductsInner() {
           >
             <Download className="w-4 h-4" /> Export
           </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
-            title="Print"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)]">
             <Plus className="w-4 h-4" /> Add Product
           </button>

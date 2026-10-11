@@ -563,7 +563,9 @@ def _coa_for(business_model: str):
 # Fields:
 #   label       Human-readable name shown in the Apps page
 #   description One-line description shown on the module card
-#   category    Groups modules on the Apps page (Core / Accounting / Operations / HR / Industry)
+#   category    Groups modules on the Apps page by use:
+#               Core | Operations | HR | Industry (business nature) |
+#               Localization (country & statutory tax/e-invoice) | Intelligence
 #   icon        lucide-react icon name (used by frontend)
 #   deps        Module IDs that must be installed first
 #   always      If True, the module cannot be uninstalled (locked)
@@ -628,8 +630,8 @@ MODULE_REGISTRY: dict[str, dict] = {
     },
     "pra": {
         "label":       "FBR Digital Invoicing",
-        "description": "FBR Digital Invoicing via PRAL DI API v1.12 (historic add-on key: pra). Validate-then-post sales invoices and debit notes, FBR invoice number + QR, sandbox scenarios SN001–SN028.",
-        "category":    "Industry",
+        "description": "Pakistan FBR Digital Invoicing via PRAL DI API v1.12 (historic add-on key: pra). Validate-then-post sales invoices and debit notes, FBR invoice number + QR, sandbox scenarios SN001–SN028.",
+        "category":    "Localization",
         "icon":        "FileCheck",
         "deps":        ["base"],
         "always":      False,
@@ -640,7 +642,7 @@ MODULE_REGISTRY: dict[str, dict] = {
     "uae_vat": {
         "label":       "UAE VAT e-Invoice",
         "description": "United Arab Emirates VAT localization — 5% tax codes, VAT Payable/Receivable CoA leaves, TRN settings, and a sandbox FTA e-invoice adapter stub.",
-        "category":    "Industry",
+        "category":    "Localization",
         "icon":        "Landmark",
         "deps":        ["base"],
         "always":      False,
@@ -727,7 +729,7 @@ MODULE_REGISTRY: dict[str, dict] = {
     },
     "purchase_store": {
         "label":       "Purchases & Store",
-        "description": "Procure-to-pay controls: purchase demands, vendor quotation comparison, approval-gated purchase orders, gate-inward receipt control with 3-way match, and gate-outward dispatch tracking for sales, returns, and scrap. Store issues arrive in an upcoming phase.",
+        "description": "Procure-to-pay controls: purchase demands, vendor quotation comparison, approval-gated purchase orders, gate-inward receipt control with 3-way match, gate-outward dispatch tracking, and store issues (departmental consumption with immediate GL + stock relief).",
         "category":    "Operations",
         "icon":        "ShoppingCart",
         "deps":        ["inventory"],

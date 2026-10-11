@@ -1,11 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Download, Printer } from "lucide-react"
+import { Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import PrintButton from "@/components/PrintButton"
 
 interface BalanceRow {
   customer_id: number
@@ -95,12 +96,7 @@ export default function ContractBalancesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)]"
-          >
-            <Printer className="w-3.5 h-3.5" /> Print
-          </button>
+          <PrintButton buttonClassName="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)]" />
           <button
             onClick={() => downloadCSV("contract-balances.csv", rows.map(r => ({
               Customer: r.name,

@@ -25,6 +25,7 @@ export default function NavBar() {
 
   return (
     <nav
+      data-eb-chrome
       className="flex items-center gap-1.5 sm:gap-2 text-sm text-[var(--text-muted)] mb-3 sm:mb-4 min-w-0 overflow-hidden print:hidden"
       aria-label="Breadcrumb"
     >

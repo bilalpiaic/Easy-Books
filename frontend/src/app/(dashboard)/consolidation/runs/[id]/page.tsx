@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft, Printer, Sparkles, Lock, Ban } from "lucide-react"
+import { ArrowLeft, Sparkles, Lock, Ban } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { useMessages } from "@/context/MessageContext"
 import PrintHeader from "@/components/PrintHeader"
 import { AccountTreeRows, type TreeNode } from "@/components/AccountTree"
 import { fmtDate } from "@/lib/utils"
+import PrintButton from "@/components/PrintButton"
 
 interface Run {
   id: number
@@ -210,9 +211,7 @@ export default function ConsolidationRunPage() {
               <Ban className="w-4 h-4" /> Void
             </button>
           )}
-          <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-[var(--text-primary)]/20">
-            <Printer className="w-4 h-4" /> Print
-          </button>
+          <PrintButton buttonClassName="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-[var(--text-primary)]/20" />
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import PrintHeader from "@/components/PrintHeader"
 import StatusBadge from "@/components/StatusBadge"
 import { fmtDate } from "@/lib/utils"
 import { formatWeightTriple, type WeightTriple } from "@/lib/weavingUnits"
+import PrintButton from "@/components/PrintButton"
 
 type Ticket = {
   id: number
@@ -125,7 +126,7 @@ export default function WeighbridgeTicketDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={row.status} />
-          <button onClick={() => window.print()} className="px-3 py-1.5 text-sm border border-[var(--border)] rounded-lg">Print slip</button>
+          <PrintButton label="Print slip" buttonClassName="px-3 py-1.5 text-sm border border-[var(--border)] rounded-lg" />
         </div>
       </div>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { AlertTriangle, Download, Printer } from "lucide-react"
+import { AlertTriangle, Download } from "lucide-react"
 import { apiFetch, apiBase } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { getAuthHeader } from "@/lib/auth"
@@ -10,6 +10,7 @@ import { downloadCSV, fmtDate } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 // ── Legacy endpoint (on-hand / reorder / last-movement) ─────────────────────
 interface InventoryItem {
@@ -192,13 +193,7 @@ export default function InventoryPerformancePage() {
         </div>
         <div className="flex gap-3">
           {/* Print button — always visible */}
-          <button
-            onClick={() => window.print()}
-            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60"
-            title="Print"
-          >
-            <Printer className="w-5 h-5" />
-          </button>
+          <PrintButton variant="icon" buttonClassName="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60" />
 
           {tab === "stock" ? (
             /* Stock tab: client-side CSV download */

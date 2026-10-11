@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, Download } from "lucide-react"
+import { Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
@@ -10,6 +10,7 @@ import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import { AccountTreeRows, type TreeNode } from "@/components/AccountTree"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface TrialBalanceTotals {
   debit: number
@@ -72,9 +73,7 @@ export default function TrialBalancePage() {
           <p className="text-[var(--text-primary)]/60">Debit and credit totals per account</p>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => window.print()} className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 print:hidden" title="Print">
-            <Printer className="w-5 h-5" />
-          </button>
+          <PrintButton variant="icon" buttonClassName="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60" />
           <button
             onClick={() => downloadCSV(`trial-balance-${start}-${end}.csv`, flatten(tree).map(d => ({ Code: d.code, Name: d.name, Type: d.type, Debit: d.debit, Credit: d.credit })))}
             className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 print:hidden"

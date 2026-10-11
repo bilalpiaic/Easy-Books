@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Eye, EyeOff, Trash2, Printer, Download } from 'lucide-react'
+import { Plus, Eye, EyeOff, Trash2, Download } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
@@ -9,6 +9,7 @@ import { downloadCSV } from '@/lib/utils'
 import DocLink from '@/components/DocLink'
 import { useTranslation } from "react-i18next"
 import { useMessages } from "@/context/MessageContext"
+import PrintButton from "@/components/PrintButton"
 
 interface BankAccount {
   id: number
@@ -208,12 +209,7 @@ export default function BankAccounts() {
           >
             <Download className="w-4 h-4" /> CSV
           </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
-            title="Print"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)]">
             <Plus className="w-4 h-4" />
             Add Account

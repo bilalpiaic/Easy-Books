@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { FileKey2, Plus, Printer } from "lucide-react"
+import { FileKey2, Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
 import { useMessages } from "@/context/MessageContext"
 import PrintHeader from "@/components/PrintHeader"
 import { fmtDate } from "@/lib/utils"
+import PrintButton from "@/components/PrintButton"
 
 interface Lease {
   id: number
@@ -168,9 +169,7 @@ export default function LeasesPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-[var(--text-primary)]/20">
-            <Printer className="w-4 h-4" /> Print disclosure
-          </button>
+          <PrintButton label="Print disclosure" buttonClassName="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-[var(--text-primary)]/20" />
           <button type="button" onClick={openModal} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-[var(--text-primary)] text-white">
             <Plus className="w-4 h-4" /> New lease
           </button>

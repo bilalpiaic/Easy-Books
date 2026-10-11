@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Plus, Building2, Play, Archive, Download, Printer, Table2 } from "lucide-react"
+import { Plus, Building2, Play, Archive, Download, Table2 } from "lucide-react"
 import { downloadCSV, fmtDate, todayLocal } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -10,6 +10,7 @@ import DocLink from "@/components/DocLink"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import { useMessages } from "@/context/MessageContext"
+import PrintButton from "@/components/PrintButton"
 
 interface FixedAsset {
   id: number
@@ -271,12 +272,7 @@ export default function AssetsPage() {
           >
             <Table2 className="w-4 h-4" /> Rollforward
           </Link>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-xl text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
-          >
-            <Printer className="w-4 h-4" />{t("common.print", "Print")}
-          </button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-xl text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button
             onClick={() => downloadCSV("fixed-assets.csv", items.map(a => ({
               Name: a.name, Code: a.code ?? "", Parent: a.parent_id ?? "",

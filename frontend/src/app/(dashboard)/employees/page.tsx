@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Users, Plus, Search, Edit2, Home, Printer, Download } from "lucide-react"
+import { Users, Plus, Search, Edit2, Home, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface Employee {
   id: number
@@ -68,10 +69,7 @@ export default function EmployeesPage() {
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm">
-            <Printer className="w-4 h-4" /> Print
-          </button>
+          <PrintButton buttonClassName="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm" />
           <button onClick={exportCsv}
             className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm">
             <Download className="w-4 h-4" /> Export CSV

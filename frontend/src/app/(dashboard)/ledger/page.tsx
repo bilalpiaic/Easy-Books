@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ChevronRight, ChevronDown, BookOpen, Printer, Download, Layers, List } from "lucide-react"
+import { ChevronRight, ChevronDown, BookOpen, Download, Layers, List } from "lucide-react"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -12,6 +12,7 @@ import PrintHeader from "@/components/PrintHeader"
 import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -439,14 +440,12 @@ function LedgerPageInner() {
               <Download className="w-4 h-4" />
             </button>
           )}
-          <button
-            onClick={() => window.print()}
+          <PrintButton
+            variant="icon"
+            buttonClassName="p-2.5 bg-white border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-30 disabled:cursor-not-allowed"
             disabled={view === "consolidated" && (!selectedAccount || !ledgerData)}
-            className="p-2.5 bg-white border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-30 disabled:cursor-not-allowed"
-            title={view === "consolidated" && (!selectedAccount || !ledgerData) ? "Select an account first" : "Print ledger"}
-          >
-            <Printer className="w-4 h-4" />
-          </button>
+            printTitle={view === "consolidated" && (!selectedAccount || !ledgerData) ? "Select an account first" : "Print ledger"}
+          />
         </div>
       </div>
 

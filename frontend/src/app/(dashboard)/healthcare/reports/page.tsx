@@ -4,6 +4,7 @@ import { BarChart2, TrendingUp, Activity, FlaskConical, BedDouble, PieChart } fr
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
+import PrintButton from "@/components/PrintButton"
 
 type Tab = "opd" | "doctors" | "lab" | "ipd" | "revenue"
 
@@ -59,10 +60,7 @@ export default function HcReportsPage() {
           <h1 className="text-2xl font-semibold text-neutral-900">Healthcare Reports</h1>
           <p className="text-sm text-neutral-500">Clinical & financial analytics</p>
         </div>
-        <button onClick={() => window.print()}
-          className="px-3 py-2 text-sm border border-neutral-200 rounded-lg hover:bg-neutral-50">
-          Print
-        </button>
+        <PrintButton buttonClassName="px-3 py-2 text-sm border border-neutral-200 rounded-lg hover:bg-neutral-50" />
       </div>
 
       {/* Date filter */}

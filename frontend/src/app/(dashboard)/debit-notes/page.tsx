@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Undo2, Download, Printer } from "lucide-react"
+import { Plus, Undo2, Download } from "lucide-react"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
@@ -11,6 +11,7 @@ import { isForeignCurrency, toBase } from "@/lib/fx"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
+import PrintButton from "@/components/PrintButton"
 
 interface DebitNote {
   id: number
@@ -55,7 +56,6 @@ function makeEmptyForm(baseCurrency: string): DNForm {
     lines: [{ product_id: '', description: '', qty: '1', rate: '0' }],
   }
 }
-
 
 export default function DebitNotesPage() {
   const { t } = useTranslation()
@@ -137,11 +137,7 @@ export default function DebitNotesPage() {
           <p className="text-[var(--text-primary)]/60 text-sm mt-1">{total} total · returns goods to a vendor (IAS 2.11)</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-xl text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-xl text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
           <button
             onClick={() => downloadCSV('debit-notes.csv', items.map(n => ({ Number: n.number, Vendor: n.vendor_name ?? '', Date: n.issue_date, Total: n.total, Status: n.status })))}
             disabled={items.length === 0}

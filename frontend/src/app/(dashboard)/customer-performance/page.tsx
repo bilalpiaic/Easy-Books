@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Download, Printer } from "lucide-react"
+import { Download } from "lucide-react"
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
@@ -13,6 +13,7 @@ import { downloadCSV, fmtDate } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
@@ -149,13 +150,7 @@ export default function CustomerPerformancePage() {
           <p className="text-[var(--text-primary)]/60">Revenue, invoicing and payment speed ranked by top customers</p>
         </div>
         <div className="flex gap-3">
-          <button
-            onClick={() => window.print()}
-            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60"
-            title="Print"
-          >
-            <Printer className="w-5 h-5" />
-          </button>
+          <PrintButton variant="icon" buttonClassName="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60" />
           <button
             onClick={() =>
               downloadCSV(`customer-performance-${start}-${end}.csv`,

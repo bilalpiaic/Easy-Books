@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Network, Download, Printer } from "lucide-react"
+import { Network, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
@@ -11,6 +11,7 @@ import {
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface RsoAgent { id: number; name: string; phone: string | null; territory: string | null }
 interface RetailOutlet { id: number; rso_id: number; shop_name: string; owner_name: string | null }
@@ -114,11 +115,7 @@ export default function RsoPage() {
       <PrintHeader title="RSO Channel" orientation="landscape" />
       <div className="flex items-center justify-between">
         <PageHeader icon={Network} title="RSO Channel" subtitle="Load distribution down MSR → RSO → Retail, and daily settlement." />
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
-        >
-          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+        <PrintButton buttonClassName="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors" />
       </div>
 
       <HelpCallout title="The distribution chain" tone="tip">

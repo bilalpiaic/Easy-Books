@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Printer, HelpCircle, Download } from "lucide-react"
+import { HelpCircle, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtAmount, downloadCSV, fmtDate } from "@/lib/utils"
 import { useSettings } from "@/context/SettingsContext"
@@ -9,6 +9,7 @@ import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { AccountTreeRows, type TreeNode } from "@/components/AccountTree"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface BalanceItem {
   code: string
@@ -218,9 +219,7 @@ export default function BalanceSheetPage() {
               <Download className="w-5 h-5" />
             </button>
           )}
-          <button onClick={() => window.print()} className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60" title="Print">
-            <Printer className="w-5 h-5" />
-          </button>
+          <PrintButton variant="icon" buttonClassName="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60" />
         </div>
       </div>
 

@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Download, Printer } from "lucide-react"
+import { Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV, fmtDateJs } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import type { AnalyticDimension, AnalyticAccount } from "@/components/DimensionPickers"
+import PrintButton from "@/components/PrintButton"
 
 interface PlLine {
   name: string
@@ -99,12 +100,7 @@ export default function DimensionalPlPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]"
-          >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+          <PrintButton buttonClassName="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]" />
           <button
             onClick={() => {
               const rows: Record<string, unknown>[] = []

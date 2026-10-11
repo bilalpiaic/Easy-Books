@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { Printer, CheckCircle, ChevronRight } from "lucide-react"
+import { SavePdfButton } from "@/components/PrintButton"
 import { apiFetch } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
@@ -60,9 +61,10 @@ export default function PaymentReceivedDetail({ params }: { params: Promise<{ id
         <ChevronRight className="w-3 h-3" />
         <span className="text-[var(--text-muted)]">Receipt #{pay.id}</span>
       </nav>
-      <div className="flex justify-end print:hidden">
+      <div className="flex justify-end gap-2 print:hidden">
         <Link href={`/payments-received/${pay.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]">
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
+        <SavePdfButton buttonClassName="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]" />
       </div>
 
       <header className="bg-white border border-[var(--border)] rounded-xl p-5 flex items-start gap-3">

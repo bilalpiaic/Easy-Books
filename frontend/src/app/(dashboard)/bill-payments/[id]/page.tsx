@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { Printer, Receipt } from "lucide-react"
+import { SavePdfButton } from "@/components/PrintButton"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
@@ -57,9 +58,10 @@ export default function BillPaymentDetail({ params }: { params: Promise<{ id: st
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      <div className="flex justify-end print:hidden">
+      <div className="flex justify-end gap-2 print:hidden">
         <Link href={`/bill-payments/${pay.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]">
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
+        <SavePdfButton buttonClassName="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]" />
       </div>
 
       <header className="bg-white border border-[var(--border)] rounded-xl p-5 flex items-start gap-3">

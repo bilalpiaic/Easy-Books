@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Easy-Books** is a multi-tenant double-entry bookkeeping SaaS for SMEs. Everyone starts on **Base Accounting**; industry capabilities (Inventory, Manufacturing, Telecom Franchise, PRA e-Invoice, Healthcare, Weaving, Yarn Spinning, AI Assistant, …) are **Add-ons** installed after login from System → Add-ons. IAS/IFRS-aligned accounting with an enforced ∑Dr = ∑Cr invariant and live reports from the General Ledger.
+**Easy-Books** is a multi-tenant double-entry bookkeeping SaaS for SMEs. Everyone starts on **Base Accounting**. Capabilities are **Add-ons**, grouped by category of use: **Operations** (inventory, manufacturing, purchases/store, POS, eCommerce, weighbridge), **HR**, **Business nature** (telecom, healthcare, weaving, spinning, textile processing), **Country & statutory** (Pakistan FBR, UAE VAT, ZATCA, India GST, Peppol, UK MTD, Malaysia MyInvois), and **Intelligence** (AI Assistant). Install after login from System → Add-ons. IAS/IFRS-aligned accounting with an enforced ∑Dr = ∑Cr invariant and live reports from the General Ledger. Catalogue: [`docs/ADDONS.md`](./docs/ADDONS.md).
 
 Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (frontend) · SQLite for dev/local, PostgreSQL for production.
 
@@ -95,8 +95,10 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Multi-language support** — English, Urdu (اردو, RTL Nastaliq script), Chinese (中文); globe icon in header opens language dropdown; preference saved in `localStorage` (`eb.lang`) and synced to `/api/settings` (`app_language`); 314 translation keys across 10 namespaces covering all pages, status badges, action buttons, and table headers; RTL layout auto-applied for Urdu; `react-i18next` + `i18next` client-side only
 - **Mobile responsiveness** — sidebar width trimmed to 196 px; page titles, stats grids, aging grids, and form grids all apply responsive breakpoints so the UI stacks cleanly on phones; button toolbars wrap on narrow screens; line-item tables scroll horizontally; 61 files updated
 
-**Print system (v2.7, overhauled v3.1)**
-- **Dot-matrix format** — all print output is **Courier New** black-and-white, no background fills; `@media print` strips UI chrome (buttons, filters, pagination, sort handles, checkbox columns, action columns)
+**Print & Save PDF**
+- **Print** — browser print dialog. **Courier New** black-and-white, no background fills (`@media print`) for low-ink / dot-matrix paper; strips UI chrome (buttons, filters, pagination, sort handles, checkbox columns, action columns)
+- **Save PDF** — beside every Print control. Snapshots the **on-screen** cream/gold layout (colours, type, cards) via `html-to-image` + jsPDF — not the print stylesheet
+- **Download PDF** on invoices/bills — server WeasyPrint template when Pango/Cairo are present (503 if the engine is missing; that is not a Save PDF failure)
 - **Font-size caps** — Tailwind v4 font-size CSS variables are overridden in print so screen sizing never leaks into printouts; row spacing is compressed for denser data fit per page
 - **Date format** — `dd-mm-yy` used everywhere (e.g. `20-06-26`); `fmtDate()` / `fmtDateJs()` helpers in `utils.ts`
 - **Portrait / landscape auto-selection** — PrintHeader injects the correct `@page { size: A4 … }` rule via `useEffect`; landscape for wide tables (aging, performance, product ledger, **General Ledger**, journal list), portrait for everything else
@@ -117,9 +119,9 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Inventory depth (IAS 2)** — landed-cost allocation onto receipt layers, lot/serial tracking, NRV write-down runs (`/inventory/valuation`)
 - **Month-end close pack** — per-period checklist (required tasks can block Soft Close / Lock) + auditor ZIP export from Period Close
 - **Tax rate history** — effective-dated rates per tax code for multi-jurisdiction / rate-change reporting
-- **Country packs** — Saudi ZATCA (`sa_zatca`), India GST (`in_gst`), Peppol / EU VAT (`eu_peppol`), UAE VAT stub (`uae_vat`)
+- **Country & statutory packs** — Pakistan FBR Digital Invoicing (`pra`), Saudi ZATCA (`sa_zatca`), India GST (`in_gst`), Peppol / EU VAT (`eu_peppol`), UAE VAT (`uae_vat`), UK MTD VAT (`uk_mtd`), Malaysia MyInvois (`my_invois`)
 - **Withholding tax + CIT (#267)** — vendor WHT on bill payments (Cr 2265) + corporate-tax worksheet adjustments
-- Server-side PDF invoices/bills (WeasyPrint; needs Pango/Cairo system libs — Save PDF returns a clear 503 if the engine is unavailable); Stripe payment links; SMTP email notifications
+- Server-side PDF invoices/bills (WeasyPrint; needs Pango/Cairo — Download PDF returns a clear 503 if the engine is unavailable); Stripe payment links; SMTP email notifications
 - SaaS harden: webhooks + DLQ, background task queue, approvals SoD, customer/vendor/patient portal, bank feeds / statement import, plan quotas
 - **Responsive data entry** — invoice/bill line editors and payment forms stack into mobile cards on sm/md breakpoints (not scroll-only tables)
 
@@ -142,8 +144,8 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Attendance register** — manual time-in/out entry per employee per day; hours auto-computed; status codes (Present/Absent/Half Day/Leave/Holiday/Off); monthly grid view (employees × days); bulk entry grid; biometric import endpoint (matches by employee code, stores raw device payload); CSV upload as manual fallback; ZKTeco/FingerTec device integration planned
 
 **Module system (v2.9)**
-- **Odoo-style installable modules** — `base` (always active) plus Inventory, Manufacturing, Purchases/Store, POS, eCommerce, HRM, Telecom, Healthcare, Weaving, Yarn Spinning, Textile Processing, AI Assistant, PRA, and Localization packs (`sa_zatca`, `in_gst`, `eu_peppol`, `uae_vat`). Each module gates a sidebar section (or, for `ai_assistant`, the chat button); sections with no active module are hidden
-- **Add-ons page** (`/apps`, System → Add-ons, admin/owner only) — tabs **Default / Recommended / Optional / Marketplace**; first-party install/uninstall with dependency resolution and a confirmation dialog before removal
+- **Odoo-style installable modules** — `base` (always active) plus Operations, HR, Business nature, Country & statutory, and Intelligence packs (21 registry ids). Each module gates a sidebar section (or, for `ai_assistant`, the chat button); sections with no active module are hidden. Full grouping: [`docs/ADDONS.md`](./docs/ADDONS.md)
+- **Add-ons page** (`/apps`, System → Add-ons, admin/owner only) — tabs **Default / Recommended / Optional / Marketplace**, each grouped by category of use (business nature vs country packs are separate bands); first-party install/uninstall with dependency resolution and a confirmation dialog before removal
 - **Add-ons-first UX** — public signup starts with Base Accounting; industry/localization packs live on `/apps` (`?welcome=1`); demo tenants bypass onboarding and ship with model-default modules (+ localization demos where seeded)
 - **Marketplace** — curated **products** (not tenants); catalog filtered on the server (`GET /api/marketplace/catalog`) by `public` / `entitled` / `private`. Install never runs partner code. **Weighbridge** is public for every tenant: first-party workspace (top nav, tickets, print slip — no GL) plus listing `partner.easybooks.weighbridge` which installs a Studio bundle on invoices: **Gate pass** (`x.gate_pass_no`) and **Lot ref** (`x.lot_ref`). Values live on `invoice.custom_fields` and **never post to the GL**. How-to: [USER_GUIDE.md §41](./USER_GUIDE.md#41-weighbridge-mill-workspace)
 - **Settings Studio** (`/settings/studio`) — extra `x.*` fields (Add Field LOV of catalog type hints, cap 12), form hide/require of every core and extra field, and print templates per tenant. Marketplace listings can apply a bundle; admins can still edit the overlay here
@@ -494,6 +496,7 @@ uv run arq worker.WorkerSettings
 |---|---|
 | [`docs/AI_INDEX.md`](./docs/AI_INDEX.md) | **Start here for AI agents / new contributors** — doc-ownership map, core invariants, ground-truth pointers |
 | [`USER_GUIDE.md`](./USER_GUIDE.md) | End-user walkthrough for every feature |
+| [`docs/ADDONS.md`](./docs/ADDONS.md) | Add-ons grouped by category of use (business nature vs country packs) |
 | [`WORKFLOW.md`](./WORKFLOW.md) | Accounting workflows, GL Dr/Cr maps, report-linking matrix, API catalog |
 | [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md) | One-click installer, Electron desktop app, data safety, update paths |
 | [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Cloud deploy: frontend + API on Vercel, database on Neon |

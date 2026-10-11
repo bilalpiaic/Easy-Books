@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, CheckCircle, Save, ShoppingCart, AlertCircle, AlertTriangle, Printer } from "lucide-react"
+import { ArrowLeft, CheckCircle, Save, ShoppingCart, AlertCircle, AlertTriangle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import StatusBadge from "@/components/StatusBadge"
+import PrintButton from "@/components/PrintButton"
 
 type DemandLine = { id: number; description: string; qty: number; unit?: string }
 
@@ -294,10 +295,7 @@ export default function ComparativeDetailPage() {
             <ShoppingCart className="w-4 h-4" /> View PO
           </Link>
         )}
-        <button onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] text-sm hover:bg-[var(--bg-page)]">
-          <Printer className="w-4 h-4" /> Print
-        </button>
+        <PrintButton buttonClassName="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] text-sm hover:bg-[var(--bg-page)]" />
       </div>
     </div>
   )

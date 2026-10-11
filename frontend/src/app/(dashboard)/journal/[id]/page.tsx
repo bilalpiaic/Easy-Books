@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { Printer, RotateCcw, ScrollText } from "lucide-react"
+import { SavePdfButton } from "@/components/PrintButton"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -106,6 +107,7 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
         <div className="flex items-center gap-2">
           <Link href={`/journal/${txn.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] print:hidden">
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
+          <SavePdfButton buttonClassName="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]" />
           {!txn.is_reversed && (
             <button onClick={reverse} disabled={busy}
               className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 disabled:opacity-50">

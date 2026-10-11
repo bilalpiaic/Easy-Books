@@ -10,12 +10,13 @@ import {
   AlertTriangle, CheckCircle, Info,
   Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
   Factory, Link2, Radio, Keyboard, ListChecks, LayoutDashboard, CircleDot, Scale, PenTool,
+  Layers, Stethoscope, Printer, Puzzle,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
 
 // Business models — used to tailor which guide sections each tenant sees.
-type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise" | "yarn_spinning"
+type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise" | "yarn_spinning" | "hospital" | "pra_einvoice" | "textile_processing"
 
 interface Tab {
   id: string
@@ -27,7 +28,7 @@ interface Tab {
 }
 
 // Inventory-tracking models (stock, procurement, COGS apply)
-const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise", "yarn_spinning"]
+const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise", "yarn_spinning", "hospital", "textile_processing"]
 
 const TABS: Tab[] = [
   { id: "getting-started",  label: "Getting Started",        icon: LogIn,           shortLabel: "Start"    },
@@ -59,6 +60,11 @@ const TABS: Tab[] = [
   { id: "manufacturing",    label: "Manufacturing (V2)",     icon: Factory,         shortLabel: "Mfg",      forModels: ["manufacturing"] },
   { id: "telecom",          label: "Telecom Franchise (V3)",  icon: Radio,          shortLabel: "Telecom",  forModels: ["telecom_franchise"] },
   { id: "spinning",         label: "Yarn Spinning",           icon: CircleDot,      shortLabel: "Spinning", forModels: ["yarn_spinning"] },
+  { id: "healthcare",       label: "Healthcare",              icon: Stethoscope,    shortLabel: "Hospital", forModels: ["hospital"] },
+  { id: "processing",       label: "Textile Processing",      icon: Layers,         shortLabel: "Process",  forModels: ["textile_processing"] },
+  { id: "addons",           label: "Add-ons by category",     icon: Puzzle,         shortLabel: "Add-ons"  },
+  { id: "localization",     label: "Country & statutory",     icon: Globe,          shortLabel: "Tax"      },
+  { id: "print-save",       label: "Print & Save PDF",        icon: Printer,        shortLabel: "Print"    },
   { id: "weighbridge",      label: "Weighbridge",             icon: Scale,          shortLabel: "Weigh"    },
   { id: "studio",           label: "Settings Studio",         icon: PenTool,        shortLabel: "Studio"   },
   { id: "bulk-statements",  label: "Bulk Actions & Statements", icon: ListChecks,   shortLabel: "Bulk"     },
@@ -1556,6 +1562,113 @@ function WeighbridgePanel() {
   )
 }
 
+function AddonsPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
+        System → Add-ons (<CodeBadge>/apps</CodeBadge>) is grouped by <b>category of use</b>, not by
+        when a pack shipped. Public signup starts with Base Accounting only; everything else is
+        installed here (admin/owner).
+      </p>
+      <SectionHeading>Tabs</SectionHeading>
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
+        <li><b>Default</b> — Base Accounting (always on).</li>
+        <li><b>Recommended</b> — packs in three bands: <b>Business nature</b>, <b>Country &amp; statutory</b>, <b>Intelligence</b>.</li>
+        <li><b>Optional</b> — one module at a time, same bands (Operations, HR, Industry, Localization, Intelligence).</li>
+        <li><b>Marketplace</b> — curated products (declarative manifests; no partner code), also grouped by category.</li>
+      </ul>
+      <SectionHeading>Business nature vs country packs</SectionHeading>
+      <p className="text-xs text-[var(--text-primary)]/70 leading-relaxed mt-2">
+        A mill, hospital, or trader pack does not include a tax jurisdiction. Install FBR / ZATCA /
+        GST / Peppol / UK MTD / MyInvois from <b>Country &amp; statutory</b> beside any business nature.
+        Pakistan FBR Digital Invoicing (historic key <CodeBadge>pra</CodeBadge>) lives with the other
+        country packs — not under Industry.
+      </p>
+    </div>
+  )
+}
+
+function LocalizationPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
+        Localization packs add tax codes, a sales dashboard, and a submission log. They never rewrite
+        a posted journal line. Credentials live under Settings after install.
+      </p>
+      <SectionHeading>Country packs</SectionHeading>
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
+        <li><b>Pakistan — FBR Digital Invoicing</b> (<CodeBadge>pra</CodeBadge>) — FIN + QR, sandbox SN001–SN028. Demo: demo.pra@easy-books.app</li>
+        <li><b>UAE VAT</b> — 5% codes, TRN, FTA sandbox stub. Demo simple tenant is often seeded.</li>
+        <li><b>Saudi ZATCA</b> — Phase 2 clear/report, TLV QR. Demo manufacturing.</li>
+        <li><b>India GST</b> — CGST/SGST/IGST, GSTR-1/3B. Demo trader.</li>
+        <li><b>Peppol / EU VAT</b> — BIS Billing 3.0 UBL + Access Point. Demo services.</li>
+        <li><b>UK MTD VAT</b> — boxes 1–9, HMRC sandbox. Demo hospital.</li>
+        <li><b>Malaysia MyInvois</b> — LHDN UUID. Demo processing.</li>
+      </ul>
+      <TipCallout>
+        Withholding tax and the CIT worksheet are core accounting (not a country pack) — see Reports → CIT and vendor WHT flags.
+      </TipCallout>
+    </div>
+  )
+}
+
+function HealthcareGuidePanel() {
+  return (
+    <div>
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
+        Hospital/clinic track. Every patient is a Customer (MR-YYYYNNNN), so AR aging and statements
+        are the same as any other tenant. Demo: <CodeBadge>demo.hospital@easy-books.app</CodeBadge> / demo1234.
+      </p>
+      <StepList steps={[
+        "Register the patient — a Customer is created in the background.",
+        "OPD: issue a token, record the visit — invoice posts Dr 1100 / Cr 4100.",
+        "IPD: admit to a bed (deposit is a liability); charges accumulate; discharge rolls one invoice.",
+        "Lab: order → collect → result → deliver. Pharmacy dispense is a store queue.",
+        "Dialysis board completes a session as a billed visit.",
+      ]} />
+    </div>
+  )
+}
+
+function ProcessingPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
+        Ballor/jobber printing unit. Customer-owned grey is custody stock until processed, packed,
+        and dispatched. Demo: <CodeBadge>demo.processing@easy-books.app</CodeBadge> / demo1234.
+      </p>
+      <StepList steps={[
+        "Sales order → grey inward lot.",
+        "Mending and kachi parchi.",
+        "PPC stages; pakki parchi when packed.",
+        "Fresh dispatch; settle leftover grey; bill contractor labor.",
+      ]} />
+      <TipCallout>
+        Processing is an Industry (business nature) pack. Pair it with a Country &amp; statutory pack
+        (the processing demo seeds Malaysia MyInvois) from Add-ons.
+      </TipCallout>
+    </div>
+  )
+}
+
+function PrintSavePanel() {
+  return (
+    <div>
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
+        Every Print control has a <b>Save PDF</b> beside it. They are two different outputs:
+      </p>
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
+        <li><b>Print</b> — browser print dialog. Courier New, black-and-white, no fills — for low-ink / dot-matrix paper.</li>
+        <li><b>Save PDF</b> — snapshots the on-screen cream/gold layout (colours, type, cards) via html-to-image + jsPDF. Chrome and filters are omitted.</li>
+        <li><b>Download PDF</b> on some documents (invoice/bill) — server WeasyPrint template. Needs Pango/Cairo; a 503 means the engine is missing, not that Save PDF failed.</li>
+      </ul>
+      <TipCallout>
+        Dates are always <CodeBadge>dd-mm-yy</CodeBadge>. Landscape vs portrait follows the page (PrintHeader). Negative amounts print as (1,234.56).
+      </TipCallout>
+    </div>
+  )
+}
+
 function StudioPanel() {
   return (
     <div>
@@ -2173,6 +2286,11 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "manufacturing":   <ManufacturingPanel />,
   "telecom":         <TelecomFranchisePanel />,
   "spinning":        <SpinningPanel />,
+  "healthcare":      <HealthcareGuidePanel />,
+  "processing":      <ProcessingPanel />,
+  "addons":          <AddonsPanel />,
+  "localization":    <LocalizationPanel />,
+  "print-save":      <PrintSavePanel />,
   "weighbridge":     <WeighbridgePanel />,
   "studio":          <StudioPanel />,
   "bulk-statements": <BulkStatementsPanel />,

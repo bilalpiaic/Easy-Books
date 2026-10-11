@@ -40,6 +40,27 @@ def _signup(client, email, *, company="Co"):
     return tenant_id, {"Authorization": f"Bearer {tok.json()['access_token']}"}
 
 
+def test_module_categories_group_by_use():
+    localization = {
+        "pra", "uae_vat", "sa_zatca", "in_gst", "eu_peppol", "uk_mtd", "my_invois",
+    }
+    industry = {
+        "telecom", "healthcare", "weaving", "spinning", "textile_processing",
+    }
+    operations = {
+        "inventory", "production", "purchase_store", "pos", "ecommerce", "weighbridge",
+    }
+    for mid in localization:
+        assert MODULE_REGISTRY[mid]["category"] == "Localization", mid
+    for mid in industry:
+        assert MODULE_REGISTRY[mid]["category"] == "Industry", mid
+    for mid in operations:
+        assert MODULE_REGISTRY[mid]["category"] == "Operations", mid
+    assert MODULE_REGISTRY["base"]["category"] == "Core"
+    assert MODULE_REGISTRY["hrm"]["category"] == "HR"
+    assert MODULE_REGISTRY["ai_assistant"]["category"] == "Intelligence"
+
+
 def test_plan_tables_cover_registry():
     assert set(PLAN_MODULES) == set(PLAN_LIMITS)
     for mid in INDUSTRY_PACKS:

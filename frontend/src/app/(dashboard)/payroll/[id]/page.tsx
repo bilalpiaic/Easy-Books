@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, CheckCircle, Send, Printer, XCircle, BookOpen, Edit2, Save, X } from "lucide-react"
+import { ArrowLeft, CheckCircle, Send, XCircle, BookOpen, Edit2, Save, X } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt, useCurrency } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import { useMessages } from "@/context/MessageContext"
+import PrintButton from "@/components/PrintButton"
 
 interface LineDetail {
   id: number
@@ -214,12 +215,7 @@ export default function PayrollRunPage() {
                   <BookOpen className="w-4 h-4" /> View Journal Entry
                 </Link>
               )}
-              <button
-                onClick={() => window.print()}
-                className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
-              >
-                <Printer className="w-4 h-4" /> Print
-              </button>
+              <PrintButton buttonClassName="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50" />
               <button
                 onClick={async () => {
                   const ok = await confirm({

@@ -184,7 +184,7 @@ _CURATED: list[dict[str, Any]] = [
                 "historic add-on key pra). Listed here so the marketplace can deep-link first-party packs."
             ),
             "publisher": "Easy-Books",
-            "category": "Industry",
+            "category": "Localization",
             "icon": "FileCheck",
             "requires_modules": ["pra"],
             "requested_permissions": ["read_invoices"],
@@ -205,7 +205,7 @@ _CURATED: list[dict[str, Any]] = [
                 "(tax codes, CoA leaves, sandbox FTA stub)."
             ),
             "publisher": "Easy-Books",
-            "category": "Industry",
+            "category": "Localization",
             "icon": "Landmark",
             "requires_modules": ["uae_vat"],
             "requested_permissions": ["read_invoices"],

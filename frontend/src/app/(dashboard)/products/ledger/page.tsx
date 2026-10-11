@@ -2,12 +2,13 @@
 
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { BookOpen, Download, Printer } from "lucide-react"
+import { BookOpen, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 interface Product {
   id: number
@@ -131,14 +132,11 @@ function ProductLedgerInner() {
           >
             <Download className="w-5 h-5" />
           </button>
-          <button
-            onClick={() => window.print()}
+          <PrintButton
+            variant="icon"
+            buttonClassName="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-40"
             disabled={!data?.items.length}
-            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-40"
-            title="Print"
-          >
-            <Printer className="w-5 h-5" />
-          </button>
+          />
           <BookOpen className="w-7 h-7 text-[var(--primary)] hidden md:block" />
         </div>
       </div>

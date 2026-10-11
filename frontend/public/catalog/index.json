@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-08",
+  "generated": "2026-10-10",
   "entries": [
     {
       "id": "tenant-simple",
@@ -148,10 +148,10 @@
     },
     {
       "id": "tenant-pra",
-      "title": "PRA e-Invoice retailer",
+      "title": "FBR Digital Invoicing retailer",
       "kind": "tenant",
       "href": "/pra-dashboard",
-      "explanation": "Pakistani retail with Punjab Revenue Authority sandbox e-invoicing. Every posted invoice can be submitted; PRA Logs keep the success/retry trail. Currency is PKR and the PRA home is the default operations landing.",
+      "explanation": "Pakistani retail with FBR Digital Invoicing (PRAL DI API v1.12; historic add-on key pra). Every posted invoice can be validated then posted; submission logs keep the success/retry trail. Currency is PKR and the PRA home is the default operations landing.",
       "steps": [
         "Post a sales invoice.",
         "Open PRA Dashboard to see submission status.",
@@ -684,10 +684,10 @@
     },
     {
       "id": "segment-pra",
-      "title": "PRA e-Invoice",
+      "title": "FBR Digital Invoicing",
       "kind": "segment",
       "href": "/pra-dashboard",
-      "explanation": "Punjab Revenue Authority sandbox dashboard and submission logs. Posted invoices can be sent; failures retry without rewriting the GL.",
+      "explanation": "FBR DI sandbox dashboard and submission logs (PRAL v1.12). Posted invoices validate-then-post; failures retry without rewriting the GL.",
       "tags": [
         "compliance",
         "tax"
@@ -698,7 +698,7 @@
       "modules": [
         "pra"
       ],
-      "segment": "PRA e-Invoice",
+      "segment": "FBR Digital Invoicing",
       "shot": "pra--pra-dashboard"
     },
     {
@@ -1550,12 +1550,12 @@
       "title": "E-invoice localization packs",
       "kind": "workflow",
       "href": "/apps",
-      "explanation": "PRA (Punjab), ZATCA (KSA Fatoora), Peppol (EU), UAE VAT, India GST, UK MTD VAT, and Malaysia MyInvois are installable packs. They add a dashboard + submission log; they never rewrite posted GL. Install from Add-ons; credentials live under Settings.",
+      "explanation": "Country & statutory packs sit together on Add-ons (Recommended → Country & statutory, Optional → Localization): Pakistan FBR/PRA, UAE VAT, Saudi ZATCA, India GST, Peppol/EU, UK MTD, Malaysia MyInvois. Each adds a dashboard + submission log; they never rewrite posted GL. Install beside any business-nature pack.",
       "steps": [
-        "Add-ons → install the pack for your jurisdiction.",
-        "Complete credentials (see User Guide for Peppol AP).",
-        "Post an invoice, submit, watch the log.",
-        "Failures retry; the voucher stays posted."
+        "System → Add-ons → Recommended → Country & statutory (or Optional → Localization).",
+        "Install the pack for your jurisdiction.",
+        "Complete credentials under Settings.",
+        "Post an invoice, submit, watch the log — failures retry; the voucher stays posted."
       ],
       "tags": [
         "compliance",
@@ -1567,13 +1567,268 @@
         "pra",
         "manufacturing",
         "trader",
-        "services"
+        "services",
+        "hospital",
+        "processing"
       ],
       "modules": [
         "pra"
       ],
       "segment": "System",
       "shot": "pra--apps"
+    },
+    {
+      "id": "wf-pra",
+      "title": "FBR Digital Invoicing (Pakistan)",
+      "kind": "workflow",
+      "href": "/pra-dashboard",
+      "explanation": "Pakistan FBR Digital Invoicing (historic key pra). Validate-then-post sales invoices and debit notes, receive an FBR invoice number + QR, sandbox scenarios SN001–SN028. Optional PRA Sales home for counter staff.",
+      "steps": [
+        "Install FBR Digital Invoicing from Add-ons → Country & statutory.",
+        "Complete NTN/STRN and sandbox credentials.",
+        "Post an invoice — FBR number + QR print on the document.",
+        "Review PRA Sales and submission logs."
+      ],
+      "tags": [
+        "compliance",
+        "workflow",
+        "tax",
+        "localization",
+        "pakistan"
+      ],
+      "tenants": [
+        "pra"
+      ],
+      "modules": [
+        "pra"
+      ],
+      "segment": "PRA",
+      "shot": "pra--pra-dashboard"
+    },
+    {
+      "id": "wf-ecommerce",
+      "title": "eCommerce store sync",
+      "kind": "workflow",
+      "href": "/ecommerce",
+      "explanation": "Connect Shopify or WooCommerce: map products by SKU, import orders as draft invoices, optionally push stock. Drafts post through the normal AR path — the connector never writes the GL itself.",
+      "steps": [
+        "Install eCommerce Connectors from Add-ons → Operations.",
+        "Add a store (API URL + key) and map SKUs to products.",
+        "Import orders — they land as draft invoices.",
+        "Review, post, and collect like any other sale."
+      ],
+      "tags": [
+        "sales",
+        "inventory",
+        "workflow"
+      ],
+      "tenants": [
+        "trader"
+      ],
+      "modules": [
+        "ecommerce"
+      ],
+      "segment": "eCommerce",
+      "shot": "trader--ecommerce"
+    },
+    {
+      "id": "wf-leave",
+      "title": "Leave → LOP on payroll",
+      "kind": "workflow",
+      "href": "/leave",
+      "explanation": "Leave requests (annual/sick/unpaid) sit on the employee calendar. Unpaid leave can drive loss-of-pay on the next payroll run. Attendance status leave/holiday/off is the daily twin of this register.",
+      "steps": [
+        "Open Payroll → Leave.",
+        "Raise a request for an employee and date range.",
+        "Approve; unpaid days feed LOP.",
+        "Run payroll and confirm the deduction on the line."
+      ],
+      "tags": [
+        "payroll",
+        "workflow"
+      ],
+      "tenants": [
+        "hospital"
+      ],
+      "modules": [
+        "hrm"
+      ],
+      "segment": "Payroll",
+      "shot": "hospital--leave"
+    },
+    {
+      "id": "wf-expense-claims",
+      "title": "Expense claim → reimburse",
+      "kind": "workflow",
+      "href": "/expense-claims",
+      "explanation": "Staff claims (travel, medical, misc) go draft → approve → reimburse. Reimbursement posts through the GL writer (expense vs payable/bank), not a silent cash drawer.",
+      "steps": [
+        "Payroll → Expense Claims → new claim with receipts.",
+        "Submit for approval (self-approval blocked where configured).",
+        "Approve, then reimburse (CP/BP).",
+        "The claim locks; voiding reverses the voucher."
+      ],
+      "tags": [
+        "payroll",
+        "workflow",
+        "gl"
+      ],
+      "tenants": [
+        "hospital"
+      ],
+      "modules": [
+        "hrm"
+      ],
+      "segment": "Payroll",
+      "shot": "hospital--expense-claims"
+    },
+    {
+      "id": "wf-dialysis",
+      "title": "Dialysis session board",
+      "kind": "workflow",
+      "href": "/healthcare/dialysis",
+      "explanation": "Chair/session board for recurring dialysis. Completing a session bills like an OPD visit (patient is already a Customer) so AR aging stays on the same sub-ledger.",
+      "steps": [
+        "Open Healthcare → Dialysis.",
+        "Schedule the session (patient, chair, time).",
+        "Complete the session — invoice posts.",
+        "Collect via Payments Received."
+      ],
+      "tags": [
+        "healthcare",
+        "workflow",
+        "sales"
+      ],
+      "tenants": [
+        "hospital"
+      ],
+      "modules": [
+        "healthcare"
+      ],
+      "segment": "Healthcare",
+      "shot": "hospital--healthcare-dialysis"
+    },
+    {
+      "id": "wf-forecast",
+      "title": "AI forecasts",
+      "kind": "workflow",
+      "href": "/agent/forecast",
+      "explanation": "Four forecast panes (revenue, cash, customer risk, budget variance) from the AI Assistant. Read-only — they never post. Install the Intelligence pack from Add-ons.",
+      "steps": [
+        "Install AI Assistant from Add-ons → Intelligence.",
+        "Open /agent/forecast or the Agent sidebar.",
+        "Pick a pane and date window.",
+        "Drill a figure into the underlying report; do not treat a forecast as a posted budget."
+      ],
+      "tags": [
+        "ai",
+        "workflow",
+        "reports"
+      ],
+      "tenants": [
+        "simple",
+        "services",
+        "trader",
+        "manufacturing",
+        "telecom",
+        "pra",
+        "hospital",
+        "spinning",
+        "processing"
+      ],
+      "modules": [
+        "ai_assistant"
+      ],
+      "segment": "System",
+      "shot": "services--agent-forecast"
+    },
+    {
+      "id": "wf-consolidation",
+      "title": "Group consolidation (IFRS 10)",
+      "kind": "workflow",
+      "href": "/consolidation",
+      "explanation": "Holding-tenant entity graph and worksheet runs. IC/NCI eliminations never post to member GLs. Consolidated BS/P&L is a package on the holding books only.",
+      "steps": [
+        "On the holding tenant, open Consolidation and add members.",
+        "New run → Propose eliminations.",
+        "Review IC AR/AP and NCI lines.",
+        "Post the worksheet package (members unchanged)."
+      ],
+      "tags": [
+        "ifrs",
+        "workflow",
+        "reports",
+        "gl"
+      ],
+      "tenants": [
+        "manufacturing"
+      ],
+      "modules": [
+        "base"
+      ],
+      "segment": "Reports",
+      "shot": "manufacturing--consolidation"
+    },
+    {
+      "id": "wf-intercompany",
+      "title": "Intercompany invoice & recon",
+      "kind": "workflow",
+      "href": "/intercompany/recon",
+      "explanation": "Flag an invoice or bill as intercompany and pick the sister tenant. A draft mirror is created on the counterparty (invoice→bill, bill→invoice). Recon lists unmatched IC docs. CoA 1180/2180.",
+      "steps": [
+        "Tick Intercompany on the invoice/bill and pick the counterparty.",
+        "Save — a draft mirror appears on the sister tenant.",
+        "The sister posts their side when ready.",
+        "Open IC Reconciliation and clear unmatched rows."
+      ],
+      "tags": [
+        "ifrs",
+        "workflow",
+        "sales",
+        "purchases"
+      ],
+      "tenants": [
+        "manufacturing"
+      ],
+      "modules": [
+        "base"
+      ],
+      "segment": "Reports",
+      "shot": "manufacturing--intercompany-recon"
+    },
+    {
+      "id": "wf-print-save",
+      "title": "Print vs Save PDF",
+      "kind": "workflow",
+      "href": "/trial-balance",
+      "explanation": "Every Print control has a Save PDF beside it. Print uses the browser dialog and a black-and-white Courier (dot-matrix) stylesheet for low-ink paper. Save PDF snapshots the on-screen cream/gold layout (html-to-image + jsPDF) so the file matches what you see. Server WeasyPrint PDFs remain on document Download PDF where that engine is wired.",
+      "steps": [
+        "Open any report or voucher with Print in the toolbar.",
+        "Print — confirm the preview is monochrome Courier.",
+        "Save PDF — the download keeps on-screen colours, type, and cards.",
+        "On an invoice, Download PDF (if shown) is the server template, distinct from Save PDF."
+      ],
+      "tags": [
+        "reports",
+        "workflow",
+        "settings"
+      ],
+      "tenants": [
+        "simple",
+        "services",
+        "trader",
+        "manufacturing",
+        "telecom",
+        "pra",
+        "hospital",
+        "spinning",
+        "processing"
+      ],
+      "modules": [
+        "base"
+      ],
+      "segment": "Reports",
+      "shot": "services--trial-balance"
     },
     {
       "id": "screen-login",
@@ -4636,7 +4891,7 @@
       "title": "Add-ons",
       "kind": "screen",
       "href": "/apps",
-      "explanation": "Add-ons store (Default / Recommended / Optional / Marketplace). CATEGORY_ORDER is an allowlist — missing categories never show a card.",
+      "explanation": "Add-ons store (Default / Recommended / Optional / Marketplace). Recommended and Optional group by use: Operations, HR, Business nature (Industry), Country & statutory (Localization), Intelligence. CATEGORY_ORDER is an allowlist — missing categories never show a card.",
       "tags": [
         "settings"
       ],
@@ -8378,6 +8633,105 @@
       ],
       "segment": "Processing",
       "shot": "processing--processing-rejection-ogp-id"
+    },
+    {
+      "id": "form-leave",
+      "title": "Leave register",
+      "kind": "form",
+      "href": "/leave",
+      "explanation": "Leave requests by employee and type (annual/sick/unpaid). Unpaid days can drive LOP on the next payroll run. Distinct from the daily attendance status leave/holiday/off.",
+      "tags": [
+        "payroll",
+        "workflow"
+      ],
+      "tenants": [
+        "hospital"
+      ],
+      "modules": [
+        "hrm"
+      ],
+      "segment": "Payroll",
+      "shot": "hospital--leave"
+    },
+    {
+      "id": "form-expense-claim",
+      "title": "Expense claims",
+      "kind": "form",
+      "href": "/expense-claims",
+      "explanation": "Staff expense claims: draft → approve → reimburse. Reimbursement posts through posting.py (expense vs bank/payable), never a silent cash movement.",
+      "tags": [
+        "payroll",
+        "gl",
+        "workflow"
+      ],
+      "tenants": [
+        "hospital"
+      ],
+      "modules": [
+        "hrm"
+      ],
+      "segment": "Payroll",
+      "shot": "hospital--expense-claims"
+    },
+    {
+      "id": "form-ecommerce",
+      "title": "eCommerce stores",
+      "kind": "form",
+      "href": "/ecommerce",
+      "explanation": "Shopify / WooCommerce connectors: store credentials, SKU map, order import as draft invoices, optional stock push. The connector never writes the GL.",
+      "tags": [
+        "sales",
+        "inventory",
+        "workflow"
+      ],
+      "tenants": [
+        "trader"
+      ],
+      "modules": [
+        "ecommerce"
+      ],
+      "segment": "eCommerce",
+      "shot": "trader--ecommerce"
+    },
+    {
+      "id": "form-dialysis",
+      "title": "Dialysis board",
+      "kind": "form",
+      "href": "/healthcare/dialysis",
+      "explanation": "Chair/session board. Completing a session bills the linked Customer so AR aging stays on the hospital sub-ledger.",
+      "tags": [
+        "healthcare",
+        "sales",
+        "workflow"
+      ],
+      "tenants": [
+        "hospital"
+      ],
+      "modules": [
+        "healthcare"
+      ],
+      "segment": "Healthcare",
+      "shot": "hospital--healthcare-dialysis"
+    },
+    {
+      "id": "form-spin-bale-new",
+      "title": "New bale receipt",
+      "kind": "form",
+      "href": "/spinning/bale-receipts",
+      "explanation": "Cotton bale inward (kg, with lb/bag derived). Posts RM (1200) through spinning_posting → posting.py. Feeds spin lots.",
+      "tags": [
+        "spinning",
+        "inventory",
+        "gl"
+      ],
+      "tenants": [
+        "spinning"
+      ],
+      "modules": [
+        "spinning"
+      ],
+      "segment": "Spinning",
+      "shot": "spinning--spinning-bale-receipts"
     },
     {
       "id": "form-consol-run",

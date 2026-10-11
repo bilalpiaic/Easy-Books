@@ -2,11 +2,12 @@
 
 import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Printer } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import PrintButton from "@/components/PrintButton"
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -394,16 +395,12 @@ export default function VoucherPrintPage({ params }: { params: Promise<{ id: str
   return (
     <div className="bg-white min-h-screen">
       {/* Screen-only toolbar */}
-      <div className="print:hidden flex items-center justify-between bg-[var(--text-primary)] text-white px-4 py-2 mb-4">
+      <div data-print-hide className="print:hidden flex items-center justify-between bg-[var(--text-primary)] text-white px-4 py-2 mb-4">
         <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm hover:text-[#ffd966]">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
         <span className="text-sm font-semibold text-white/70">{title} — {txn.jv_number}</span>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold"
-        >
-          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+        <PrintButton variant="toolbar" buttonClassName="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold" />
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
