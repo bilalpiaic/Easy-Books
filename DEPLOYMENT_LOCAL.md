@@ -4,6 +4,8 @@
 > Easy-Books as a product an SME runs **on their own machine or office server** — data on-premise,
 > works offline, no per-seat cloud subscription. (The **Manager.io / QuickBooks Desktop** model.)
 >
+> Internet-facing **cPanel / CloudLinux / Imunify360** production requirements: [`DEPLOYMENT_CPANEL.md`](./DEPLOYMENT_CPANEL.md).
+>
 > **Status:** Phase 1 (Docker Compose) complete · Phase 2 (Electron desktop) complete · v2.7 features included · **Last updated:** 2026-06-21
 
 ---

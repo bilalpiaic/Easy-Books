@@ -5,6 +5,8 @@
 > - **Script installer** — one-click, no Docker/Python/Node required
 > - **Docker Compose** — team/office LAN server; `docker compose up -d --build`
 > - **Desktop (Electron)** — signed Windows `.exe` / macOS `.dmg`
+>
+> For a **cPanel / CloudLinux / Imunify360** VPS with existing SSL, see [`DEPLOYMENT_CPANEL.md`](./DEPLOYMENT_CPANEL.md) (requirements and review checklist; not a PHP/`public_html` install).
 
 ---
 
