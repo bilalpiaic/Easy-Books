@@ -4,6 +4,7 @@ import { apiFetch } from "@/lib/api"
 import { Stethoscope, BedDouble, FlaskConical, Activity, AlertCircle, Droplets } from "lucide-react"
 import { HcCard, StatusBadge } from "@/components/healthcare/primitives"
 import Link from "next/link"
+import { fmtDate } from "@/lib/utils"
 
 type Dashboard = {
   date: string
@@ -149,7 +150,7 @@ export default function HealthcarePage() {
                   >
                     {order.order_number}
                   </Link>
-                  <span className="text-xs text-neutral-400">{order.order_date}</span>
+                  <span className="text-xs text-neutral-400">{fmtDate(order.order_date)}</span>
                 </div>
                 <StatusBadge status={order.status} />
               </div>

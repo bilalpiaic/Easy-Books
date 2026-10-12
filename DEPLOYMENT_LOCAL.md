@@ -359,7 +359,7 @@ and serves `GET /docs → 200`. Build artifacts (`backend/build`, `backend/dist`
 - **Section Hub Pages** — `/receivable`, `/payable`, `/inventory`, `/banking` command-centre views
 - **Collapsible sidebar** — 3-state (collapsed/open/pinned), hover tooltip nav, auto-pin on wide screens
 - **3-mode voucher form** — Journal / Payment (CP/BP) / Receipt (CR/BR) with auto-prefixed JV numbers
-- **Print system overhaul** — dot-matrix B&W, `dd-mm-yy` dates, correct portrait/landscape per page, `(amount)` negatives, `whitespace-nowrap` column alignment, no redundant voucher-type badges
+- **Print system overhaul** — dot-matrix B&W, `dd-mmm-yy` dates, correct portrait/landscape per page, `(amount)` negatives, `whitespace-nowrap` column alignment, no redundant voucher-type badges
 
 ### Building the installers (Tasks 5–9 — on the target OS)
 electron-builder does **not** cross-compile signed installers, so each installer is built on its

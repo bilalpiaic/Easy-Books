@@ -59,8 +59,8 @@
       <div class="doc-title">BILL</div>
       <div class="doc-meta">
         <div><strong>Number:</strong> {{ bill.number }}</div>
-        <div><strong>Bill Date:</strong> {{ bill.bill_date }}</div>
-        <div><strong>Due Date:</strong> {{ bill.due_date }}</div>
+        <div><strong>Bill Date:</strong> {{ bill.bill_date | fmt_date }}</div>
+        <div><strong>Due Date:</strong> {{ bill.due_date | fmt_date }}</div>
       </div>
     </div>
   </div>

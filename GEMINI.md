@@ -10,7 +10,7 @@ This file provides foundational context, architecture, and development guideline
 
 **v2.8 additions:** Payroll module — employee master, salary component catalog, per-employee salary structures, `PayrollRun` lifecycle (draft→approve→post GL→void), GL posting `Dr Salary Expense / Cr Salaries Payable`, PR-YYYY-seq voucher, printable payslips. Attendance register — manual time-in/out, hours auto-computed, monthly grid (employees × days colour-coded), bulk entry grid, attendance report + CSV export, biometric import endpoint (matches by `employee_code`, stores raw device payload), CSV upload fallback.
 
-**v2.7 additions:** Section Hub Pages (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views driven by `HubPage`/`hubConfigs` with `AgingBand`, `LowStockBand`, `AccountListBand` components; sidebar section headers navigate there. Collapsible sidebar (3-state: collapsed/open/pinned via localStorage; hover tooltip nav; auto-pin on wide screens). 3-mode voucher form (Journal / Payment CP-BP / Receipt CR-BR; mode-specific GL pickers; JV prefix auto-applied). Print system overhaul: dot-matrix B&W format, `dd-mm-yy` dates via `fmtDate()`/`fmtDateJs()` in `utils.ts`, dynamic `@page` landscape injection in `PrintHeader` via `useEffect`, `print:hidden` hygiene across all pages, `whitespace-nowrap` on Date/JV# table cells, no inline voucher-type badges, `(amount)` negative format.
+**v2.7 additions:** Section Hub Pages (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views driven by `HubPage`/`hubConfigs` with `AgingBand`, `LowStockBand`, `AccountListBand` components; sidebar section headers navigate there. Collapsible sidebar (3-state: collapsed/open/pinned via localStorage; hover tooltip nav; auto-pin on wide screens). 3-mode voucher form (Journal / Payment CP-BP / Receipt CR-BR; mode-specific GL pickers; JV prefix auto-applied). Print system overhaul: dot-matrix B&W format, `dd-mmm-yy` dates via `fmtDate()`/`fmtDateJs()` in `utils.ts`, dynamic `@page` landscape injection in `PrintHeader` via `useEffect`, `print:hidden` hygiene across all pages, `whitespace-nowrap` on Date/JV# table cells, no inline voucher-type badges, `(amount)` negative format.
 
 Five business models are supported, each with a tailored Chart of Accounts and adaptive UI:
 
@@ -95,7 +95,7 @@ Five business models are supported, each with a tailored Chart of Accounts and a
 │       ├── context/SettingsContext.tsx # Company branding + preferences (incl. block_negative_stock over-sell guard), app-wide
 │       └── lib/
 │           ├── api.ts                # apiFetch — auto-injects Bearer token
-│           ├── utils.ts              # fmtDate(str)→"dd-mm-yy", fmtDateJs(date)→"dd-mm-yy" — use for ALL date display
+│           ├── utils.ts              # fmtDate(str)→"dd-mmm-yy", fmtDateJs(date)→"dd-mmm-yy" — use for ALL date display
 │           └── hubConfigs.ts         # HubConfig objects driving the 4 hub pages
 ├── dev.sh                   # Start both servers; auto-seeds demo data; handles WSL2 node/npm
 ├── public/                  # Legacy Express/vanilla JS reference (do not touch)
@@ -147,7 +147,7 @@ Auto-created on first run; seeded with 50+ records per entity type by `dev.sh`. 
 - **Over-sell guard** — `block_negative_stock` setting (default `false`): when `true`, `consume_stock(block_negative=True)` raises HTTP 400 if a sale would drive `stock_qty` below 0; purchases are never blocked.
 - **GL opening/closing balance** — `/api/reports/ledger` with `start`/`end` params returns Opening Balance (net of all JEs before `start`) and Closing Balance (`opening + Σdebits − Σcredits`).
 - **Product Categories** — `ProductCategory` is a 2-level taxonomy (parent → sub-category); delete is blocked while sub-categories or products reference the category.
-- **Date display** — always use `fmtDate(str)` or `fmtDateJs(date)` from `src/lib/utils.ts`; never render raw ISO strings or call `.toLocaleDateString()` in the UI. Output: `dd-mm-yy` (e.g. `20-06-26`).
+- **Date display** — always use `fmtDate(str)` or `fmtDateJs(date)` from `src/lib/utils.ts`; never render raw ISO strings or call `.toLocaleDateString()` in the UI. Output: `dd-mmm-yy` (e.g. `20-Jun-26`).
 - **Print orientation** — `<PrintHeader orientation="landscape">` only for wide tables (aging, performance, ledgers, list pages); default is portrait. Orientation is applied via a dynamically injected `<style>` tag — CSS classes cannot control `@page` size.
 - **No voucher-type badges in tables** — the JV# prefix (CP/SL/BR/JV etc.) already identifies the type; do not add inline `<span>` badges next to JV numbers in report tables.
 

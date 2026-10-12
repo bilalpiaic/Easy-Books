@@ -1264,7 +1264,7 @@ Orientation is applied automatically — no manual page-setup is required.
 
 ### 24.3 Date Format
 
-All dates are displayed as **`dd-mm-yy`** (e.g. `20-06-26` for 20 June 2026) across the entire system — both on-screen and in print. This applies to table cells, report subtitles, print headers, statement period labels, and CSV exports.
+All dates are displayed as **`dd-mmm-yy`** (e.g. `20-Jun-26` for 20 June 2026) across the entire system — on-screen, in print, and in Save PDF. This applies to table cells, report subtitles, print headers, statement period labels, invoice/bill PDFs, and CSV exports.
 
 ### 24.4 Amount Display
 

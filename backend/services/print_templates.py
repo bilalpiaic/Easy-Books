@@ -234,6 +234,9 @@ def print_fields_for(
         if not d.show_on_print:
             continue
         val = values.get(d.key)
+        if val is not None and getattr(d, "type", None) == "date":
+            from services.display_dates import fmt_display_date
+            val = fmt_display_date(val)
         out.append({"key": d.key, "label": d.label, "value": "" if val is None else val})
     return out
 
@@ -244,11 +247,15 @@ def render_sandboxed_html(html_source: str, context: dict) -> str:
     ``{% include %}`` / ``{% extends %}`` of unknown names raise TemplateNotFound
     (DictLoader only registers this one string).
     """
+    from services.display_dates import fmt_display_date, fmt_display_datetime
+
     env = SandboxedEnvironment(
         loader=DictLoader({"__print__": html_source}),
         autoescape=True,
         undefined=StrictUndefined,
     )
+    env.filters["fmt_date"] = fmt_display_date
+    env.filters["fmt_datetime"] = fmt_display_datetime
     try:
         return env.get_template("__print__").render(**context)
     except TemplateNotFound:

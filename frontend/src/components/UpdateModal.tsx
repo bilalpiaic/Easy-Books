@@ -6,6 +6,7 @@ import {
   CheckCircle, AlertCircle, Copy, Check as CopyDone,
 } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
+import { fmtDate } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
 // Electron preload bridge types
@@ -46,7 +47,7 @@ function shortCommit(c: string) { return c.length >= 7 ? c.slice(0, 7) : c || 'd
 function fmtBuildDate(iso: string) {
   if (!iso || iso === '2026-06-28T00:00:00Z') return ''
   try {
-    return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    return fmtDate(iso)
   } catch { return '' }
 }
 

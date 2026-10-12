@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Calendar, Play, TrendingUp, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
@@ -225,7 +225,7 @@ export default function DeferredRevenuePage() {
 
                 {/* Metadata row */}
                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--text-primary)]/60">
-                  <span><span className="font-medium text-[var(--text-primary)]/80">Period:</span> {s.start_date} → {s.end_date}</span>
+                  <span><span className="font-medium text-[var(--text-primary)]/80">Period:</span> {fmtDate(s.start_date)} → {fmtDate(s.end_date)}</span>
                   <span className="capitalize"><span className="font-medium text-[var(--text-primary)]/80">Frequency:</span> {s.frequency}</span>
                   {s.status === "active" && (
                     <span>

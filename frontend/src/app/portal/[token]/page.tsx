@@ -227,7 +227,7 @@ export default function PortalPage() {
                   {(statement?.open_bills || []).map((b) => (
                     <tr key={b.id} className="border-t border-[#1a1814]/10">
                       <td className="p-3 whitespace-nowrap">{b.number}</td>
-                      <td className="p-3 whitespace-nowrap">{b.due_date}</td>
+                      <td className="p-3 whitespace-nowrap">{fmtDate(b.due_date)}</td>
                       <td className="p-3 text-right">{b.currency} {b.total.toLocaleString()}</td>
                       <td className="p-3">{b.status}</td>
                     </tr>
@@ -275,7 +275,7 @@ export default function PortalPage() {
                   return (
                     <tr key={inv.id} className="border-t border-[#1a1814]/10">
                       <td className="p-3 whitespace-nowrap">{inv.number}</td>
-                      <td className="p-3 whitespace-nowrap">{inv.due_date}</td>
+                      <td className="p-3 whitespace-nowrap">{fmtDate(inv.due_date)}</td>
                       <td className="p-3 text-right">{inv.currency} {inv.total.toLocaleString()}</td>
                       <td className="p-3 text-right space-x-2 whitespace-nowrap">
                         <button

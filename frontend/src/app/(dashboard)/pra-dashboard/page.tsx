@@ -10,6 +10,7 @@ import {
 import { apiFetch } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
+import { fmtDateJs } from "@/lib/utils"
 
 interface InvoiceItem {
   id: number
@@ -84,7 +85,7 @@ export default function PRADashboardPage() {
         <div>
           <h1 className="text-xl font-bold text-[var(--text-primary)]">Sales Dashboard</h1>
           <p className="text-xs text-[var(--text-primary)]/50 mt-0.5">
-            {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            {fmtDateJs(new Date())}
           </p>
         </div>
         <Link

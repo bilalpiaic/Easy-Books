@@ -58,6 +58,8 @@ def test_build_trend_svg_geometry():
     assert svg["markers"][-1]["is_current"] is True
     assert svg["markers"][-1]["is_abnormal"] is True
     assert "," in svg["polyline"]
+    assert svg["x_labels"][0]["text"] == "01-Jan-26"
+    assert svg["x_labels"][-1]["text"] == "01-Mar-26"
     assert build_trend_svg(points[:1]) is None
 
 

@@ -2098,8 +2098,9 @@ All printouts render in **Courier New**, black-and-white, no background fills �
 
 | Helper | Input | Output |
 |--------|-------|--------|
-| `fmtDate(str)` | ISO string `"2026-06-20"` or datetime `"2026-06-20T…"` | `"20-06-26"` |
-| `fmtDateJs(date)` | JS `Date` object | `"20-06-26"` |
+| `fmtDate(str)` | ISO string `"2026-06-20"` or datetime `"2026-06-20T…"` | `"20-Jun-26"` |
+| `fmtDateJs(date)` | JS `Date` object | `"20-Jun-26"` |
+| `fmtDateTime(str)` | ISO datetime | `"20-Jun-26 14:05"` |
 
 All 37+ date-bearing pages import and use these helpers.
 

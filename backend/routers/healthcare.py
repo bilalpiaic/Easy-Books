@@ -1562,6 +1562,7 @@ _CATEGORY_LABELS = {
 
 def _lab_pdf_context(session: Session, order: HcLabOrder) -> dict:
     """Build template context from a serialized lab order."""
+    from services.display_dates import fmt_display_date
     from services.lab_pdf_charts import serial_trends_for_items
 
     payload = _serialize_lab_order(session, order)
@@ -1576,9 +1577,9 @@ def _lab_pdf_context(session: Session, order: HcLabOrder) -> dict:
         row = dict(item)
         ra = item.get("resulted_at")
         if isinstance(ra, datetime):
-            row["resulted_at_display"] = ra.date().isoformat()
+            row["resulted_at_display"] = fmt_display_date(ra.date())
         elif isinstance(ra, str) and ra:
-            row["resulted_at_display"] = ra[:10]
+            row["resulted_at_display"] = fmt_display_date(ra)
         else:
             row["resulted_at_display"] = None
         # Compact flag display for PDF (symbol, not long label)
@@ -1591,13 +1592,13 @@ def _lab_pdf_context(session: Session, order: HcLabOrder) -> dict:
     sample = payload.get("sample")
     if sample and sample.get("collected_at"):
         ca = sample["collected_at"]
-        sample = {**sample, "collected_at": ca[:10] if isinstance(ca, str) else ca}
+        sample = {**sample, "collected_at": fmt_display_date(ca[:10] if isinstance(ca, str) else ca)}
 
     serial = serial_trends_for_items(items)
 
     return {
         "order_number": payload.get("order_number"),
-        "order_date": payload.get("order_date"),
+        "order_date": fmt_display_date(payload.get("order_date")),
         "status": payload.get("status"),
         "source": (payload.get("source") or "").replace("_", " "),
         "patient": payload.get("patient"),

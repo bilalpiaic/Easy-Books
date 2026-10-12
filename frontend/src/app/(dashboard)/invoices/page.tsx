@@ -177,7 +177,7 @@ function InvoicesContent() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => downloadCSV('invoices.csv', invoices.map(i => ({ Number: i.number, Customer: i.customer_name, Date: i.issue_date, Due: i.due_date, Currency: i.currency ?? '', Subtotal: i.subtotal, GST: i.gst_amount, Total: i.total, Status: i.status })))}
+            onClick={() => downloadCSV('invoices.csv', invoices.map(i => ({ Number: i.number, Customer: i.customer_name, Date: fmtDate(i.issue_date), Due: fmtDate(i.due_date), Currency: i.currency ?? '', Subtotal: i.subtotal, GST: i.gst_amount, Total: i.total, Status: i.status })))}
             className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Download className="w-4 h-4" />
@@ -444,7 +444,7 @@ function InvoicesContent() {
                     <tr key={item.id} className="hover:bg-red-50/30">
                       <td className="px-4 py-2 font-mono font-bold text-[var(--primary)]">{item.number}</td>
                       <td className="px-4 py-2 text-[var(--text-muted)]">{item.name}</td>
-                      <td className="px-4 py-2 text-[var(--text-muted)]">{item.due_date}</td>
+                      <td className="px-4 py-2 text-[var(--text-muted)]">{fmtDate(item.due_date)}</td>
                       <td className="px-4 py-2 text-right font-mono">{fmt(item.amount)}</td>
                       <td className="px-4 py-2 text-right font-bold text-red-600">{item.days_past}d</td>
                     </tr>

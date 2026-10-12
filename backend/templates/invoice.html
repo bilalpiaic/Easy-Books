@@ -62,8 +62,8 @@
       <div class="invoice-title">INVOICE</div>
       <div class="invoice-meta">
         <div><strong>Number:</strong> {{ invoice.number }}</div>
-        <div><strong>Issue Date:</strong> {{ invoice.issue_date }}</div>
-        <div><strong>Due Date:</strong> {{ invoice.due_date }}</div>
+        <div><strong>Issue Date:</strong> {{ invoice.issue_date | fmt_date }}</div>
+        <div><strong>Due Date:</strong> {{ invoice.due_date | fmt_date }}</div>
       </div>
     </div>
   </div>

@@ -160,7 +160,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
                   <tr key={b.id}>
                     <td className="py-2 font-mono text-[var(--primary)] text-xs">{b.number}</td>
                     <td className="py-2 text-[var(--text-muted)]">{fmtDate(b.date)}</td>
-                    <td className="py-2 text-[var(--text-muted)]">{b.due_date}</td>
+                    <td className="py-2 text-[var(--text-muted)]">{fmtDate(b.due_date)}</td>
                     <td className="py-2 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${b.status === 'paid' ? 'bg-green-100 text-green-700' : b.status === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
                         {b.status}

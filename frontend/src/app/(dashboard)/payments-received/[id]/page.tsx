@@ -9,6 +9,7 @@ import { useFmt, useSettings } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 import { fxGainLossLabel, isForeignCurrency } from "@/lib/fx"
 import { useTranslation } from "react-i18next"
+import { fmtDate } from "@/lib/utils"
 
 interface Allocation {
   id: number
@@ -72,7 +73,7 @@ export default function PaymentReceivedDetail({ params }: { params: Promise<{ id
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Cash Receipt #{pay.id}</h1>
           <p className="text-sm text-[var(--text-primary)]/60">
-            {pay.payment_date} · {pay.method}{pay.reference ? ` · ${pay.reference}` : ""}
+            {fmtDate(pay.payment_date)} · {pay.method}{pay.reference ? ` · ${pay.reference}` : ""}
             {pay.currency ? ` · ${pay.currency}` : ""}
             {pay.exchange_rate != null && Number(pay.exchange_rate) !== 1
               ? ` @ ${Number(pay.exchange_rate).toFixed(4)}`

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { ArrowLeft, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
-import { downloadCSV } from '@/lib/utils'
+import { downloadCSV, fmtDate } from '@/lib/utils'
 import { useTranslation } from "react-i18next"
 
 interface Row {
@@ -70,7 +70,7 @@ export default function CustomerProducts({ params }: { params: Promise<{ id: str
                   {r.code && <span className="ml-2 font-mono text-xs text-[var(--primary)]">{r.code}</span>}
                 </td>
                 <td className="ui-td text-right font-mono">{fmt(r.last_rate)}</td>
-                <td className="ui-td text-right text-[var(--text-muted)]">{r.last_date}</td>
+                <td className="ui-td text-right text-[var(--text-muted)]">{fmtDate(r.last_date)}</td>
                 <td className="ui-td text-right font-mono">{r.total_qty.toLocaleString()}</td>
                 <td className="ui-td text-right">{r.invoice_count}</td>
               </tr>

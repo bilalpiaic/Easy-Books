@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Users, UserPlus, Mail, Loader2, Copy, Check, KeyRound, ShieldAlert, Trash2, RotateCcw, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { getCurrentUser } from "@/lib/auth"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDateTime } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 
 interface Member {
@@ -33,10 +33,9 @@ const ROLE_DESC: Record<string, string> = {
   owner: "Full control incl. owner management",
 }
 
-function fmtDate(s: string | null): string {
+function fmtLastLogin(s: string | null): string {
   if (!s) return "Never"
-  const d = new Date(s)
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString()
+  return fmtDateTime(s) || "—"
 }
 
 export default function TeamPage() {
@@ -84,7 +83,7 @@ export default function TeamPage() {
             <p className="text-sm text-[var(--text-primary)]/60">Manage who can access this organisation and what they can do.</p>
           </div>
         </div>
-        <button onClick={() => downloadCSV('team-members.csv', members.map(m => ({ Name: m.full_name ?? '', Email: m.email, Role: m.role, Status: m.is_active ? 'Active' : 'Inactive', "Last Login": m.last_login_at ?? '' })))} disabled={members.length === 0} className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-xl text-sm font-bold hover:bg-[var(--bg-page)] disabled:opacity-40">
+        <button onClick={() => downloadCSV('team-members.csv', members.map(m => ({ Name: m.full_name ?? '', Email: m.email, Role: m.role, Status: m.is_active ? 'Active' : 'Inactive', "Last Login": fmtLastLogin(m.last_login_at) })))} disabled={members.length === 0} className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-xl text-sm font-bold hover:bg-[var(--bg-page)] disabled:opacity-40">
           <Download className="w-4 h-4" /> CSV
         </button>
       </header>
@@ -186,7 +185,7 @@ function MembersTable({ members, meEmail, isOwner, onChange }: {
                       : <span className="text-[var(--text-primary)]/45 text-xs font-semibold">{t('status.inactive', 'Inactive')}</span>}
                     {m.must_change_password && <span className="block text-[10px] text-amber-700">temp password</span>}
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-[var(--text-primary)]/60">{fmtDate(m.last_login_at)}</td>
+                  <td className="px-4 py-2.5 text-xs text-[var(--text-primary)]/60">{fmtLastLogin(m.last_login_at)}</td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center justify-end gap-1.5">
                       {locked && <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--primary)]" />}

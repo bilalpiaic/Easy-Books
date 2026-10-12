@@ -104,7 +104,7 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
           {po.expected_date && (
             <div>
               <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/50">Expected: </span>
-              <span>{po.expected_date}</span>
+              <span>{po.expected_date ? fmtDate(po.expected_date) : "—"}</span>
             </div>
           )}
         </div>

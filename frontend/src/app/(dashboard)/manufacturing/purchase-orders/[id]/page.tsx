@@ -8,6 +8,7 @@ import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { useTranslation } from "react-i18next"
+import { fmtDate } from "@/lib/utils"
 import StatusBadge from "@/components/StatusBadge"
 
 interface POLine {
@@ -109,7 +110,7 @@ export default function PurchaseOrderDetailPage() {
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">{po.number}</h1>
               <StatusBadge status={po.status} />
             </div>
-            <p className="text-sm text-[var(--text-primary)]/60">{po.vendor_name ?? "No vendor"} · {po.order_date}</p>
+            <p className="text-sm text-[var(--text-primary)]/60">{po.vendor_name ?? "No vendor"} · {fmtDate(po.order_date)}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -190,7 +191,7 @@ export default function PurchaseOrderDetailPage() {
         <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50">Order Details</h2>
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div><dt className="text-[var(--text-primary)]/55 text-xs font-semibold uppercase tracking-wide mb-0.5">{t('col.vendor', 'Vendor')}</dt><dd>{po.vendor_name ?? "—"}</dd></div>
-          <div><dt className="text-[var(--text-primary)]/55 text-xs font-semibold uppercase tracking-wide mb-0.5">Order Date</dt><dd>{po.order_date}</dd></div>
+          <div><dt className="text-[var(--text-primary)]/55 text-xs font-semibold uppercase tracking-wide mb-0.5">Order Date</dt><dd>{fmtDate(po.order_date)}</dd></div>
           <div><dt className="text-[var(--text-primary)]/55 text-xs font-semibold uppercase tracking-wide mb-0.5">Expected</dt><dd>{po.expected_date ?? "—"}</dd></div>
           <div><dt className="text-[var(--text-primary)]/55 text-xs font-semibold uppercase tracking-wide mb-0.5">{t('col.total', 'Total')}</dt><dd className="font-mono font-bold">{fmt(Number(po.total))}</dd></div>
         </dl>

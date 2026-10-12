@@ -128,7 +128,7 @@
       <div class="doc-title">LABORATORY REPORT</div>
       <div class="doc-meta">
         <div><strong>Order:</strong> {{ report.order_number }}</div>
-        <div><strong>Date:</strong> {{ report.order_date }}</div>
+        <div><strong>Date:</strong> {{ report.order_date | fmt_date }}</div>
         <div><strong>Status:</strong> {{ report.status }}</div>
       </div>
     </div>
@@ -159,7 +159,7 @@
       <div class="label">Specimen</div>
       <div class="value">
         {% if report.sample %}
-          {{ report.sample.specimen_type }}{% if report.sample.collected_at %} · {{ report.sample.collected_at }}{% endif %}
+          {{ report.sample.specimen_type }}{% if report.sample.collected_at %} · {{ report.sample.collected_at | fmt_date }}{% endif %}
         {% else %}—{% endif %}
       </div>
     </div>
@@ -197,7 +197,7 @@
         <td>{{ item.result_unit or '—' }}</td>
         <td>{{ item.reference_range or item.catalogue_normal_range or '—' }}</td>
         <td class="flag">{{ item.flag_symbol or 'N' }}</td>
-        <td>{{ item.resulted_at_display or '—' }}</td>
+        <td>{{ (item.resulted_at_display or '') | fmt_date or '—' }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -259,7 +259,7 @@
             {% for p in trend.numeric_history %}
             <tr class="{% if p.is_current %}trend-current{% endif %}">
               <td>
-                {{ p.order_date }}{% if p.is_current %} *{% endif %}
+                {{ p.order_date | fmt_date }}{% if p.is_current %} *{% endif %}
               </td>
               <td style="text-align:right" class="{% if p.is_abnormal %}abnormal{% endif %}">
                 {{ p.result_value }}
@@ -293,7 +293,7 @@
             {% for p in trend.history %}
             <tr class="{% if p.is_current %}trend-current{% endif %}">
               <td>{% if loop.first %}{{ trend.test_name }}{% endif %}</td>
-              <td>{{ p.order_date }}</td>
+              <td>{{ p.order_date | fmt_date }}</td>
               <td class="{% if p.is_abnormal %}abnormal{% endif %}">
                 {{ p.result_value }}{% if p.is_current %} <span style="font-size:8px;text-transform:uppercase">current</span>{% endif %}
               </td>

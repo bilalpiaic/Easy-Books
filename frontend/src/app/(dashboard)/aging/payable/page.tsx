@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Clock, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
-import { downloadCSV, fmtDateJs } from "@/lib/utils"
+import { downloadCSV, fmtDate, fmtDateJs } from "@/lib/utils"
 import { isForeignCurrency } from "@/lib/fx"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
@@ -190,7 +190,7 @@ export default function APAgingPage() {
                     <td className="ui-td font-mono text-sm">
                       <Link href={`/bills/${item.id}`} className="text-[var(--primary)] hover:underline print:text-[var(--text-primary)]">{item.number}</Link>
                     </td>
-                    <td className="ui-td text-sm text-[var(--text-primary)]/70 whitespace-nowrap">{item.due_date}</td>
+                    <td className="ui-td text-sm text-[var(--text-primary)]/70 whitespace-nowrap">{fmtDate(item.due_date)}</td>
                     <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]/70">{item.days_past}</td>
                     <td className="ui-td font-mono text-xs">
                       <span className={isForeignCurrency(item.currency, data?.base_currency || baseCurrency) ? "font-semibold text-[var(--primary)]" : "text-[var(--text-muted)]"}>

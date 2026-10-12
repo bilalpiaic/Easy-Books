@@ -99,7 +99,7 @@ UI (per issue, mirroring QB's Customize Report → Dates row):
 - Native `<select>` labeled by the existing uppercase label chip (default label stays "Period"; pages may pass "Dates"), listing `PRESETS` in order (minus All when `hideAll`).
 - Selecting a non-custom preset calls `onStartChange`/`onEndChange` with the resolved bounds and renders From/To as **disabled** inputs.
 - Selecting **Custom** enables From/To for manual entry (current behavior).
-- A muted inline label shows the resolved range as `dd-mm-yy – dd-mm-yy` via `fmtDateJs` ("All dates" for All), satisfying the issue's "Today only"-style hint.
+- A muted inline label shows the resolved range as `dd-mmm-yy – dd-mmm-yy` via `fmtDateJs` ("All dates" for All), satisfying the issue's "Today only"-style hint.
 - Dropdown state initializes via `matchPreset(start, end)`; no match → Custom. It re-syncs the same way if the parent changes `start`/`end` externally (deep-link effects).
 - `useSettings()` supplies `fiscal_year_start` and `week_start_day`; the old 30d/90d/Month/Year buttons are deleted.
 
