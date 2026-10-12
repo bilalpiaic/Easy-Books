@@ -246,7 +246,7 @@ Your data lives **outside** the app folder:
 | macOS / Linux | `~/.easy-books` (override: `EB_DATA_DIR`) |
 | Windows | `%USERPROFILE%\.easy-books` (override: `%EB_DATA_DIR%`) |
 
-On first install the 9 demo companies are loaded automatically (takes ~20–30 s). Log in immediately with `demo1234` — no signup needed. **Demo logins on a standalone / desktop install expire 15 days after first launch**; sign up for your own company account to keep using the books. Set `SEED_DEMO=false` before running the installer for a clean start. See [§ Demo / sample data](#demo--sample-data) for details.
+On first install the 9 demo companies are loaded automatically (takes ~20–30 s). Log in immediately with `demo1234` — no signup needed. **The standalone copy locks 15 days after first launch** (source folder and books are not deleted). Set `SEED_DEMO=false` before running the installer for a clean start. See [§ Demo / sample data](#demo--sample-data) for details.
 
 Pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh frontend build after a source update.
 
@@ -342,7 +342,7 @@ npm run dev
 
 The first install takes an extra ~20–30 seconds while the seeder runs; subsequent starts are fast (the seeder is guarded — skips if any user already exists, so updating an existing install is migrate-only and no demo data is added). To opt out and start with a clean slate, set `SEED_DEMO=false` before running the installer.
 
-Standalone and desktop installs start a **15-day demo-login trial** on first launch (`EB_STANDALONE`, clocked from `.demo-trial-started` in the data dir). After that window, `demo.*@easy-books.app` password login returns 403, **Try demo** is hidden, and any remaining demo session is rejected. Company accounts created via `/signup` keep working. Set `EB_SKIP_DEMO_TRIAL=true` only for an internal evaluation that must keep demo logins. `dev.sh` is not a standalone install and is not limited.
+Standalone and desktop installs start a **15-day trial** on first launch (`EB_STANDALONE`; clocked from `.demo-trial-started` in the data dir and `.easy-books-trial` in the install folder). After that window the **copy is locked**: login, signup, and the API return 403. The source folder on the PC and the books in `~/.easy-books` are **not deleted**. Set `EB_SKIP_DEMO_TRIAL=true` only after the install is licensed. `dev.sh` is not a standalone install and is not limited.
 
 The **desktop (Electron) app** also auto-loads the 9 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
 
@@ -474,9 +474,9 @@ uv run alembic upgrade head
 | `OPS_ADMIN_EMAILS` | Comma-separated staff emails for `/api/ops/tenants` entitle API. Empty list fail-closes | unset |
 | `REQUIRE_OWNER_TOTP` | Owners must enable authenticator 2FA before mutating APIs (invoice/bill/etc.). Login still works so they can enroll. Demo `demo.*@easy-books.app` users are exempt | `false` |
 | `ALLOW_DEMO_LOGIN` | When `false`, `demo.*@easy-books.app` password login returns 403 and the login page hides **Try demo**. Use with `SEED_DEMO=false` in production | `true` |
-| `EB_STANDALONE` | Marks a premises / desktop install. Installers default this on. Combined with `APP_ENV=local`, demo logins follow the 15-day trial | `true` on installers |
-| `EB_DEMO_TRIAL_DAYS` | Length of the standalone demo-login trial | `15` |
-| `EB_SKIP_DEMO_TRIAL` | When `true`, standalone installs keep demo logins indefinitely | `false` |
+| `EB_STANDALONE` | Marks a premises / desktop install. Installers default this on. After 15 days the copy is locked | `true` on installers |
+| `EB_DEMO_TRIAL_DAYS` | Length of the standalone trial | `15` |
+| `EB_SKIP_DEMO_TRIAL` | When `true`, unlocks a licensed standalone install | `false` |
 
 Frontend: set `NEXT_PUBLIC_API_URL=http://localhost:8000` in `frontend/.env.local`.
 

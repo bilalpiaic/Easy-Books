@@ -312,6 +312,42 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     return _response_for_unhandled(request, exc)
 
 
+def _standalone_trial_path_allowed(path: str) -> bool:
+    if path in ("/docs", "/openapi.json", "/redoc"):
+        return True
+    if path.startswith("/api/health") or path.startswith("/api/v1/health"):
+        return True
+    if path.startswith("/api/version") or path.startswith("/api/v1/version"):
+        return True
+    return path.rstrip("/").endswith("/auth/oauth/providers")
+
+
+@app.middleware("http")
+async def check_standalone_trial_lock(request: Request, call_next):
+    """After the 15-day premises trial, refuse every API except status/health.
+
+    The install folder and data dir are left on disk; only the running copy
+    is locked. Licensed installs set EB_SKIP_DEMO_TRIAL=true.
+    """
+    if request.method == "OPTIONS":
+        return await call_next(request)
+    path = request.url.path
+    if _standalone_trial_path_allowed(path):
+        return await call_next(request)
+    from services.standalone_trial import install_locked, trial_expired_detail
+
+    if install_locked():
+        return _cors_json(
+            request,
+            403,
+            {
+                "detail": trial_expired_detail(),
+                "code": "standalone_trial_expired",
+            },
+        )
+    return await call_next(request)
+
+
 @app.middleware("http")
 async def check_tenant_suspension(request, call_next):
     """Suspended tenants get 402 on accounting routes (#119)."""

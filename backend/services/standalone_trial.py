@@ -1,21 +1,20 @@
-"""15-day demo-login trial for standalone / on-premise installs.
+"""15-day trial lock for standalone / on-premise installs.
 
-Script installers, the Electron desktop app, and ``APP_ENV=local`` premises
-launches seed the nine ``demo.*@easy-books.app`` companies so a first-run
-evaluation needs no signup. After ``EB_DEMO_TRIAL_DAYS`` (default 15) those
-demo logins are refused. Real company accounts created via ``/signup`` are
-not affected.
+After ``EB_DEMO_TRIAL_DAYS`` (default 15) the *whole copy* is locked: login,
+signup, and every API except health/version/trial status. The source folder
+and ``EB_DATA_DIR`` books are **not** deleted so a licensed unlock can resume
+the same data.
 
-The clock is a write-once ISO timestamp in the install data dir
-(``.demo-trial-started``), with a SQLite ``tenant.created_at`` backfill so
-deleting only the stamp file cannot restart the window. Once expiry is
-observed, ``.demo-trial-expired`` is created and stays expired even if the
-system clock is wound back.
+The clock is write-once in the data dir (``.demo-trial-started``) and, outside
+pytest, also in the install checkout (``.easy-books-trial``) so this folder
+stays bound to the original start date. SQLite ``tenant.created_at`` backfills
+if stamps are missing. Once expiry is observed, expired markers stay set even
+if the system clock is wound back.
 
 Does **not** apply to:
 - ``dev.sh`` / pytest (``APP_ENV`` is not ``local``, ``EB_STANDALONE`` unset)
-- Vercel / ``APP_ENV=production`` (``ALLOW_DEMO_LOGIN`` already defaults off)
-- any process with ``EB_SKIP_DEMO_TRIAL=true``
+- Vercel / ``APP_ENV=production``
+- any process with ``EB_SKIP_DEMO_TRIAL=true`` (licensed / evaluation bypass)
 """
 from __future__ import annotations
 
@@ -29,11 +28,14 @@ from typing import Any
 DEFAULT_TRIAL_DAYS = 15
 STAMP_NAME = ".demo-trial-started"
 EXPIRED_NAME = ".demo-trial-expired"
+INSTALL_STAMP_NAME = ".easy-books-trial"
+INSTALL_EXPIRED_NAME = ".easy-books-trial-expired"
 
 def trial_expired_detail() -> str:
     return (
-        f"The {trial_days()}-day demo trial on this installation has ended. "
-        "Sign up for a company account to continue."
+        f"The {trial_days()}-day trial on this installation has ended. "
+        "This copy of Easy-Books is locked. Your source folder and books "
+        "are not deleted. Contact Easy-Books to license this install."
     )
 
 
@@ -89,6 +91,22 @@ def stamp_path() -> Path:
 
 def expired_marker_path() -> Path:
     return _data_dir() / EXPIRED_NAME
+
+
+def _install_paths() -> tuple[Path, Path] | None:
+    """Checkout-root stamps so *this folder* stays bound to the trial clock.
+
+    Skipped under pytest so tests never dirty the git worktree.
+    """
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return None
+    try:
+        from local_config import repo_root
+
+        root = repo_root()
+        return root / INSTALL_STAMP_NAME, root / INSTALL_EXPIRED_NAME
+    except OSError:
+        return None
 
 
 def _parse_dt(raw: str | None) -> datetime | None:
@@ -151,35 +169,57 @@ def _tenant_min_created_at() -> datetime | None:
     return _parse_dt(str(row[0]))
 
 
-def _read_stamp() -> datetime | None:
-    path = stamp_path()
+def _read_stamp_file(path: Path) -> datetime | None:
     try:
         return _parse_dt(path.read_text(encoding="utf-8").splitlines()[0])
     except (OSError, IndexError):
         return None
 
 
+def _read_stamp() -> datetime | None:
+    return _read_stamp_file(stamp_path())
+
+
 def ensure_started_at() -> datetime:
-    """Return the install clock, creating the stamp on first observation."""
-    existing = _read_stamp()
-    if existing is not None:
-        now = _now()
-        # A stamp in the future is clock-skew / tampering — do not grant extra days.
-        if existing > now + timedelta(minutes=5):
-            return now
-        return existing
-    started = _tenant_min_created_at() or _now()
-    _write_once(stamp_path(), _format_dt(started) + "\n")
-    return _read_stamp() or started
+    """Return the install clock, creating stamps on first observation."""
+    now = _now()
+    skew = now + timedelta(minutes=5)
+    candidates: list[datetime] = []
+    for value in (_read_stamp(), _tenant_min_created_at()):
+        if value is not None and value <= skew:
+            candidates.append(value)
+    install = _install_paths()
+    if install is not None:
+        folder = _read_stamp_file(install[0])
+        if folder is not None and folder <= skew:
+            candidates.append(folder)
+    started = min(candidates) if candidates else now
+    line = _format_dt(started) + "\n"
+    _write_once(stamp_path(), line)
+    if install is not None:
+        _write_once(install[0], line)
+    return started
 
 
 def _mark_expired() -> None:
-    _write_once(expired_marker_path(), _format_dt(_now()) + "\n")
+    line = _format_dt(_now()) + "\n"
+    _write_once(expired_marker_path(), line)
+    install = _install_paths()
+    if install is not None:
+        _write_once(install[1], line)
 
 
 def expired_marker_present() -> bool:
     try:
-        return expired_marker_path().is_file()
+        if expired_marker_path().is_file():
+            return True
+    except OSError:
+        pass
+    install = _install_paths()
+    if install is None:
+        return False
+    try:
+        return install[1].is_file()
     except OSError:
         return False
 
@@ -195,6 +235,11 @@ def demo_trial_expired() -> bool:
         _mark_expired()
         return True
     return False
+
+
+def install_locked() -> bool:
+    """True when this standalone copy must refuse all work (not just demo logins)."""
+    return demo_trial_expired()
 
 
 def trial_info() -> dict[str, Any] | None:
@@ -218,4 +263,5 @@ def trial_info() -> dict[str, Any] | None:
         "started_at": _format_dt(started),
         "ends_at": _format_dt(ends),
         "expired": expired,
+        "locked": expired,
     }

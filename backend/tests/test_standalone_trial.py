@@ -44,6 +44,7 @@ def test_fresh_standalone_allows_demo_for_15_days(monkeypatch, tmp_path):
     info = st.trial_info()
     assert info is not None
     assert info["expired"] is False
+    assert info["locked"] is False
     assert info["days"] == 15
     assert info["days_remaining"] == 15
     assert (tmp_path / st.STAMP_NAME).is_file()
@@ -58,10 +59,12 @@ def test_expired_stamp_blocks_demo_login(monkeypatch, tmp_path):
     _stamp(tmp_path / st.STAMP_NAME, started)
     assert st.demo_trial_expired() is True
     assert demo_login_allowed() is False
-    assert "15-day demo trial" in demo_login_block_detail()
+    assert "15-day trial" in demo_login_block_detail()
+    assert "locked" in demo_login_block_detail().lower()
     assert (tmp_path / st.EXPIRED_NAME).is_file()
     info = st.trial_info()
     assert info["expired"] is True
+    assert info["locked"] is True
     assert info["days_remaining"] == 0
 
 
@@ -186,20 +189,24 @@ def test_login_and_session_blocked_after_trial(client, monkeypatch, tmp_path):
         data={"username": "demo.trial@easy-books.app", "password": "pw12345678"},
     )
     assert blocked.status_code == 403
-    assert "demo trial" in blocked.json()["detail"].lower()
+    assert "trial" in blocked.json()["detail"].lower()
+    assert blocked.json().get("code") == "standalone_trial_expired"
 
     me2 = client.get("/api/auth/me", headers=headers)
     assert me2.status_code == 403
-    assert "demo trial" in me2.json()["detail"].lower()
+    assert "locked" in me2.json()["detail"].lower()
+
+    health = client.get("/api/health")
+    assert health.status_code == 200
 
 
-def test_real_signup_still_works_after_trial(client, monkeypatch, tmp_path):
+def test_signup_and_all_logins_blocked_after_trial(client, monkeypatch, tmp_path):
+    """The install folder is not deleted; the running copy is locked for everyone."""
     _standalone(monkeypatch, tmp_path)
     from services import standalone_trial as st
 
-    _stamp(tmp_path / st.STAMP_NAME, datetime.now(timezone.utc) - timedelta(days=20))
     r = client.post("/api/auth/signup", json={
-        "email": "owner.after-trial@co.test",
+        "email": "owner.during-trial@co.test",
         "password": "pw12345678",
         "full_name": "Owner",
         "company_name": "Real Co",
@@ -207,9 +214,40 @@ def test_real_signup_still_works_after_trial(client, monkeypatch, tmp_path):
     assert r.status_code == 200, r.text
     login = client.post(
         "/api/auth/login",
-        data={"username": "owner.after-trial@co.test", "password": "pw12345678"},
+        data={"username": "owner.during-trial@co.test", "password": "pw12345678"},
     )
     assert login.status_code == 200, login.text
+    token = login.json()["access_token"]
+
+    _stamp(tmp_path / st.STAMP_NAME, datetime.now(timezone.utc) - timedelta(days=20))
+    expired_marker = tmp_path / st.EXPIRED_NAME
+    if expired_marker.exists():
+        expired_marker.unlink()
+
+    signup = client.post("/api/auth/signup", json={
+        "email": "owner.after-trial@co.test",
+        "password": "pw12345678",
+        "full_name": "Owner",
+        "company_name": "Too Late Co",
+    })
+    assert signup.status_code == 403
+    assert signup.json().get("code") == "standalone_trial_expired"
+
+    relogin = client.post(
+        "/api/auth/login",
+        data={"username": "owner.during-trial@co.test", "password": "pw12345678"},
+    )
+    assert relogin.status_code == 403
+
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.status_code == 403
+
+    customers = client.get("/api/customers", headers={"Authorization": f"Bearer {token}"})
+    assert customers.status_code == 403
+
+    assert (tmp_path / st.STAMP_NAME).is_file()
+    assert (tmp_path / st.EXPIRED_NAME).is_file()
+    assert client.get("/api/auth/oauth/providers").status_code == 200
 
 
 def test_custom_trial_days(monkeypatch, tmp_path):
@@ -220,4 +258,5 @@ def test_custom_trial_days(monkeypatch, tmp_path):
     _stamp(tmp_path / st.STAMP_NAME, datetime.now(timezone.utc) - timedelta(days=3))
     assert st.trial_days() == 2
     assert st.demo_trial_expired() is True
-    assert "2-day demo trial" in st.trial_expired_detail()
+    assert "2-day trial" in st.trial_expired_detail()
+    assert "locked" in st.trial_expired_detail().lower()

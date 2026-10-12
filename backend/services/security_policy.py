@@ -8,9 +8,8 @@ Env flags (default off so demo/dev and pytest stay usable):
   exempt so QA tenants keep working.
 - ``ALLOW_DEMO_LOGIN`` — when false, ``demo.*@easy-books.app`` password login
   returns 403. Pair with ``SEED_DEMO=false`` on production. Standalone
-  premises installs (``EB_STANDALONE`` / ``APP_ENV=local``) also refuse
-  demo logins after ``EB_DEMO_TRIAL_DAYS`` (default 15) even when this
-  flag stays true.
+  premises installs (``EB_STANDALONE`` / ``APP_ENV=local``) lock the whole
+  copy after ``EB_DEMO_TRIAL_DAYS`` (default 15) — login, signup, and API.
 """
 from __future__ import annotations
 

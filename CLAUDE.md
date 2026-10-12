@@ -116,8 +116,8 @@ npm install && node server.js    # runs on root package.json
 | Context | Behaviour |
 |---------|-----------|
 | Dev / cloud (`dev.sh`) | Auto-created on first run; auto-populated with 50+ records per tenant each time `dev.sh` runs |
-| Standalone *script* installers (`install-and-run.*`) | **Auto-load** the 9 fully-populated demo companies on first install (`SEED_DEMO=true` default, ~20–30 s one-time). Set `SEED_DEMO=false` for a clean install with no demo data. Mechanism: after `alembic upgrade head`, the installer runs `scripts.autoseed_demo` (guarded — any user already present → skip; also skips when `SEED_DEMO=false`). Updating an existing install is **migrate-only** — no demo data is added. **Demo logins expire 15 days after first launch** (`EB_STANDALONE`; clock `$EB_DATA_DIR/.demo-trial-started`). |
-| Desktop (Electron) | **Also auto-loads** the 9 demo companies on first install (`SEED_DEMO=true` default; `run_packaged.py` runs the guarded auto-seed before serving; the Electron shell shows a "Starting up… first-time setup may take ~30 seconds" splash during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install. Updating an existing install is **migrate-only** — no demo data is added. Same 15-day demo-login trial as the script installers. |
+| Standalone *script* installers (`install-and-run.*`) | **Auto-load** the 9 fully-populated demo companies on first install (`SEED_DEMO=true` default, ~20–30 s one-time). Set `SEED_DEMO=false` for a clean install with no demo data. Mechanism: after `alembic upgrade head`, the installer runs `scripts.autoseed_demo` (guarded — any user already present → skip; also skips when `SEED_DEMO=false`). Updating an existing install is **migrate-only** — no demo data is added. **The copy locks 15 days after first launch** (`EB_STANDALONE`; clocks `$EB_DATA_DIR/.demo-trial-started` and checkout `.easy-books-trial`). Source folder and books are not deleted. |
+| Desktop (Electron) | **Also auto-loads** the 9 demo companies on first install (`SEED_DEMO=true` default; `run_packaged.py` runs the guarded auto-seed before serving; the Electron shell shows a "Starting up… first-time setup may take ~30 seconds" splash during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install. Updating an existing install is **migrate-only** — no demo data is added. Same 15-day install lock as the script installers. |
 
 Demo data is also loadable/removable at any time via **Settings → Sample / Demo Data** regardless of install type.
 
@@ -290,9 +290,9 @@ OVERDUE_SWEEP_INTERVAL_HOURS=  # default 24; how often the scheduler tick runs (
 REQUIRE_OWNER_TOTP=        # default false; "true" on production so owners must enable TOTP before mutating APIs (demo.*@easy-books.app exempt)
 ALLOW_DEMO_LOGIN=          # default true; "false" on production to 403 demo.* logins and hide Try demo
 SEED_DEMO=                 # default true in installers; "false" on production so demo tenants are not created
-EB_STANDALONE=             # installers default true; 15-day demo-login trial on premises/desktop installs
-EB_DEMO_TRIAL_DAYS=        # default 15; after this, demo.* logins 403 (signup accounts keep working)
-EB_SKIP_DEMO_TRIAL=        # default false; true keeps demo logins on a standalone install
+EB_STANDALONE=             # installers default true; 15-day trial then lock the whole premises copy
+EB_DEMO_TRIAL_DAYS=        # default 15; after this, login/signup/API 403 (files are not deleted)
+EB_SKIP_DEMO_TRIAL=        # default false; true unlocks a licensed standalone install
 ENFORCE_MODULE_PLANS=      # default true; "false" unrestricts module install (pytest autouse)
 ```
 
