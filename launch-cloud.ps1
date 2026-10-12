@@ -27,6 +27,7 @@ if (-not $env:EB_INSTANCE_LOCK) { $env:EB_INSTANCE_LOCK = 'true' }
 if (-not $env:EB_DATA_DIR) { $env:EB_DATA_DIR = Join-Path $Root 'data' }
 if (-not $env:FRONTEND_ORIGIN) { $env:FRONTEND_ORIGIN = 'http://localhost:3000,http://127.0.0.1:3000' }
 if (-not $env:APP_ENV) { $env:APP_ENV = 'local' }
+if (-not $env:EB_STANDALONE) { $env:EB_STANDALONE = 'true' }  # 15-day demo-login trial on this premises install
 if (-not $env:SEED_DEMO) { $env:SEED_DEMO = 'false' }
 $env:Path = "$env:USERPROFILE\.local\bin;$Root\.node;$env:Path"
 

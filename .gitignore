@@ -39,6 +39,10 @@ frontend/.env.local
 easy-books-portable.env
 .easy-books-portable
 
+# Standalone trial clock bound to this checkout (never commit)
+.easy-books-trial
+.easy-books-trial-expired
+
 # Per-install JWT secret — generated per machine, never commit
 .secret.key
 backend/.secret.key

@@ -7,7 +7,9 @@ Env flags (default off so demo/dev and pytest stay usable):
   403 until ``totp_enabled``. Demo mill logins (``demo.*@easy-books.app``) are
   exempt so QA tenants keep working.
 - ``ALLOW_DEMO_LOGIN`` — when false, ``demo.*@easy-books.app`` password login
-  returns 403. Pair with ``SEED_DEMO=false`` on production.
+  returns 403. Pair with ``SEED_DEMO=false`` on production. Standalone
+  premises installs (``EB_STANDALONE`` / ``APP_ENV=local``) lock the whole
+  copy after ``EB_DEMO_TRIAL_DAYS`` (default 15) — login, signup, and API.
 """
 from __future__ import annotations
 
@@ -39,7 +41,20 @@ def require_owner_totp() -> bool:
 
 
 def demo_login_allowed() -> bool:
-    return _flag("ALLOW_DEMO_LOGIN", default=not is_production())
+    if not _flag("ALLOW_DEMO_LOGIN", default=not is_production()):
+        return False
+    from services.standalone_trial import demo_trial_expired
+
+    return not demo_trial_expired()
+
+
+def demo_login_block_detail() -> str:
+    """Message for 403 when demo login is refused (flag or expired trial)."""
+    if not _flag("ALLOW_DEMO_LOGIN", default=not is_production()):
+        return "Demo logins are disabled on this server."
+    from services.standalone_trial import trial_expired_detail
+
+    return trial_expired_detail()
 
 
 def seed_demo_default() -> str:

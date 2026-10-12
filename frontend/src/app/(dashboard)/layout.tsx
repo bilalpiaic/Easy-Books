@@ -8,7 +8,8 @@ import BottomNav from "@/components/BottomNav"
 import MoreDrawer from "@/components/MoreDrawer"
 import FAB from "@/components/FAB"
 import TabBar from "@/components/TabBar"
-import { isAuthenticated, getMustChangePwd, getMustSetupTotp, reconcileAuthOnLoad } from "@/lib/auth"
+import { isAuthenticated, getMustChangePwd, getMustSetupTotp, reconcileAuthOnLoad, removeAuthToken } from "@/lib/auth"
+import { fetchAuthProviders, trialIsLocked } from "@/components/StandaloneTrialLock"
 import { SettingsProvider } from "@/context/SettingsContext"
 import { PermissionProvider } from "@/context/PermissionContext"
 import { ModuleProvider } from "@/context/ModuleContext"
@@ -33,6 +34,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Auth gate — cold start / post-update have no session marker → login
   useEffect(() => {
     reconcileAuthOnLoad()
+    fetchAuthProviders()
+      .then((p) => {
+        if (trialIsLocked(p.demo_trial)) {
+          removeAuthToken()
+          router.replace("/login")
+        }
+      })
+      .catch(() => {})
     if (!isAuthenticated()) { router.replace("/login"); return }
     if (getMustChangePwd() && !pathname.startsWith("/profile")) {
       router.replace("/profile?changePassword=1")

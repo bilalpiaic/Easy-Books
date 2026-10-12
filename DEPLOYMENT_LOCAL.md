@@ -83,7 +83,7 @@ installs backend deps, builds the frontend, then opens **http://127.0.0.1:3000**
 pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh build. First run takes a few minutes
 (downloads + build); later runs start in seconds.
 
-Data lives in `EB_DATA_DIR` (default `~/.easy-books` / `%USERPROFILE%\.easy-books`). On first install the 5 demo companies are **auto-loaded** (takes ~20–30 s; guarded — fires only on a brand-new empty DB; updating an existing install is migrate-only and no demo data is added). Log in immediately with `demo1234`. Set `SEED_DEMO=false` before running for a clean install with no demo data. The first signup creates your own owner account.
+Data lives in `EB_DATA_DIR` (default `~/.easy-books` / `%USERPROFILE%\.easy-books`). On first install the 9 demo companies are **auto-loaded** (takes ~20–30 s; guarded — fires only on a brand-new empty DB; updating an existing install is migrate-only and no demo data is added). Log in immediately with `demo1234`. **The copy locks 15 days after first launch** (`EB_STANDALONE`) — login, signup, and the API refuse work; the install folder and data dir are not deleted. Set `EB_SKIP_DEMO_TRIAL=true` after the install is licensed. Set `SEED_DEMO=false` before running for a clean install with no demo data.
 
 > **Note:** the `.sh` is tested on Linux/macOS. The Windows `.bat`/`.ps1` mirror the same logic and
 > use PowerShell-5.1-compatible constructs; validate on a real Windows box before distribution. The

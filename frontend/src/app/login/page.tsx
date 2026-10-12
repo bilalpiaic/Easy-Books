@@ -3,11 +3,24 @@
 import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { setAuthToken, setMustChangePwd, setMustSetupTotp, isAuthenticated, reconcileAuthOnLoad } from "@/lib/auth"
+import { setAuthToken, setMustChangePwd, setMustSetupTotp, isAuthenticated, reconcileAuthOnLoad, removeAuthToken } from "@/lib/auth"
 import { apiBase, networkErrorMessage } from "@/lib/api"
+import {
+  StandaloneTrialLock,
+  fetchAuthProviders,
+  trialIsLocked,
+  type DemoTrial,
+} from "@/components/StandaloneTrialLock"
 
 const DEMO_EMAIL = "demo.simple@easy-books.app"
 const DEMO_PASSWORD = "demo1234"
+
+type AuthProviders = {
+  google?: boolean
+  microsoft?: boolean
+  demo_login?: boolean
+  demo_trial?: DemoTrial | null
+}
 
 function LoginForm() {
   const search = useSearchParams()
@@ -16,7 +29,8 @@ function LoginForm() {
   const [otp, setOtp] = useState("")
   const [partialToken, setPartialToken] = useState("")
   const [needsTotp, setNeedsTotp] = useState(false)
-  const [providers, setProviders] = useState<{ google?: boolean; microsoft?: boolean; demo_login?: boolean }>({})
+  const [providers, setProviders] = useState<AuthProviders>({})
+  const [providersReady, setProvidersReady] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [demoLoading, setDemoLoading] = useState(false)
@@ -24,29 +38,41 @@ function LoginForm() {
 
   useEffect(() => {
     reconcileAuthOnLoad()
-    // Mid-session visit to /login (already signed in this tab) → dashboard
-    if (isAuthenticated()) {
-      router.replace("/dashboard")
-      return
-    }
-    if (search.get("demo") === "1") {
-      setEmail(DEMO_EMAIL)
-      setPassword(DEMO_PASSWORD)
-    }
-    const ssoToken = search.get("token")
-    if (search.get("sso") === "1" && ssoToken) {
-      setAuthToken(ssoToken)
-      router.push("/dashboard")
-    }
-    const partial = search.get("partial")
-    if (search.get("totp") === "1" && partial) {
-      setPartialToken(partial)
-      setNeedsTotp(true)
-    }
-    fetch(`${apiBase}/api/auth/oauth/providers`)
-      .then((r) => r.json())
-      .then(setProviders)
+    let cancelled = false
+    fetchAuthProviders()
+      .then((p) => {
+        if (cancelled) return
+        setProviders(p)
+        if (trialIsLocked(p.demo_trial)) {
+          removeAuthToken()
+          return
+        }
+        if (isAuthenticated()) {
+          router.replace("/dashboard")
+          return
+        }
+        if (search.get("demo") === "1") {
+          setEmail(DEMO_EMAIL)
+          setPassword(DEMO_PASSWORD)
+        }
+        const ssoToken = search.get("token")
+        if (search.get("sso") === "1" && ssoToken) {
+          setAuthToken(ssoToken)
+          router.push("/dashboard")
+        }
+        const partial = search.get("partial")
+        if (search.get("totp") === "1" && partial) {
+          setPartialToken(partial)
+          setNeedsTotp(true)
+        }
+      })
       .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setProvidersReady(true)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [search, router])
 
   const finishLogin = (data: {
@@ -81,8 +107,6 @@ function LoginForm() {
     }
     if (!response.ok) {
       const body = await response.json().catch(() => ({}))
-      // Keep 401 copy stable (form is email, API says "username"). Other
-      // statuses still surface API detail (demo-disabled, deactivated, throttle).
       if (response.status === 401) {
         throw new Error("Invalid email or password")
       }
@@ -153,6 +177,13 @@ function LoginForm() {
       )
       setDemoLoading(false)
     }
+  }
+
+  if (!providersReady) {
+    return <div className="min-h-screen bg-[#f6f3ee]" />
+  }
+  if (trialIsLocked(providers.demo_trial)) {
+    return <StandaloneTrialLock days={providers.demo_trial?.days ?? 15} />
   }
 
   return (
@@ -226,6 +257,13 @@ function LoginForm() {
               >
                 {demoLoading ? "Opening demo…" : "Try demo"}
               </button>
+            )}
+            {providers.demo_trial?.applies && !trialIsLocked(providers.demo_trial) && providers.demo_trial.days_remaining != null && (
+              <p className="text-center text-xs text-[#1a1814]/55">
+                This installation&apos;s trial ends in{" "}
+                {providers.demo_trial.days_remaining}{" "}
+                {providers.demo_trial.days_remaining === 1 ? "day" : "days"}.
+              </p>
             )}
             {(providers.google || providers.microsoft) && (
               <div className="pt-2 space-y-2 border-t border-[#1a1814]/10">

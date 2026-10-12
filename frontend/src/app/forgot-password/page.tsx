@@ -1,14 +1,32 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ApiError, apiFetch, networkErrorMessage } from "@/lib/api"
+import {
+  StandaloneTrialLock,
+  fetchAuthProviders,
+  trialIsLocked,
+} from "@/components/StandaloneTrialLock"
 
 export default function ForgotPasswordPage() {
+  const [locked, setLocked] = useState(false)
+  const [trialDays, setTrialDays] = useState(15)
+  const [ready, setReady] = useState(false)
   const [email, setEmail] = useState("")
   const [sent, setSent] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    fetchAuthProviders()
+      .then((p) => {
+        setLocked(trialIsLocked(p.demo_trial))
+        setTrialDays(p.demo_trial?.days ?? 15)
+      })
+      .catch(() => {})
+      .finally(() => setReady(true))
+  }, [])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,6 +47,13 @@ export default function ForgotPasswordPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (!ready) {
+    return <div className="min-h-screen bg-[#f6f3ee]" />
+  }
+  if (locked) {
+    return <StandaloneTrialLock days={trialDays} />
   }
 
   return (

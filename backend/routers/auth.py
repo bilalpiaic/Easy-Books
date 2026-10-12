@@ -260,11 +260,16 @@ def login(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    from services.security_policy import demo_login_allowed, is_demo_email, owner_must_setup_totp
+    from services.security_policy import (
+        demo_login_allowed,
+        demo_login_block_detail,
+        is_demo_email,
+        owner_must_setup_totp,
+    )
     if is_demo_email(user.email) and not demo_login_allowed():
         raise HTTPException(
             status_code=403,
-            detail="Demo logins are disabled on this server.",
+            detail=demo_login_block_detail(),
         )
     if not user.is_active:
         raise HTTPException(

@@ -1089,7 +1089,7 @@ function SecurityPanel() {
         "Optional by default. On production set REQUIRE_OWNER_TOTP=true so company owners must enroll before posting invoices or bills.",
         "Login still succeeds so the owner can open Profile and scan an authenticator app, then enter a 6-digit code.",
         "Until 2FA is enabled, mutating API calls (except /api/auth) return 403 with code totp_setup_required.",
-        "Demo logins (demo.*@easy-books.app) stay exempt. Pair ALLOW_DEMO_LOGIN=false with SEED_DEMO=false so production has no public demo.",
+        "Demo logins (demo.*@easy-books.app) stay exempt from the 2FA requirement. Pair ALLOW_DEMO_LOGIN=false with SEED_DEMO=false so production has no public demo. Standalone / desktop installs lock the whole copy 15 days after first launch (files are not deleted).",
         "A totp_pending partial token cannot call /api/auth/me — it is only valid for /api/auth/totp/verify.",
       ]} />
 

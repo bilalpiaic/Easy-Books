@@ -244,6 +244,7 @@ if (-not $env:EB_DATA_DIR) { $env:EB_DATA_DIR = Join-Path $env:USERPROFILE '.eas
 if (-not $env:SEED_DEMO)   { $env:SEED_DEMO   = 'true' }    # auto-load full demo data on first install; set SEED_DEMO=false for a clean install
 if (-not $env:FRONTEND_ORIGIN) { $env:FRONTEND_ORIGIN = 'http://localhost:3000,http://127.0.0.1:3000' }  # allow both hosts so the browser is not CORS-blocked
 if (-not $env:APP_ENV)     { $env:APP_ENV     = 'local' }
+if (-not $env:EB_STANDALONE) { $env:EB_STANDALONE = 'true' }  # 15-day demo-login trial on this premises install
 New-Item -ItemType Directory -Force -Path $env:EB_DATA_DIR | Out-Null
 
 # Migrate the user's DB forward so updates apply new columns (not just tables).

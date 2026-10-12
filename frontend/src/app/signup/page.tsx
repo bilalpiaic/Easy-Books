@@ -1,13 +1,21 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { setAuthToken } from "@/lib/auth"
 import { apiBase } from "@/lib/api"
 import { FieldHint } from "@/components/guidance/FieldHint"
+import {
+  StandaloneTrialLock,
+  fetchAuthProviders,
+  trialIsLocked,
+} from "@/components/StandaloneTrialLock"
 
 export default function SignupPage() {
+  const [trialDays, setTrialDays] = useState<number | null>(null)
+  const [locked, setLocked] = useState(false)
+  const [ready, setReady] = useState(false)
   const [fullName, setFullName] = useState("")
   const [companyName, setCompanyName] = useState("")
   const [email, setEmail] = useState("")
@@ -16,6 +24,16 @@ export default function SignupPage() {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    fetchAuthProviders()
+      .then((p) => {
+        setLocked(trialIsLocked(p.demo_trial))
+        setTrialDays(p.demo_trial?.days ?? 15)
+      })
+      .catch(() => {})
+      .finally(() => setReady(true))
+  }, [])
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,6 +89,13 @@ export default function SignupPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (!ready) {
+    return <div className="min-h-screen bg-[#f6f3ee]" />
+  }
+  if (locked) {
+    return <StandaloneTrialLock days={trialDays ?? 15} />
   }
 
   return (

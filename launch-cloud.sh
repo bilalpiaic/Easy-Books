@@ -27,6 +27,7 @@ export EB_INSTANCE_LOCK="${EB_INSTANCE_LOCK:-true}"
 export EB_DATA_DIR="${EB_DATA_DIR:-$ROOT/data}"
 export FRONTEND_ORIGIN="${FRONTEND_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000}"
 export APP_ENV="${APP_ENV:-local}"
+export EB_STANDALONE="${EB_STANDALONE:-true}"  # 15-day demo-login trial on this premises install
 export SEED_DEMO="${SEED_DEMO:-false}"
 export PATH="$HOME/.local/bin:$ROOT/.node/bin:$PATH"
 
