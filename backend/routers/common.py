@@ -40,6 +40,17 @@ ACCESS_COOKIE_NAME = "eb_access"
 API_KEY_PREFIX = "eb_live_"
 
 
+def _reject_expired_demo(user: User) -> None:
+    """Standalone trial / ALLOW_DEMO_LOGIN=false: lock demo sessions immediately."""
+    from services.security_policy import demo_login_allowed, demo_login_block_detail, is_demo_email
+
+    if is_demo_email(user.email) and not demo_login_allowed():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=demo_login_block_detail(),
+        )
+
+
 def _user_from_api_key(session: Session, token: str, credentials_exception) -> User:
     """Resolve an eb_live_ key to its owning User. The key authenticates AS
     that user — role checks, permission gates, and audit attribution behave
@@ -60,6 +71,7 @@ def _user_from_api_key(session: Session, token: str, credentials_exception) -> U
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account has been deactivated. Contact an administrator.",
         )
+    _reject_expired_demo(user)
     api_key.last_used = _datetime.utcnow()
     session.add(api_key)
     session.commit()
@@ -120,6 +132,7 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account has been deactivated. Contact an administrator.",
         )
+    _reject_expired_demo(user)
     # Active-tenant claim must match DB (#220). Stale tokens after a switch
     # are rejected until the client uses the reminted token.
     if int(tenant_id) != int(user.tenant_id):

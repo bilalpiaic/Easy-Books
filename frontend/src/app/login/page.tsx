@@ -9,6 +9,21 @@ import { apiBase, networkErrorMessage } from "@/lib/api"
 const DEMO_EMAIL = "demo.simple@easy-books.app"
 const DEMO_PASSWORD = "demo1234"
 
+type DemoTrial = {
+  applies?: boolean
+  days?: number
+  days_remaining?: number | null
+  ends_at?: string | null
+  expired?: boolean
+}
+
+type AuthProviders = {
+  google?: boolean
+  microsoft?: boolean
+  demo_login?: boolean
+  demo_trial?: DemoTrial | null
+}
+
 function LoginForm() {
   const search = useSearchParams()
   const [email, setEmail] = useState("")
@@ -16,7 +31,7 @@ function LoginForm() {
   const [otp, setOtp] = useState("")
   const [partialToken, setPartialToken] = useState("")
   const [needsTotp, setNeedsTotp] = useState(false)
-  const [providers, setProviders] = useState<{ google?: boolean; microsoft?: boolean; demo_login?: boolean }>({})
+  const [providers, setProviders] = useState<AuthProviders>({})
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [demoLoading, setDemoLoading] = useState(false)
@@ -226,6 +241,23 @@ function LoginForm() {
               >
                 {demoLoading ? "Opening demo…" : "Try demo"}
               </button>
+            )}
+            {providers.demo_trial?.applies && !providers.demo_trial.expired && providers.demo_trial.days_remaining != null && (
+              <p className="text-center text-xs text-[#1a1814]/55">
+                Demo companies on this installation expire in{" "}
+                {providers.demo_trial.days_remaining}{" "}
+                {providers.demo_trial.days_remaining === 1 ? "day" : "days"}.
+              </p>
+            )}
+            {providers.demo_trial?.expired && (
+              <p className="text-sm text-[#1a1814]/75 text-center">
+                The {providers.demo_trial.days ?? 15}-day demo trial on this
+                installation has ended.{" "}
+                <Link href="/signup" className="underline">
+                  Sign up
+                </Link>{" "}
+                for a company account to continue.
+              </p>
             )}
             {(providers.google || providers.microsoft) && (
               <div className="pt-2 space-y-2 border-t border-[#1a1814]/10">

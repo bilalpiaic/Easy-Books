@@ -169,6 +169,7 @@ export EB_DATA_DIR="${EB_DATA_DIR:-$HOME/.easy-books}"
 export FRONTEND_ORIGIN="${FRONTEND_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000}"  # allow both hosts so the browser is not CORS-blocked
 export SEED_DEMO="${SEED_DEMO:-true}"       # auto-load full demo data on first install; set SEED_DEMO=false for a clean install
 export APP_ENV="${APP_ENV:-local}"
+export EB_STANDALONE="${EB_STANDALONE:-true}"  # 15-day demo-login trial on this premises install
 mkdir -p "$EB_DATA_DIR"
 
 # Free ports from any previous run so the fresh backend binds — and so no stale

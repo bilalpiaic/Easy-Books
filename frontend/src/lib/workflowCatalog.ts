@@ -509,7 +509,7 @@ const EXTRA_SCREENS: CatalogEntry[] = [
     id: "screen-login", kind: "screen", title: "Login", href: "/login",
     captureTenant: "anon", segment: "System", modules: ["base"], tenants: tenantsForModules(["base"]),
     tags: ["settings", "workflow"],
-    explanation: "Email + password into a tenant. Demo companies all use password demo1234. Forgot-password always returns a generic confirmation; demo accounts never receive mail. Try demo is hidden when ALLOW_DEMO_LOGIN=false.",
+    explanation: "Email + password into a tenant. Demo companies all use password demo1234. Forgot-password always returns a generic confirmation; demo accounts never receive mail. Try demo is hidden when ALLOW_DEMO_LOGIN=false, and on standalone installs after the 15-day demo-login trial.",
     steps: ["Enter the tenant owner email.", "Password demo1234 on every seeded demo.", "Land on Financial or Operations home based on the model."],
   },
   {

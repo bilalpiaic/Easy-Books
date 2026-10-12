@@ -60,6 +60,7 @@ def migrate() -> None:
 
 def main() -> None:
     os.environ.setdefault("APP_ENV", "local")
+    os.environ.setdefault("EB_STANDALONE", "true")  # 15-day demo-login trial
     os.environ.setdefault("SEED_DEMO", "true")  # auto-load demo on first install; SEED_DEMO=false for clean
     os.environ.setdefault("SCHEMA_BOOTSTRAP", "alembic")  # lifespan skips create_all
 

@@ -120,6 +120,8 @@ Easy-Books provides **9 pre-seeded demo tenants** for immediate exploration:
 
 The first install takes an extra ~20–30 seconds while the demo data loads; subsequent starts are fast. **Updating an existing install does not add demo data** — the database is migrated forward in place and your data is left untouched. To install without demo data (clean slate), set `SEED_DEMO=false` before running the installer or launching the desktop app.
 
+**Demo-login trial (standalone / desktop):** `demo.*@easy-books.app` accounts work for **15 days** from first launch of that installation. After that, demo login is blocked, **Try demo** disappears from `/login`, and you continue with a company account from [§ 1.3 Create Your Own Business](#13-create-your-own-business-signup). Your own books are not deleted.
+
 The **Settings → Sample / Demo Data** card lets you **Load** or **Remove** the demo companies at any time, regardless of how the app was first installed. (Admin/owner only.)
 
 > **Cloud / dev installs** — demo tenants are pre-seeded automatically; the Settings card is not required.

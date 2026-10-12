@@ -33,6 +33,7 @@ def test_oauth_providers_includes_demo_login(client):
     assert r.status_code == 200
     body = r.json()
     assert body["demo_login"] is True
+    assert body.get("demo_trial") is None
     assert "google" in body and "microsoft" in body
 
 

@@ -21,6 +21,7 @@ function startSidecars() {
     EB_DATA_DIR: process.env.EB_DATA_DIR || app.getPath("userData"),
     SEED_DEMO: process.env.SEED_DEMO || "true",  // auto-load demo on first launch; run_packaged seeds only an empty DB
     APP_ENV: "local",
+    EB_STANDALONE: process.env.EB_STANDALONE || "true",  // 15-day demo-login trial
     EB_PORTABLE: process.env.EB_PORTABLE || "",
     EB_CLOUD_SAFE_SQLITE: process.env.EB_CLOUD_SAFE_SQLITE || "",
     // The window loads http://127.0.0.1:3000 and the UI calls http://localhost:8000,

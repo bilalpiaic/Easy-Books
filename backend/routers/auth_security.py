@@ -23,6 +23,7 @@ from auth import (
 from models import Tenant, User, utc_now
 from services.crypto_secrets import decrypt_secret, encrypt_secret
 from services.security_policy import demo_login_allowed, owner_must_setup_totp, owner_totp_locked
+from services.standalone_trial import trial_info
 
 from .common import CurrentUserDep, SessionDep
 from .auth import (
@@ -165,6 +166,7 @@ def oauth_providers():
             os.environ.get("MICROSOFT_CLIENT_ID") and os.environ.get("MICROSOFT_CLIENT_SECRET")
         ),
         "demo_login": demo_login_allowed(),
+        "demo_trial": trial_info(),
     }
 
 
