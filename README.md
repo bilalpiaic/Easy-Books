@@ -503,6 +503,7 @@ uv run arq worker.WorkerSettings
 | [`docs/Easy-Books_Installer.bat`](./docs/Easy-Books_Installer.bat) | Windows first-time installer — Git, clone, Desktop launcher, then `install-and-run.bat` |
 | [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md) | One-click installer, Electron desktop app, data safety, update paths |
 | [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Cloud deploy: frontend + API on Vercel, database on Neon |
+| [`DEPLOYMENT_CPANEL.md`](./DEPLOYMENT_CPANEL.md) | Production requirements on cPanel / CloudLinux / Imunify360 (review checklist) |
 | [`BLUEPRINT.md`](./BLUEPRINT.md) | Complete project blueprint: every model, endpoint, flow, and decision |
 | [`docs/PRESENTATION.md`](./docs/PRESENTATION.md) | Project review pack — architecture Mermaid diagrams + Good/Better/Best vs Odoo, QB, peers |
 | [`docs/marketing/`](./docs/marketing/) | Narrated pictograph video, slides, voiceover script, and social media attraction pack |
