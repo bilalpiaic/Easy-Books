@@ -143,6 +143,32 @@ def _write_once(path: Path, payload: str) -> None:
         return
 
 
+def _write_replace(path: Path, payload: str) -> None:
+    """Overwrite a stamp (used by ``extend_trial``, not by the write-once clock)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    encoded = payload.encode("utf-8")
+    tmp = path.with_name(path.name + ".tmp")
+    fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.write(fd, encoded)
+    finally:
+        os.close(fd)
+    os.replace(str(tmp), str(path))
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
+def _unlink_quiet(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        return
+    except OSError:
+        return
+
+
 def _tenant_min_created_at() -> datetime | None:
     """Earliest tenant row in the on-disk SQLite file, if any.
 
@@ -181,19 +207,28 @@ def _read_stamp() -> datetime | None:
 
 
 def ensure_started_at() -> datetime:
-    """Return the install clock, creating stamps on first observation."""
+    """Return the install clock, creating stamps on first observation.
+
+    Existing stamp files are authoritative (so ``extend_trial`` can start a
+    new window). ``tenant.created_at`` is only used when no stamp exists, so
+    deleting the stamp files on an old install cannot reset the clock.
+    """
     now = _now()
     skew = now + timedelta(minutes=5)
-    candidates: list[datetime] = []
-    for value in (_read_stamp(), _tenant_min_created_at()):
-        if value is not None and value <= skew:
-            candidates.append(value)
+    stamps: list[datetime] = []
+    data = _read_stamp()
+    if data is not None and data <= skew:
+        stamps.append(data)
     install = _install_paths()
     if install is not None:
         folder = _read_stamp_file(install[0])
         if folder is not None and folder <= skew:
-            candidates.append(folder)
-    started = min(candidates) if candidates else now
+            stamps.append(folder)
+    if stamps:
+        started = min(stamps)
+    else:
+        tenant = _tenant_min_created_at()
+        started = tenant if tenant is not None and tenant <= skew else now
     line = _format_dt(started) + "\n"
     _write_once(stamp_path(), line)
     if install is not None:
@@ -240,6 +275,36 @@ def demo_trial_expired() -> bool:
 def install_locked() -> bool:
     """True when this standalone copy must refuse all work (not just demo logins)."""
     return demo_trial_expired()
+
+
+def extend_trial(*, days: int | None = None) -> dict[str, Any]:
+    """Start a new trial window from now.
+
+    ``days`` defaults to ``EB_DEMO_TRIAL_DAYS`` (15). Clears expired markers
+    and rewrites start stamps. Books and the source folder are not touched.
+    Restart the app afterwards so the running process sees the new clock.
+    """
+    extra = trial_days() if days is None else max(1, int(days))
+    os.environ["EB_DEMO_TRIAL_DAYS"] = str(extra)
+    started = _now()
+    line = _format_dt(started) + "\n"
+    _unlink_quiet(expired_marker_path())
+    _write_replace(stamp_path(), line)
+    install = _install_paths()
+    if install is not None:
+        _unlink_quiet(install[1])
+        _write_replace(install[0], line)
+    info = trial_info() or {
+        "applies": True,
+        "days": extra,
+        "days_remaining": extra,
+        "started_at": _format_dt(started),
+        "ends_at": _format_dt(started + timedelta(days=extra)),
+        "expired": False,
+        "locked": False,
+    }
+    info["extended"] = True
+    return info
 
 
 def trial_info() -> dict[str, Any] | None:
