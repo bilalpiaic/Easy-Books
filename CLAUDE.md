@@ -293,7 +293,9 @@ SEED_DEMO=                 # default true in installers; "false" on production s
 EB_STANDALONE=             # installers default true; 15-day trial then lock the whole premises copy
 EB_DEMO_TRIAL_DAYS=        # default 15; after this, login/signup/API 403 (files are not deleted)
 EB_SKIP_DEMO_TRIAL=        # default false; true unlocks a licensed standalone install
-# Another 15 days: cd backend && PYTHONPATH=. uv run python -m scripts.extend_trial  (then restart)
+# Another 15 days (password-gated): docs/Extend_Trial.bat  or
+#   cd backend && PYTHONPATH=. uv run python -m scripts.extend_trial  (then restart)
+# Hash: scripts/extend_trial.py DEFAULT_PASSWORD_SHA256; override EB_EXTEND_TRIAL_PASSWORD_SHA256
 ENFORCE_MODULE_PLANS=      # default true; "false" unrestricts module install (pytest autouse)
 ```
 

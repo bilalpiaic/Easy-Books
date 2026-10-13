@@ -1,10 +1,13 @@
 """Standalone premises install — 15-day demo-login trial."""
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+
+_TEST_EXTEND_PW = "Test-Extend-Pw"
 
 
 def _stamp(path: Path, when: datetime) -> None:
@@ -20,6 +23,13 @@ def _standalone(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv("VERCEL", raising=False)
     monkeypatch.delenv("ENVIRONMENT", raising=False)
     monkeypatch.setenv("APP_ENV", "local")
+
+
+def _gate_cli_password(monkeypatch, plain: str = _TEST_EXTEND_PW) -> str:
+    digest = hashlib.sha256(plain.encode("utf-8")).hexdigest()
+    monkeypatch.setenv("EB_EXTEND_TRIAL_PASSWORD_SHA256", digest)
+    monkeypatch.delenv("EB_EXTEND_TRIAL_PASSWORD", raising=False)
+    return plain
 
 
 def test_trial_does_not_apply_under_pytest_by_default(monkeypatch, tmp_path):
@@ -311,6 +321,59 @@ def test_extend_trial_grants_another_15_days(client, monkeypatch, tmp_path):
 
 def test_extend_trial_script_rewrites_clock(monkeypatch, tmp_path):
     _standalone(monkeypatch, tmp_path)
+    pw = _gate_cli_password(monkeypatch)
+    from services import standalone_trial as st
+    from scripts.extend_trial import main
+
+    started = datetime.now(timezone.utc) - timedelta(days=20)
+    _stamp(tmp_path / st.STAMP_NAME, started)
+    assert st.demo_trial_expired() is True
+    assert main(["--days", "15", "--password", pw]) == 0
+    assert st.demo_trial_expired() is False
+    info = st.trial_info()
+    assert info is not None
+    assert info["days_remaining"] == 15
+    assert info["expired"] is False
+
+
+def test_extend_trial_script_rejects_wrong_password(monkeypatch, tmp_path, capsys):
+    _standalone(monkeypatch, tmp_path)
+    _gate_cli_password(monkeypatch)
+    from services import standalone_trial as st
+    from scripts.extend_trial import main
+
+    started = datetime.now(timezone.utc) - timedelta(days=20)
+    _stamp(tmp_path / st.STAMP_NAME, started)
+    assert st.demo_trial_expired() is True
+    stamp_before = (tmp_path / st.STAMP_NAME).read_text(encoding="utf-8")
+
+    assert main(["--days", "15", "--password", "wrong-password"]) == 1
+    err = capsys.readouterr().err
+    assert "Incorrect password" in err
+    assert st.demo_trial_expired() is True
+    assert (tmp_path / st.STAMP_NAME).read_text(encoding="utf-8") == stamp_before
+
+
+def test_extend_trial_script_eof_prompt_does_not_extend(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    _gate_cli_password(monkeypatch)
+    from services import standalone_trial as st
+    from scripts.extend_trial import main
+
+    started = datetime.now(timezone.utc) - timedelta(days=20)
+    _stamp(tmp_path / st.STAMP_NAME, started)
+    def _eof(*_a, **_k):
+        raise EOFError
+
+    monkeypatch.setattr("scripts.extend_trial.getpass.getpass", _eof)
+    assert main(["--days", "15"]) == 1
+    assert st.demo_trial_expired() is True
+
+
+def test_extend_trial_script_accepts_env_password(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    pw = _gate_cli_password(monkeypatch)
+    monkeypatch.setenv("EB_EXTEND_TRIAL_PASSWORD", pw)
     from services import standalone_trial as st
     from scripts.extend_trial import main
 
@@ -319,7 +382,36 @@ def test_extend_trial_script_rewrites_clock(monkeypatch, tmp_path):
     assert st.demo_trial_expired() is True
     assert main(["--days", "15"]) == 0
     assert st.demo_trial_expired() is False
-    info = st.trial_info()
-    assert info is not None
-    assert info["days_remaining"] == 15
-    assert info["expired"] is False
+    assert "EB_EXTEND_TRIAL_PASSWORD" not in __import__("os").environ
+
+
+def test_extend_trial_password_matches_helper(monkeypatch):
+    pw = _gate_cli_password(monkeypatch)
+    from scripts.extend_trial import password_matches
+
+    assert password_matches(pw) is True
+    assert password_matches(pw.lower()) is False
+    assert password_matches("") is False
+    assert password_matches(pw + " ") is False
+
+
+def test_extend_trial_default_hash_is_stable():
+    from scripts.extend_trial import DEFAULT_PASSWORD_SHA256
+
+    assert DEFAULT_PASSWORD_SHA256 == (
+        "94e04d02221295eae8011341cdbb792dd1e1b05a3cd27f66839aa6b7f74b140c"
+    )
+
+
+def test_extend_trial_bat_is_password_gated():
+    """docs/Extend_Trial.bat must prompt and must not embed the password hash."""
+    from local_config import repo_root
+    from scripts.extend_trial import DEFAULT_PASSWORD_SHA256
+
+    bat = repo_root() / "docs" / "Extend_Trial.bat"
+    text = bat.read_text(encoding="utf-8")
+    assert DEFAULT_PASSWORD_SHA256 not in text
+    assert "EB_EXTEND_TRIAL_PASSWORD" in text
+    assert "Read-Host" in text
+    assert "scripts.extend_trial" in text
+    assert "AsSecureString" in text

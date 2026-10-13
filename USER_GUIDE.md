@@ -120,7 +120,7 @@ Easy-Books provides **9 pre-seeded demo tenants** for immediate exploration:
 
 The first install takes an extra ~20–30 seconds while the demo data loads; subsequent starts are fast. **Updating an existing install does not add demo data** — the database is migrated forward in place and your data is left untouched. To install without demo data (clean slate), set `SEED_DEMO=false` before running the installer or launching the desktop app.
 
-**Trial (standalone / desktop):** the install works for **15 days** from first launch. After that this copy is locked (login, signup, and API). The Easy-Books folder on the PC and your books in the data folder are **not deleted**. To open another 15-day window: stop the app, run `cd backend && PYTHONPATH=. uv run python -m scripts.extend_trial`, then start it again. Contact Easy-Books to license the install. `dev.sh` cloud/dev use is not limited.
+**Trial (standalone / desktop):** the install works for **15 days** from first launch. After that this copy is locked (login, signup, and API). The Easy-Books folder on the PC and your books in the data folder are **not deleted**. To open another 15-day window, stop the app and contact Easy-Books — on Windows the field tool is `docs\Extend_Trial.bat` (password required). Then start the app again. Contact Easy-Books to license the install. `dev.sh` cloud/dev use is not limited.
 
 The **Settings → Sample / Demo Data** card lets you **Load** or **Remove** the demo companies at any time, regardless of how the app was first installed. (Admin/owner only.)
 
