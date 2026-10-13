@@ -27,6 +27,7 @@ For one-shot dev (backend + frontend + demo seed together), use `./dev.sh` at th
 | `uv run pytest -k test_name` | Single test |
 | `PYTHONPATH=. uv run python -m scripts.seed_demo` | Seed all 8 demo tenants (one per business model, incl. PRA retail + hospital + yarn spinning) with 50+ records per entity: invoices, bills, payments, typed vouchers, 2 fiscal years of data, deferred-revenue origination, multiple users per tenant |
 | `PYTHONPATH=. uv run python -m scripts.autoseed_demo` | First-run demo loader — no-ops if any user exists or `SEED_DEMO=false` (used by installers) |
+| `PYTHONPATH=. uv run python -m scripts.extend_trial` | Restart the standalone trial clock for another 15 days (then restart the app) |
 | `uv run alembic upgrade head` | Apply pending migrations |
 | `uv run alembic heads` | Show current migration head |
 

@@ -260,3 +260,53 @@ def test_custom_trial_days(monkeypatch, tmp_path):
     assert st.demo_trial_expired() is True
     assert "2-day trial" in st.trial_expired_detail()
     assert "locked" in st.trial_expired_detail().lower()
+
+
+def test_extend_trial_grants_another_15_days(client, monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    from services import standalone_trial as st
+
+    r = client.post("/api/auth/signup", json={
+        "email": "owner.extend@co.test",
+        "password": "pw12345678",
+        "full_name": "Owner",
+        "company_name": "Extend Co",
+    })
+    assert r.status_code == 200, r.text
+    _stamp(tmp_path / st.STAMP_NAME, datetime.now(timezone.utc) - timedelta(days=20))
+    expired = tmp_path / st.EXPIRED_NAME
+    if expired.exists():
+        expired.unlink()
+    assert client.post(
+        "/api/auth/login",
+        data={"username": "owner.extend@co.test", "password": "pw12345678"},
+    ).status_code == 403
+
+    info = st.extend_trial(days=15)
+    assert info["expired"] is False
+    assert info["locked"] is False
+    assert info["days"] == 15
+    assert info["days_remaining"] == 15
+    assert not expired.is_file()
+
+    login = client.post(
+        "/api/auth/login",
+        data={"username": "owner.extend@co.test", "password": "pw12345678"},
+    )
+    assert login.status_code == 200, login.text
+
+
+def test_extend_trial_script_rewrites_clock(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    from services import standalone_trial as st
+    from scripts.extend_trial import main
+
+    started = datetime.now(timezone.utc) - timedelta(days=20)
+    _stamp(tmp_path / st.STAMP_NAME, started)
+    assert st.demo_trial_expired() is True
+    assert main(["--days", "15"]) == 0
+    assert st.demo_trial_expired() is False
+    info = st.trial_info()
+    assert info is not None
+    assert info["days_remaining"] == 15
+    assert info["expired"] is False
