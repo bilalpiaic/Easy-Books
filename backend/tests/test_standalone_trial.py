@@ -295,6 +295,19 @@ def test_extend_trial_grants_another_15_days(client, monkeypatch, tmp_path):
     )
     assert login.status_code == 200, login.text
 
+    signup = client.post("/api/auth/signup", json={
+        "email": "new.business@co.test",
+        "password": "pw12345678",
+        "full_name": "New Owner",
+        "company_name": "New Business Co",
+    })
+    assert signup.status_code == 200, signup.text
+    new_login = client.post(
+        "/api/auth/login",
+        data={"username": "new.business@co.test", "password": "pw12345678"},
+    )
+    assert new_login.status_code == 200, new_login.text
+
 
 def test_extend_trial_script_rewrites_clock(monkeypatch, tmp_path):
     _standalone(monkeypatch, tmp_path)
