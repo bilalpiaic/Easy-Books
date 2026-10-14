@@ -338,6 +338,37 @@ def test_extend_trial_script_rewrites_clock(monkeypatch, tmp_path):
     assert info["expired"] is False
 
 
+def test_extend_trial_charges_easy_books_not_backend(monkeypatch, tmp_path):
+    """The patch must land in ~/.easy-books (books), never backend/."""
+    home = tmp_path / "home"
+    books = home / ".easy-books"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.delenv("EB_DATA_DIR", raising=False)
+    monkeypatch.delenv("EB_PORTABLE", raising=False)
+    monkeypatch.delenv("EB_CLOUD_DATA_DIR", raising=False)
+    monkeypatch.setenv("EB_STANDALONE", "true")
+    monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.delenv("EB_SKIP_DEMO_TRIAL", raising=False)
+
+    from local_config import repo_root
+    from services import standalone_trial as st
+
+    assert st.books_data_dir() == books
+    expired = books / st.EXPIRED_NAME
+    books.mkdir(parents=True)
+    expired.write_text("stale\n", encoding="utf-8")
+    _stamp(books / st.STAMP_NAME, datetime.now(timezone.utc) - timedelta(days=20))
+
+    info = st.extend_trial(days=15)
+    assert info["expired"] is False
+    assert os.environ.get("EB_DATA_DIR") == str(books)
+    assert st.stamp_path().parent.resolve() == books.resolve()
+    assert (books / st.STAMP_NAME).is_file()
+    assert not expired.is_file()
+    assert st.stamp_path().parent.resolve() != (repo_root() / "backend").resolve()
+
+
 def test_extend_trial_script_uses_home_data_dir_not_backend(monkeypatch, tmp_path, capsys):
     """install-and-run uses ~/.easy-books; extending backend/ leaves the copy locked."""
     home = tmp_path / "home"

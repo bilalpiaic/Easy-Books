@@ -37,7 +37,6 @@ import hashlib
 import hmac
 import os
 import sys
-from pathlib import Path
 
 # SHA-256 of the field password. Not the password itself. Override the
 # expected digest with EB_EXTEND_TRIAL_PASSWORD_SHA256 if needed.
@@ -57,22 +56,10 @@ def password_matches(plain: str) -> bool:
 
 
 def resolve_standalone_data_dir() -> Path:
-    """Same data dir ``install-and-run.sh`` / ``.ps1`` use for the running copy.
+    """Books data dir the trial clock is charged against (not ``backend/``)."""
+    from services.standalone_trial import books_data_dir
 
-    ``local_config.data_dir()`` defaults to ``backend/`` when ``EB_DATA_DIR`` is
-    unset (dev). The installer sets ``~/.easy-books``. Extending the backend
-    folder leaves ``~/.easy-books/.demo-trial-expired`` in place, so the app
-    stays locked after a "successful" extend.
-    """
-    raw = (os.environ.get("EB_DATA_DIR") or "").strip()
-    if raw:
-        return Path(raw)
-    from local_config import is_portable, repo_root
-
-    if is_portable():
-        cloud = (os.environ.get("EB_CLOUD_DATA_DIR") or "").strip()
-        return Path(cloud) if cloud else repo_root() / "data"
-    return Path.home() / ".easy-books"
+    return books_data_dir()
 
 
 def _resolve_password(explicit: str | None) -> str | None:

@@ -5,11 +5,13 @@ signup, and every API except health/version/trial status. The source folder
 and ``EB_DATA_DIR`` books are **not** deleted so a licensed unlock can resume
 the same data.
 
-The clock is write-once in the data dir (``.demo-trial-started``) and, outside
-pytest, also in the install checkout (``.easy-books-trial``) so this folder
-stays bound to the original start date. SQLite ``tenant.created_at`` backfills
-if stamps are missing. Once expiry is observed, expired markers stay set even
-if the system clock is wound back.
+The clock is write-once in the **books data dir** (``.demo-trial-started`` under
+``EB_DATA_DIR``, else portable ``<repo>/data``, else ``~/.easy-books`` — never
+the ``backend/`` package folder) and, outside pytest, also in the install
+checkout (``.easy-books-trial``) so this folder stays bound to the original
+start date. SQLite ``tenant.created_at`` backfills if stamps are missing.
+Once expiry is observed, expired markers stay set even if the system clock
+is wound back.
 
 Does **not** apply to:
 - ``dev.sh`` / pytest (``APP_ENV`` is not ``local``, ``EB_STANDALONE`` unset)
@@ -79,10 +81,25 @@ def demo_trial_applies() -> bool:
     return (os.environ.get("APP_ENV") or "").strip().lower() == "local"
 
 
-def _data_dir() -> Path:
-    from local_config import data_dir
+def books_data_dir() -> Path:
+    """Where standalone books and trial stamps live (same as install-and-run).
 
-    return data_dir()
+    ``EB_DATA_DIR`` if set, else portable ``<repo>/data``, else ``~/.easy-books``.
+    Not ``backend/`` — that is only ``local_config.data_dir()``'s dev default.
+    """
+    raw = (os.environ.get("EB_DATA_DIR") or "").strip()
+    if raw:
+        return Path(raw).expanduser()
+    from local_config import is_portable, repo_root
+
+    if is_portable():
+        cloud = (os.environ.get("EB_CLOUD_DATA_DIR") or "").strip()
+        return Path(cloud).expanduser() if cloud else repo_root() / "data"
+    return Path.home() / ".easy-books"
+
+
+def _data_dir() -> Path:
+    return books_data_dir()
 
 
 def stamp_path() -> Path:
@@ -281,11 +298,13 @@ def extend_trial(*, days: int | None = None) -> dict[str, Any]:
     """Start a new trial window from now.
 
     ``days`` defaults to ``EB_DEMO_TRIAL_DAYS`` (15). Clears expired markers
-    and rewrites start stamps. Books and the source folder are not touched.
+    and rewrites start stamps in the **books data dir** (``~/.easy-books`` on
+    a normal standalone install). Books and the source folder are not touched.
     Restart the app afterwards so the running process sees the new clock.
     """
     extra = trial_days() if days is None else max(1, int(days))
     os.environ["EB_DEMO_TRIAL_DAYS"] = str(extra)
+    os.environ["EB_DATA_DIR"] = str(books_data_dir())
     started = _now()
     line = _format_dt(started) + "\n"
     _unlink_quiet(expired_marker_path())
