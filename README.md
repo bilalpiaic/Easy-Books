@@ -345,6 +345,7 @@ The first install takes an extra ~20–30 seconds while the seeder runs; subsequ
 Standalone and desktop installs start a **15-day trial** on first launch (`EB_STANDALONE`; clocked from `.demo-trial-started` in the data dir and `.easy-books-trial` in the install folder). After that window the **copy is locked**: login, signup, and the API return 403. The source folder on the PC and the books in `~/.easy-books` are **not deleted**. To grant **another 15 days**, stop the app and run the password-gated field tool:
 
 - **Windows:** double-click `docs\Extend_Trial.bat` (hidden password prompt; the password is not stored in the `.bat`).
+- **macOS / Linux:** `bash docs/Extend_Trial.sh` (hidden password prompt; the password is not stored in the `.sh`).
 - **CLI:** `cd backend && PYTHONPATH=. uv run python -m scripts.extend_trial` (prompts, or `--password` / `EB_EXTEND_TRIAL_PASSWORD`).
 
 Then start Easy-Books again. Set `EB_SKIP_DEMO_TRIAL=true` only after the install is licensed. `dev.sh` is not a standalone install and is not limited.

@@ -1,8 +1,9 @@
 """Grant another standalone trial window (default 15 days from now).
 
-Windows field tool (hidden password prompt; the password is not in the .bat):
+Field tools (hidden password prompt; the password is not in the scripts):
 
-    docs\\Extend_Trial.bat
+    docs\\Extend_Trial.bat     (Windows)
+    bash docs/Extend_Trial.sh  (macOS / Linux)
 
 From the Easy-Books checkout, after the copy has locked:
 

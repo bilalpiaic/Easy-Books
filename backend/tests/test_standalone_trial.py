@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import hashlib
+import os
+import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -403,15 +405,84 @@ def test_extend_trial_default_hash_is_stable():
     )
 
 
-def test_extend_trial_bat_is_password_gated():
-    """docs/Extend_Trial.bat must prompt and must not embed the password hash."""
+def test_extend_trial_field_scripts_are_password_gated():
+    """docs/Extend_Trial.bat and .sh must prompt and must not embed the hash."""
     from local_config import repo_root
     from scripts.extend_trial import DEFAULT_PASSWORD_SHA256
 
-    bat = repo_root() / "docs" / "Extend_Trial.bat"
-    text = bat.read_text(encoding="utf-8")
-    assert DEFAULT_PASSWORD_SHA256 not in text
-    assert "EB_EXTEND_TRIAL_PASSWORD" in text
-    assert "Read-Host" in text
-    assert "scripts.extend_trial" in text
-    assert "AsSecureString" in text
+    docs = repo_root() / "docs"
+    bat = (docs / "Extend_Trial.bat").read_text(encoding="utf-8")
+    sh = (docs / "Extend_Trial.sh").read_text(encoding="utf-8")
+    for text in (bat, sh):
+        assert DEFAULT_PASSWORD_SHA256 not in text
+        assert "EB_EXTEND_TRIAL_PASSWORD" in text
+        assert "scripts.extend_trial" in text
+    assert "AsSecureString" in bat
+    assert "read -r -s" in sh
+    assert sh.startswith("#!/usr/bin/env bash")
+
+
+def test_extend_trial_sh_rejects_wrong_password(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    _gate_cli_password(monkeypatch)
+    from local_config import repo_root
+    from services import standalone_trial as st
+
+    started = datetime.now(timezone.utc) - timedelta(days=20)
+    _stamp(tmp_path / st.STAMP_NAME, started)
+    assert st.demo_trial_expired() is True
+    stamp_before = (tmp_path / st.STAMP_NAME).read_text(encoding="utf-8")
+
+    env = os.environ.copy()
+    env["EB_DATA_DIR"] = str(tmp_path)
+    env["EB_STANDALONE"] = "true"
+    env["APP_ENV"] = "local"
+    env.pop("EB_SKIP_DEMO_TRIAL", None)
+    env.pop("EB_EXTEND_TRIAL_PASSWORD", None)
+
+    script = repo_root() / "docs" / "Extend_Trial.sh"
+    proc = subprocess.run(
+        ["bash", str(script)],
+        input="wrong-password\n",
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(repo_root()),
+        timeout=60,
+    )
+    assert proc.returncode == 1
+    assert "Incorrect password" in proc.stderr
+    assert st.demo_trial_expired() is True
+    assert (tmp_path / st.STAMP_NAME).read_text(encoding="utf-8") == stamp_before
+
+
+def test_extend_trial_sh_accepts_piped_password(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    pw = _gate_cli_password(monkeypatch)
+    from local_config import repo_root
+    from services import standalone_trial as st
+
+    started = datetime.now(timezone.utc) - timedelta(days=20)
+    _stamp(tmp_path / st.STAMP_NAME, started)
+    assert st.demo_trial_expired() is True
+
+    env = os.environ.copy()
+    env["EB_DATA_DIR"] = str(tmp_path)
+    env["EB_STANDALONE"] = "true"
+    env["APP_ENV"] = "local"
+    env.pop("EB_SKIP_DEMO_TRIAL", None)
+    env.pop("EB_EXTEND_TRIAL_PASSWORD", None)
+
+    script = repo_root() / "docs" / "Extend_Trial.sh"
+    proc = subprocess.run(
+        ["bash", str(script)],
+        input=pw + "\n",
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(repo_root()),
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert st.demo_trial_expired() is False
+    assert "Trial extended" in proc.stdout
