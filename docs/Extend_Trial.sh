@@ -40,6 +40,15 @@ fi
 
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
+# Same data dir as install-and-run.sh. Without this, Python defaults to
+# backend/ and the running copy (which uses ~/.easy-books) stays locked.
+ROOT="$REPO_ROOT"
+if [ -f "$ROOT/portable/apply-env.sh" ]; then
+  # shellcheck disable=SC1091
+  . "$ROOT/portable/apply-env.sh"
+fi
+export EB_DATA_DIR="${EB_DATA_DIR:-$HOME/.easy-books}"
+
 echo "Enter the extend-trial password:"
 if [ -t 0 ]; then
   # Hidden prompt on a real terminal (same idea as the Windows .bat).

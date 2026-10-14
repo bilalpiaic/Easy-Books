@@ -26,7 +26,8 @@ export the same value before launch:
 
     export EB_DEMO_TRIAL_DAYS=15
 
-Data dir defaults to ``$EB_DATA_DIR`` or ``~/.easy-books``.
+Data dir matches ``install-and-run``: ``$EB_DATA_DIR``, else portable
+``<repo>/data``, else ``~/.easy-books`` (not the ``backend/`` folder).
 """
 from __future__ import annotations
 
@@ -36,6 +37,7 @@ import hashlib
 import hmac
 import os
 import sys
+from pathlib import Path
 
 # SHA-256 of the field password. Not the password itself. Override the
 # expected digest with EB_EXTEND_TRIAL_PASSWORD_SHA256 if needed.
@@ -52,6 +54,25 @@ def expected_password_sha256() -> str:
 def password_matches(plain: str) -> bool:
     digest = hashlib.sha256(plain.encode("utf-8")).hexdigest()
     return hmac.compare_digest(digest, expected_password_sha256())
+
+
+def resolve_standalone_data_dir() -> Path:
+    """Same data dir ``install-and-run.sh`` / ``.ps1`` use for the running copy.
+
+    ``local_config.data_dir()`` defaults to ``backend/`` when ``EB_DATA_DIR`` is
+    unset (dev). The installer sets ``~/.easy-books``. Extending the backend
+    folder leaves ``~/.easy-books/.demo-trial-expired`` in place, so the app
+    stays locked after a "successful" extend.
+    """
+    raw = (os.environ.get("EB_DATA_DIR") or "").strip()
+    if raw:
+        return Path(raw)
+    from local_config import is_portable, repo_root
+
+    if is_portable():
+        cloud = (os.environ.get("EB_CLOUD_DATA_DIR") or "").strip()
+        return Path(cloud) if cloud else repo_root() / "data"
+    return Path.home() / ".easy-books"
 
 
 def _resolve_password(explicit: str | None) -> str | None:
@@ -91,16 +112,25 @@ def main(argv: list[str] | None = None) -> int:
     os.environ.setdefault("EB_STANDALONE", "true")
     os.environ.setdefault("APP_ENV", "local")
     os.environ.pop("EB_SKIP_DEMO_TRIAL", None)
+    os.environ["EB_DATA_DIR"] = str(resolve_standalone_data_dir())
 
-    from local_config import data_dir
-    from services.standalone_trial import extend_trial, stamp_path, expired_marker_path
+    from local_config import data_dir, repo_root
+    from services.standalone_trial import (
+        INSTALL_EXPIRED_NAME,
+        INSTALL_STAMP_NAME,
+        expired_marker_path,
+        extend_trial,
+        stamp_path,
+    )
 
     info = extend_trial(days=args.days)
     print(f"Trial extended {info.get('days')} days from {info.get('started_at')}.", flush=True)
-    print(f"  New end:     {info.get('ends_at')}", flush=True)
-    print(f"  Data stamp:  {stamp_path()}", flush=True)
-    print(f"  Data dir:    {data_dir()}", flush=True)
-    print(f"  Expired at:  {expired_marker_path()} (removed)", flush=True)
+    print(f"  New end:       {info.get('ends_at')}", flush=True)
+    print(f"  Data stamp:    {stamp_path()}", flush=True)
+    print(f"  Data dir:      {data_dir()}", flush=True)
+    print(f"  Expired at:    {expired_marker_path()} (removed)", flush=True)
+    print(f"  Folder stamp:  {repo_root() / INSTALL_STAMP_NAME}", flush=True)
+    print(f"  Folder latch:  {repo_root() / INSTALL_EXPIRED_NAME} (removed)", flush=True)
     print("Restart Easy-Books for the new window to take effect.", flush=True)
     if args.days is not None:
         print(
