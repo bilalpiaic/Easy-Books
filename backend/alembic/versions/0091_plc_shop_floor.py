@@ -1,7 +1,7 @@
 """PLC shop-floor device registry + mill event log.
 
-Revision ID: 0090_plc_shop_floor
-Revises: 0089_pra_di_v112
+Revision ID: 0091_plc_shop_floor
+Revises: 0090_wb_doc_link
 """
 from typing import Sequence, Union
 
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import inspect
 
-revision: str = "0090_plc_shop_floor"
-down_revision: Union[str, Sequence[str], None] = "0089_pra_di_v112"
+revision: str = "0091_plc_shop_floor"
+down_revision: Union[str, Sequence[str], None] = "0090_wb_doc_link"
 branch_labels = None
 depends_on = None
 

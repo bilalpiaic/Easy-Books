@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
+import WeighbridgeAttach, { type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 
 type Note = {
   id: number; number: string; date: string; issued_mtr: number
@@ -18,6 +19,7 @@ export default function RejectionPage() {
   const [ogps, setOgps] = useState<Ogp[]>([])
   const [err, setErr] = useState("")
   const [form, setForm] = useState({ rejection_issue_note_id: "", date: today(), qty_mtr: "", vehicle: "", challan: "" })
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
 
   function load() {
     apiFetch<Note[]>("/api/textile-processing/rejection-notes").then(d => setNotes(Array.isArray(d) ? d : [])).catch(() => setNotes([]))
@@ -36,9 +38,11 @@ export default function RejectionPage() {
           qty_mtr: parseFloat(form.qty_mtr) || 0,
           vehicle: form.vehicle || null,
           challan: form.challan || null,
+          wb_ticket_id: wbTicketId,
         }),
       })
       setForm({ rejection_issue_note_id: "", date: today(), qty_mtr: "", vehicle: "", challan: "" })
+      setWbTicketId(null)
       load()
     } catch (ex: unknown) { setErr(ex instanceof Error ? ex.message : "Failed") }
   }
@@ -51,6 +55,23 @@ export default function RejectionPage() {
       {err && <p className="text-sm text-red-600">{err}</p>}
 
       <form onSubmit={createOgp} className="grid grid-cols-2 md:grid-cols-5 gap-2 border border-[var(--border)] rounded-xl p-3 print:hidden">
+        <div className="col-span-2 md:col-span-5">
+          <WeighbridgeAttach
+            compact
+            direction="outbound"
+            value={wbTicketId}
+            onChange={(t: WbTicketSnap | null) => {
+              setWbTicketId(t?.id ?? null)
+              if (!t) return
+              setForm(f => ({
+                ...f,
+                vehicle: t.vehicle_no || f.vehicle,
+                challan: f.challan || t.number,
+                date: t.ticket_date || f.date,
+              }))
+            }}
+          />
+        </div>
         <select className={input} value={form.rejection_issue_note_id} onChange={e => setForm({ ...form, rejection_issue_note_id: e.target.value })} required>
           <option value="">Rejection note…</option>
           {notes.filter(n => n.balance_mtr > 0).map(n => (

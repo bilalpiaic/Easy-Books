@@ -59,3 +59,27 @@ class WbTicket(SQLModel, table=True):
     plc_event_id: Optional[int] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by_id: Optional[int] = None
+
+
+class WbDocLink(SQLModel, table=True):
+    """Many-to-many: one ticket may back several stock documents (GI + grey in).
+
+    Stock forms (gate in/out, grey in, invoice, OGP, …) attach a completed
+    weighbridge ticket instead of growing N FK columns on wb_ticket.
+    """
+
+    __tablename__ = "wb_doc_link"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "ticket_id", "doc_type", "doc_id",
+            name="uq_wb_doc_link",
+        ),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    ticket_id: int = Field(index=True)
+    doc_type: str = Field(index=True)
+    doc_id: int = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by_id: Optional[int] = None

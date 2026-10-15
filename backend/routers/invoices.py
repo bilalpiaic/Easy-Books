@@ -38,6 +38,7 @@ from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_accoun
 from services.permissions import perm_dep, apply_own_filter
 from services.custom_fields import apply_incoming as apply_custom_fields
 from services.form_schema import apply_to_model, skip_custom_required
+from services.weighbridge_docs import attach_if_any, merge_ticket_custom_fields
 from services.pra import get_pra_config, submit_to_pra
 import db as _db_module
 from sqlmodel import Session as _Session
@@ -149,6 +150,7 @@ class InvoiceCreate(BaseModel):
     is_intercompany: bool = False
     ic_counterparty_tenant_id: Optional[int] = None
     custom_fields: Optional[dict] = None
+    wb_ticket_id: Optional[int] = None
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -459,7 +461,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
             body.ic_counterparty_tenant_id if body.is_intercompany else None
         ),
         custom_fields=apply_custom_fields(
-            session, user.tenant_id, "invoice", body.custom_fields,
+            session, user.tenant_id, "invoice",
+            merge_ticket_custom_fields(session, user, body.wb_ticket_id, body.custom_fields),
             skip_required=skip_custom_required(_schema_hidden),
         ),
     )
@@ -703,6 +706,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
             create_ic_mirror_bill_from_invoice(session, user, invoice)
         except IntercompanyError as e:
             raise HTTPException(e.status_code, e.message) from e
+
+    attach_if_any(session, user, body.wb_ticket_id, "invoice", invoice.id, stamp_row=invoice)
 
     session.commit()
     session.refresh(invoice)

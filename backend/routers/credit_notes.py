@@ -18,6 +18,7 @@ from services.inventory import reverse_consumption
 from services.money import D, ONE, ZERO, money
 from services.posting import EntryInput, post_transaction
 from services.permissions import perm_dep, apply_own_filter
+from services.weighbridge_docs import attach_if_any
 
 router = APIRouter(prefix="/api/credit-notes", tags=["credit-notes"], dependencies=[perm_dep("credit_notes")])
 
@@ -45,6 +46,7 @@ class CNCreate(BaseModel):
     exchange_rate: Optional[Decimal] = None
     gst_amount: Decimal = Decimal("0")   # GST-output to reverse (sales return)
     restock: bool = True                 # restock stock-product lines (sales return)
+    wb_ticket_id: Optional[int] = None
 
 
 @router.get("")
@@ -243,6 +245,7 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
             )
 
     log_audit(session, user, "CREATE", "credit_note", cn.id, {"number": number})
+    attach_if_any(session, user, body.wb_ticket_id, "credit_note", cn.id)
     session.commit()
     session.refresh(cn)
     return cn

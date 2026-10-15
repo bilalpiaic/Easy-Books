@@ -10,6 +10,7 @@ import { useFmt } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import StatusBadge from "@/components/StatusBadge"
 import PrintButton from "@/components/PrintButton"
+import { WeighbridgeLinked } from "@/components/weighbridge/WeighbridgeAttach"
 
 type GILine = {
   id: number; po_line_id: number; product_id?: number; qty_received: number
@@ -92,6 +93,8 @@ export default function GateInwardDetailPage() {
           {error}
         </div>
       )}
+
+      <WeighbridgeLinked docType="gate_inward" docId={gi.id} />
 
       {/* Header fields */}
       <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">

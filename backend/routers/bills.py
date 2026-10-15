@@ -22,6 +22,7 @@ from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_accoun
 from services.permissions import perm_dep, apply_own_filter
 from services.custom_fields import apply_incoming as apply_custom_fields
 from services.form_schema import apply_to_model, skip_custom_required
+from services.weighbridge_docs import attach_if_any, merge_ticket_custom_fields
 router = APIRouter(tags=["bills"], dependencies=[perm_dep("bills")])
 
 
@@ -58,6 +59,7 @@ class BillCreate(BaseModel):
     is_intercompany: bool = False
     ic_counterparty_tenant_id: Optional[int] = None
     custom_fields: Optional[dict] = None
+    wb_ticket_id: Optional[int] = None
 
 
 def _next_bill_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -367,7 +369,8 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate, mirro
             body.ic_counterparty_tenant_id if body.is_intercompany else None
         ),
         custom_fields=apply_custom_fields(
-            session, user.tenant_id, "bill", body.custom_fields,
+            session, user.tenant_id, "bill",
+            merge_ticket_custom_fields(session, user, body.wb_ticket_id, body.custom_fields),
             skip_required=skip_custom_required(_schema_hidden),
         ),
     )
@@ -488,6 +491,8 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate, mirro
             create_ic_mirror_invoice_from_bill(session, user, bill)
         except IntercompanyError as e:
             raise HTTPException(e.status_code, e.message) from e
+
+    attach_if_any(session, user, body.wb_ticket_id, "bill", bill.id, stamp_row=bill)
 
     session.commit()
     session.refresh(bill)

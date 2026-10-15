@@ -11,6 +11,7 @@ import { getCurrentUser } from "@/lib/auth"
 import PrintHeader from "@/components/PrintHeader"
 import StatusBadge from "@/components/StatusBadge"
 import PrintButton from "@/components/PrintButton"
+import { WeighbridgeLinked } from "@/components/weighbridge/WeighbridgeAttach"
 
 type GOLine = { id: number; product_id: number; qty: number; unit_cost: number; unit_value: number }
 
@@ -132,6 +133,8 @@ export default function GateOutwardDetailPage() {
           <ArrowLeft className="w-4 h-4" /> All Gate Outward
         </Link>
       </div>
+
+      <WeighbridgeLinked docType="gate_outward" docId={go.id} />
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-900 rounded-xl px-4 py-3 text-sm flex items-start gap-2 print:hidden">

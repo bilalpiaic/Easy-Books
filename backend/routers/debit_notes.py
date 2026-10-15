@@ -23,6 +23,7 @@ from services.inventory import InventoryError, return_to_vendor
 from services.money import D, ONE, ZERO, money
 from services.posting import EntryInput, post_transaction
 from services.permissions import perm_dep, apply_own_filter
+from services.weighbridge_docs import attach_if_any
 
 router = APIRouter(prefix="/api/debit-notes", tags=["debit-notes"], dependencies=[perm_dep("debit_notes")])
 
@@ -48,6 +49,7 @@ class DNCreate(BaseModel):
     # None → inherit from linked bill, else tenant base @ 1 (#300)
     currency: Optional[str] = None
     exchange_rate: Optional[Decimal] = None
+    wb_ticket_id: Optional[int] = None
 
 
 @router.get("")
@@ -197,6 +199,7 @@ def create_debit_note(session: SessionDep, user: WriteUserDep, body: DNCreate):
     dn.status = "posted"
     session.add(dn)
     log_audit(session, user, "CREATE", "debit_note", dn.id, {"number": number})
+    attach_if_any(session, user, body.wb_ticket_id, "debit_note", dn.id)
     session.commit()
     session.refresh(dn)
     return dn
