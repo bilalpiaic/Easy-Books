@@ -950,7 +950,7 @@ def create_lot(user: WriteUserDep, session: SessionDep, body: GreyLotIn):
             if not custodial.is_memo:
                 custodial.is_memo = True
                 session.add(custodial)
-                if not liability.is_memo:
+            if not liability.is_memo:
                 liability.is_memo = True
                 session.add(liability)
 
