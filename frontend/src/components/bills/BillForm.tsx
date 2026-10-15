@@ -272,6 +272,25 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
           </div>
           )}
         </div>
+        {mode === 'create' && (
+          <WeighbridgeAttach
+            direction="inbound"
+            value={wbTicketId}
+            onChange={(t: WbTicketSnap | null) => {
+              setWbTicketId(t?.id ?? null)
+              if (!t) return
+              setCustomFields(cf => ({
+                ...cf,
+                'x.gate_pass_no': t.number,
+                ...(t.lot_ref ? { 'x.lot_ref': t.lot_ref } : {}),
+              }))
+              if (t.party_type === 'vendor' && t.party_id) {
+                const v = vendors.find(x => x.id === t.party_id)
+                if (v) setForm(p => ({ ...p, vendor_id: String(v.id), vendor_name: v.name }))
+              }
+            }}
+          />
+        )}
         {vis('is_intercompany') && icCounterparties.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-page)] border border-[var(--border)]">
             <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
@@ -432,26 +451,6 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
           </div>
           )}
         </div>
-        )}
-
-        {mode === 'create' && (
-          <WeighbridgeAttach
-            direction="inbound"
-            value={wbTicketId}
-            onChange={(t: WbTicketSnap | null) => {
-              setWbTicketId(t?.id ?? null)
-              if (!t) return
-              setCustomFields(cf => ({
-                ...cf,
-                'x.gate_pass_no': t.number,
-                ...(t.lot_ref ? { 'x.lot_ref': t.lot_ref } : {}),
-              }))
-              if (t.party_type === 'vendor' && t.party_id) {
-                const v = vendors.find(x => x.id === t.party_id)
-                if (v) setForm(p => ({ ...p, vendor_id: String(v.id), vendor_name: v.name }))
-              }
-            }}
-          />
         )}
 
         <CustomFieldsInputs entity="bill" values={customFields} onChange={setCustomFields} schemaFields={schemaFields} fieldAccess={fieldAccess} />
