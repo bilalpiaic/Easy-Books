@@ -20,6 +20,7 @@ from services.inventory import consume_stock
 from services.money import D, money
 from services.permissions import perm_dep, apply_own_filter
 from services.posting import EntryInput, post_transaction
+from services.weighbridge_docs import attach_if_any
 
 router = APIRouter(
     prefix="/api/gate-outwards", tags=["gate-outwards"],
@@ -43,6 +44,7 @@ class GOIn(BaseModel):
     challan_no: Optional[str] = None
     remarks: Optional[str] = None
     lines: List[GOLineIn] = []
+    wb_ticket_id: Optional[int] = None
 
 
 class GOCancel(BaseModel):
@@ -156,6 +158,7 @@ def create_go(session: SessionDep, user: WriteUserDep, body: GOIn):
             gate_outward_id=go.id, product_id=l.product_id, qty=D(l.qty),
             unit_cost=D(l.unit_cost), unit_value=D(l.unit_value),
         ))
+    attach_if_any(session, user, body.wb_ticket_id, "gate_outward", go.id)
     log_audit(session, user, "CREATE", "gate_outward", go.id, {"number": number})
     session.commit()
     return _serialize(session, go)

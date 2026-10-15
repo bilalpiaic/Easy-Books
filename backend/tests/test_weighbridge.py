@@ -359,3 +359,165 @@ def test_plan_allows_weighbridge_on_pro_and_starter():
     assert not plan_allows(free, "weighbridge")
     ent = Tenant(name="e", plan="enterprise")
     assert plan_allows(ent, "weighbridge")
+
+
+def test_weighbridge_docs_does_not_touch_posting():
+    src = Path(__file__).resolve().parents[1] / "services" / "weighbridge_docs.py"
+    text = src.read_text()
+    assert "from services.posting" not in text
+    assert "post_transaction" not in text
+
+
+def test_wb_stock_forms_cover_truck_scale_docs():
+    from services.weighbridge_docs import WB_STOCK_FORMS
+    inbound = {k for k, v in WB_STOCK_FORMS.items() if v.direction == "inbound"}
+    outbound = {k for k, v in WB_STOCK_FORMS.items() if v.direction == "outbound"}
+    assert inbound == {
+        "gate_inward", "grey_lot", "bill", "sp_bale_receipt", "wv_yarn_inward",
+    }
+    assert outbound == {
+        "gate_outward", "invoice", "rejection_ogp", "tp_dispatch",
+        "wv_dispatch", "sp_yarn_dispatch",
+    }
+
+
+def test_pickable_requires_module_and_filters_direction(client):
+    auth = _signup(client, "wb-pick@test.com")
+    blocked = client.get("/api/weighbridge/pickable?direction=inbound", headers=auth)
+    assert blocked.status_code == 403
+    _install(client, auth, "weighbridge")
+    inbound = client.post("/api/weighbridge/tickets", headers=auth, json={
+        "direction": "inbound", "vehicle_no": "IN-1",
+        "gross_kg": 400, "tare_kg": 40,
+    })
+    outbound = client.post("/api/weighbridge/tickets", headers=auth, json={
+        "direction": "outbound", "vehicle_no": "OUT-1",
+        "gross_kg": 300, "tare_kg": 30,
+    })
+    draft = client.post("/api/weighbridge/tickets", headers=auth, json={
+        "direction": "inbound", "vehicle_no": "DRAFT-1",
+    })
+    assert inbound.status_code == 201, inbound.text
+    assert outbound.status_code == 201, outbound.text
+    assert draft.json()["status"] == "draft"
+
+    inn = client.get("/api/weighbridge/pickable?direction=inbound", headers=auth)
+    assert inn.status_code == 200, inn.text
+    inn_ids = {r["id"] for r in inn.json()["items"]}
+    assert inbound.json()["id"] in inn_ids
+    assert outbound.json()["id"] not in inn_ids
+    assert draft.json()["id"] not in inn_ids
+    assert "gate_inward" in inn.json()["forms"]
+
+    out = client.get("/api/weighbridge/pickable?direction=outbound", headers=auth)
+    out_ids = {r["id"] for r in out.json()["items"]}
+    assert outbound.json()["id"] in out_ids
+    assert inbound.json()["id"] not in out_ids
+
+
+def test_gate_inward_attaches_inbound_ticket(client):
+    auth = _signup(client, "wb-gi@test.com", model="manufacturing")
+    ticket = client.post("/api/weighbridge/tickets", headers=auth, json={
+        "direction": "inbound", "vehicle_no": "LEA-99",
+        "lot_ref": "LOT-GI", "gross_kg": 1100, "tare_kg": 100,
+    })
+    assert ticket.status_code == 201, ticket.text
+    tid = ticket.json()["id"]
+
+    client.patch("/api/settings", headers=auth, json={"require_purchase_chain": "false"})
+    po = client.post("/api/purchase-orders", headers=auth, json={
+        "order_date": "2026-10-01", "vendor_name": "Cotton Co",
+        "lines": [{"description": "Bales", "qty": 10, "rate": 5}],
+    })
+    assert po.status_code == 201, po.text
+    client.patch(f"/api/purchase-orders/{po.json()['id']}/approve", headers=auth)
+    po = client.get(f"/api/purchase-orders/{po.json()['id']}", headers=auth).json()
+    line_id = po["lines"][0]["id"]
+
+    gi = client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-10-01",
+        "vehicle_no": "LEA-99", "challan_no": ticket.json()["number"],
+        "lines": [{"po_line_id": line_id, "qty_received": 10}],
+        "wb_ticket_id": tid,
+    })
+    assert gi.status_code == 201, gi.text
+    links = client.get(
+        f"/api/weighbridge/links?doc_type=gate_inward&doc_id={gi.json()['id']}",
+        headers=auth,
+    )
+    assert links.status_code == 200, links.text
+    assert links.json()["items"][0]["id"] == tid
+    fetched = client.get(f"/api/weighbridge/tickets/{tid}", headers=auth).json()
+    assert fetched["gate_inward_id"] == gi.json()["id"]
+    assert fetched["po_id"] == po["id"]
+
+
+def test_invoice_attaches_outbound_ticket_and_stamps_gate_pass(client):
+    auth = _signup(client, "wb-inv-attach@test.com")
+    _install(client, auth, "weighbridge")
+    cust = client.post("/api/customers", headers=auth, json={"name": "Buyer"}).json()
+    ticket = client.post("/api/weighbridge/tickets", headers=auth, json={
+        "direction": "outbound", "vehicle_no": "OUT-INV",
+        "lot_ref": "LOT-SALE", "gross_kg": 250, "tare_kg": 25,
+    })
+    assert ticket.status_code == 201, ticket.text
+    tid = ticket.json()["id"]
+    number = ticket.json()["number"]
+
+    inv = client.post("/api/invoices", headers=auth, json={
+        "customer_id": cust["id"], "issue_date": "2026-10-01", "due_date": "2026-10-30",
+        "gst_rate": 0,
+        "lines": [{"description": "Yarn", "qty": 1, "rate": 10}],
+        "wb_ticket_id": tid,
+    })
+    assert inv.status_code == 201, inv.text
+    cf = inv.json().get("custom_fields") or {}
+    assert cf.get("x.gate_pass_no") == number
+    assert cf.get("x.lot_ref") == "LOT-SALE"
+    links = client.get(
+        f"/api/weighbridge/links?doc_type=invoice&doc_id={inv.json()['id']}",
+        headers=auth,
+    )
+    assert links.json()["items"][0]["id"] == tid
+
+    inbound = client.post("/api/weighbridge/tickets", headers=auth, json={
+        "direction": "inbound", "vehicle_no": "WRONG-WAY",
+        "gross_kg": 100, "tare_kg": 10,
+    })
+    bad = client.post("/api/invoices", headers=auth, json={
+        "customer_id": cust["id"], "issue_date": "2026-10-02", "due_date": "2026-10-30",
+        "gst_rate": 0,
+        "lines": [{"description": "Yarn", "qty": 1, "rate": 10}],
+        "wb_ticket_id": inbound.json()["id"],
+    })
+    assert bad.status_code == 400
+    assert "outbound" in bad.json()["detail"]
+
+
+def test_attach_endpoint_idempotent(client):
+    auth = _signup(client, "wb-attach-ep@test.com")
+    _install(client, auth, "weighbridge")
+    cust = client.post("/api/customers", headers=auth, json={"name": "Buyer"}).json()
+    inv = client.post("/api/invoices", headers=auth, json={
+        "customer_id": cust["id"], "issue_date": "2026-10-01", "due_date": "2026-10-30",
+        "gst_rate": 0,
+        "lines": [{"description": "Yarn", "qty": 1, "rate": 10}],
+    })
+    ticket = client.post("/api/weighbridge/tickets", headers=auth, json={
+        "direction": "outbound", "vehicle_no": "EP-1",
+        "gross_kg": 80, "tare_kg": 8,
+    })
+    tid = ticket.json()["id"]
+    invoice_id = inv.json()["id"]
+    first = client.post(
+        f"/api/weighbridge/tickets/{tid}/attach",
+        headers=auth, json={"doc_type": "invoice", "doc_id": invoice_id},
+    )
+    assert first.status_code == 200, first.text
+    second = client.post(
+        f"/api/weighbridge/tickets/{tid}/attach",
+        headers=auth, json={"doc_type": "invoice", "doc_id": invoice_id},
+    )
+    assert second.status_code == 200, second.text
+    fetched = client.get(f"/api/invoices/{invoice_id}", headers=auth).json()
+    assert fetched["custom_fields"]["x.gate_pass_no"] == ticket.json()["number"]

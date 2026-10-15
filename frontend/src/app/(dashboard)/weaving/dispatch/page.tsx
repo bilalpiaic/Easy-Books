@@ -6,6 +6,7 @@ import { Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt } from "@/context/SettingsContext"
+import WeighbridgeAttach, { type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 
 type Contract = {
   id: number
@@ -37,6 +38,7 @@ export default function DispatchPage() {
     contract_id: "", date: today(), meters: "",
     dispatch_value: "", weaving_charges_billed: "", net_receivable: "",
   })
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
 
   const load = useCallback(() => {
     apiFetch<Row[]>("/api/weaving/dispatches").then(d => setRows(Array.isArray(d) ? d : [])).catch(() => setRows([]))
@@ -67,10 +69,12 @@ export default function DispatchPage() {
           dispatch_value: form.dispatch_value !== "" ? parseFloat(form.dispatch_value) : null,
           weaving_charges_billed: form.weaving_charges_billed !== "" ? parseFloat(form.weaving_charges_billed) : null,
           net_receivable: form.net_receivable !== "" ? parseFloat(form.net_receivable) : null,
+          wb_ticket_id: wbTicketId,
         }),
       })
       setShowForm(false)
       setForm({ contract_id: "", date: today(), meters: "", dispatch_value: "", weaving_charges_billed: "", net_receivable: "" })
+      setWbTicketId(null)
       load()
     } catch (ex: unknown) {
       setErr(ex instanceof Error ? ex.message : "Save failed")
@@ -132,6 +136,16 @@ export default function DispatchPage() {
           <form onSubmit={submit} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-lg p-5 space-y-3">
             <h2 className="text-lg font-semibold">New Dispatch</h2>
             {err && <p className="text-sm text-red-600">{err}</p>}
+            <WeighbridgeAttach
+              compact
+              direction="outbound"
+              value={wbTicketId}
+              onChange={(t: WbTicketSnap | null) => {
+                setWbTicketId(t?.id ?? null)
+                if (!t) return
+                setForm(f => ({ ...f, date: t.ticket_date || f.date }))
+              }}
+            />
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className="text-xs text-[var(--text-muted)]">Contract *</label>

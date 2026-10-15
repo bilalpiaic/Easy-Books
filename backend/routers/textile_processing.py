@@ -30,6 +30,7 @@ from services.money import D, ZERO, money
 from services.permissions import perm_dep
 from services.posting import EntryInput, post_transaction
 from services import textile_processing as tp_math
+from services.weighbridge_docs import attach_if_any
 
 router = APIRouter(prefix="/api/textile-processing", tags=["textile-processing"])
 
@@ -819,6 +820,7 @@ class GreyLotIn(BaseModel):
     rej_vehicle: Optional[str] = None
     thans: list[ThanIn] = Field(default_factory=list)
     notes: Optional[str] = None
+    wb_ticket_id: Optional[int] = None
 
 
 @router.get("/lots", dependencies=[perm_dep("textile.lots", "view")])
@@ -948,9 +950,11 @@ def create_lot(user: WriteUserDep, session: SessionDep, body: GreyLotIn):
             if not custodial.is_memo:
                 custodial.is_memo = True
                 session.add(custodial)
-            if not liability.is_memo:
+                if not liability.is_memo:
                 liability.is_memo = True
                 session.add(liability)
+
+    attach_if_any(session, user, body.wb_ticket_id, "grey_lot", lot.id)
 
     session.commit()
     session.refresh(lot)
@@ -1186,6 +1190,7 @@ class OgpIn(BaseModel):
     vehicle: Optional[str] = None
     challan: Optional[str] = None
     notes: Optional[str] = None
+    wb_ticket_id: Optional[int] = None
 
 
 @router.get("/rejection-notes", dependencies=[perm_dep("textile.rejection", "view")])
@@ -1306,6 +1311,8 @@ def create_ogp(user: WriteUserDep, session: SessionDep, body: OgpIn):
         status="posted", notes=body.notes, created_by_id=user.id,
     )
     session.add(ogp)
+    session.flush()
+    attach_if_any(session, user, body.wb_ticket_id, "rejection_ogp", ogp.id)
     note.lifted_mtr = money(D(note.lifted_mtr) + qty)
     note.status = tp_math.rej_note_status(note.issued_mtr, note.lifted_mtr)
     session.add(note)
@@ -1647,6 +1654,7 @@ class DispatchIn(BaseModel):
     challan: Optional[str] = None
     notes: Optional[str] = None
     create_invoice: bool = True
+    wb_ticket_id: Optional[int] = None
 
 
 @router.post("/packing", status_code=201, dependencies=[perm_dep("textile.dispatch", "edit")])
@@ -1852,6 +1860,9 @@ def create_dispatch(user: WriteUserDep, session: SessionDep, body: DispatchIn):
             inv = _create_process_invoice(session, user, so, cust, disp, meters)
             disp.invoice_id = inv.id
             session.add(disp)
+            attach_if_any(session, user, body.wb_ticket_id, "invoice", inv.id, stamp_row=inv)
+
+    attach_if_any(session, user, body.wb_ticket_id, "tp_dispatch", disp.id)
 
     session.commit()
     session.refresh(disp)

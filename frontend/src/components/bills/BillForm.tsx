@@ -8,6 +8,7 @@ import CurrencyRatePicker from '@/components/fx/CurrencyRatePicker'
 import { useFmt, useSettings } from '@/context/SettingsContext'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
 import { CustomFieldsInputs, type CustomFieldValues } from '@/components/studio/CustomFieldsInputs'
+import WeighbridgeAttach, { type WbTicketSnap } from '@/components/weighbridge/WeighbridgeAttach'
 import { useFormSchema } from '@/components/studio/formSchema'
 
 export interface BillFull {
@@ -93,6 +94,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
   const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
   const [icCounterparties, setIcCounterparties] = useState<IcCounterparty[]>([])
   const [customFields, setCustomFields] = useState<CustomFieldValues>({})
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
   const { fields: schemaFields, fieldAccess, visible: vis, required: req } = useFormSchema('bill')
   const currencyTouched = useRef(false)
 
@@ -223,6 +225,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
       ic_counterparty_tenant_id: form.is_intercompany && form.ic_counterparty_tenant_id
         ? parseInt(form.ic_counterparty_tenant_id) : null,
       custom_fields: customFields,
+      ...(mode === 'create' && wbTicketId ? { wb_ticket_id: wbTicketId } : {}),
     }
     try {
       if (mode === 'edit' && bill) {
@@ -429,6 +432,26 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
           </div>
           )}
         </div>
+        )}
+
+        {mode === 'create' && (
+          <WeighbridgeAttach
+            direction="inbound"
+            value={wbTicketId}
+            onChange={(t: WbTicketSnap | null) => {
+              setWbTicketId(t?.id ?? null)
+              if (!t) return
+              setCustomFields(cf => ({
+                ...cf,
+                'x.gate_pass_no': t.number,
+                ...(t.lot_ref ? { 'x.lot_ref': t.lot_ref } : {}),
+              }))
+              if (t.party_type === 'vendor' && t.party_id) {
+                const v = vendors.find(x => x.id === t.party_id)
+                if (v) setForm(p => ({ ...p, vendor_id: String(v.id), vendor_name: v.name }))
+              }
+            }}
+          />
         )}
 
         <CustomFieldsInputs entity="bill" values={customFields} onChange={setCustomFields} schemaFields={schemaFields} fieldAccess={fieldAccess} />

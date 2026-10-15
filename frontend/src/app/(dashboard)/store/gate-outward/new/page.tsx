@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ArrowLeft, DoorOpen, Save, AlertCircle, Plus, Trash2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { todayLocal } from "@/lib/utils"
+import WeighbridgeAttach, { type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 
 type SourceType = "invoice" | "debit_note" | "scrap"
 
@@ -46,6 +47,7 @@ export default function NewGateOutwardPage() {
   const [vehicleNo, setVehicleNo] = useState("")
   const [challanNo, setChallanNo] = useState("")
   const [remarks, setRemarks] = useState("")
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
 
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
@@ -130,6 +132,7 @@ export default function NewGateOutwardPage() {
           challan_no: challanNo || null,
           remarks: remarks || null,
           lines,
+          wb_ticket_id: wbTicketId,
         }),
       })
       router.push(`/store/gate-outward/${go.id}`)
@@ -210,6 +213,18 @@ export default function NewGateOutwardPage() {
             />
           </div>
         </div>
+
+        <WeighbridgeAttach
+          direction="outbound"
+          value={wbTicketId}
+          onChange={(t: WbTicketSnap | null) => {
+            setWbTicketId(t?.id ?? null)
+            if (!t) return
+            setVehicleNo(t.vehicle_no || "")
+            if (t.number) setChallanNo(prev => prev || t.number)
+            if (t.ticket_date) setGateDate(t.ticket_date)
+          }}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>

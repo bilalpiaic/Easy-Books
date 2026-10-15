@@ -19,6 +19,7 @@ from routers.modules import _get_enabled
 from services.money import D, ZERO, money
 from services.permissions import perm_dep
 from services import weaving_calc as calc
+from services.weighbridge_docs import attach_if_any
 from models import Tenant
 
 router = APIRouter(prefix="/api/weaving", tags=["weaving"])
@@ -513,6 +514,7 @@ class YarnInwardCreate(BaseModel):
     rate_per_kg: Optional[Decimal] = None
     yarn_value: Optional[Decimal] = None
     notes: Optional[str] = None
+    wb_ticket_id: Optional[int] = None
 
 
 @router.get("/yarn-inwards", dependencies=[perm_dep("weaving.yarn_inward", "view")])
@@ -542,6 +544,8 @@ def create_yarn_inward(user: WriteUserDep, session: SessionDep, body: YarnInward
         c.status = "in_process"
         session.add(c)
     session.add(row)
+    session.flush()
+    attach_if_any(session, user, body.wb_ticket_id, "wv_yarn_inward", row.id)
     session.commit()
     session.refresh(row)
     return _ser_yarn_inward(row)
@@ -657,6 +661,7 @@ class DispatchCreate(BaseModel):
     weaving_charges_billed: Optional[Decimal] = None
     net_receivable: Optional[Decimal] = None
     notes: Optional[str] = None
+    wb_ticket_id: Optional[int] = None
 
 
 @router.get("/dispatches", dependencies=[perm_dep("weaving.dispatch", "view")])
@@ -695,6 +700,8 @@ def create_dispatch(user: WriteUserDep, session: SessionDep, body: DispatchCreat
         notes=body.notes, created_by_id=user.id,
     )
     session.add(row)
+    session.flush()
+    attach_if_any(session, user, body.wb_ticket_id, "wv_dispatch", row.id)
     session.commit()
     session.refresh(row)
     return _ser_dispatch(row)

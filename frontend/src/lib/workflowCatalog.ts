@@ -377,7 +377,7 @@ const WORKFLOW_ENTRIES: CatalogEntry[] = [
     id: "wf-weighbridge", kind: "workflow", title: "Weighbridge ticket", href: "/weighbridge/tickets/new",
     captureTenant: "manufacturing", segment: "Weighbridge", modules: ["weighbridge"], tenants: ["manufacturing", "spinning", "processing"],
     tags: ["weighbridge", "workflow", "manufacturing"],
-    explanation: "Two-weigh mill ticket: first weigh (gross or tare), second weigh, net kg with lb/bag derived. Inbound completed tickets can stamp x.gate_pass_no on a linked invoice. No GL — the books move when you bill or receive against the vehicle.",
+    explanation: "Two-weigh mill ticket: first weigh (gross or tare), second weigh, net kg with lb/bag derived. Stock forms (gate in/out, grey in, invoice, OGP, mill receipts) pick a ticket so vehicle/lot/weights come from the scale. Inbound completed tickets can stamp x.gate_pass_no on a linked invoice. No GL — the books move when you bill or receive against the vehicle.",
     steps: ["New ticket — vehicle, product, first weigh.", "Second weigh when the lorry returns.", "Complete; optionally copy gate pass onto the invoice.", "Review the Ticket Register."],
   },
   {

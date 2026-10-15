@@ -21,6 +21,12 @@ from routers.modules import _get_enabled
 from services import weaving_calc as calc
 from services.money import ZERO, money
 from services.permissions import perm_dep
+from services.weighbridge_docs import (
+    PICKABLE_STATUSES,
+    WB_STOCK_FORMS,
+    attach_ticket,
+    links_for_doc,
+)
 
 router = APIRouter(prefix="/api/weighbridge", tags=["weighbridge"])
 
@@ -199,6 +205,11 @@ class CopyGatePassBody(BaseModel):
     invoice_id: Optional[int] = None
 
 
+class AttachBody(BaseModel):
+    doc_type: str
+    doc_id: int
+
+
 def _list_query(
     session: Session,
     tenant_id: int,
@@ -207,10 +218,13 @@ def _list_query(
     status: str | None,
     start: str | None,
     end: str | None,
+    direction: str | None = None,
 ):
     stmt = select(WbTicket).where(WbTicket.tenant_id == tenant_id)
     if status:
         stmt = stmt.where(WbTicket.status == status)
+    if direction:
+        stmt = stmt.where(WbTicket.direction == direction)
     if start:
         stmt = stmt.where(WbTicket.ticket_date >= start)
     if end:
@@ -281,9 +295,14 @@ def list_tickets(
     status: Optional[str] = None,
     start: Optional[str] = None,
     end: Optional[str] = None,
+    direction: Optional[str] = None,
 ):
     _require_weighbridge(session, user)
-    stmt = _list_query(session, user.tenant_id, q=q, status=status, start=start, end=end)
+    if direction and direction not in _DIRECTIONS:
+        raise HTTPException(400, f"Invalid direction; expected one of {sorted(_DIRECTIONS)}")
+    stmt = _list_query(
+        session, user.tenant_id, q=q, status=status, start=start, end=end, direction=direction,
+    )
     total = session.exec(
         select(func.count()).select_from(stmt.subquery())
     ).one() or 0
@@ -303,7 +322,66 @@ def ticket_register(
     end: Optional[str] = None,
 ):
     """Same rows as the ticket list; gated by the reports right for gate clerks vs office."""
-    return list_tickets(user, session, skip=skip, limit=limit, q=q, status=status, start=start, end=end)
+    return list_tickets(
+        user, session, skip=skip, limit=limit, q=q, status=status, start=start, end=end,
+        direction=None,
+    )
+
+
+@router.get("/pickable")
+def pickable_tickets(
+    user: CurrentUserDep,
+    session: SessionDep,
+    direction: str,
+    q: Optional[str] = None,
+    limit: int = Query(25, ge=1, le=100),
+):
+    """Completed / weighed-in tickets for stock forms.
+
+    Module-gated but not `weighbridge.tickets` — a gate clerk with
+    purchase.gate (or grey-in / invoice edit) must be able to pull the
+    scale snapshot onto their document.
+    """
+    _require_weighbridge(session, user)
+    if direction not in _DIRECTIONS:
+        raise HTTPException(400, f"Invalid direction; expected one of {sorted(_DIRECTIONS)}")
+    stmt = select(WbTicket).where(
+        WbTicket.tenant_id == user.tenant_id,
+        WbTicket.direction == direction,
+        WbTicket.status.in_(PICKABLE_STATUSES),
+    )
+    if q:
+        like = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                WbTicket.number.ilike(like),
+                WbTicket.vehicle_no.ilike(like),
+                WbTicket.driver_name.ilike(like),
+                WbTicket.party_name.ilike(like),
+                WbTicket.commodity.ilike(like),
+                WbTicket.lot_ref.ilike(like),
+            )
+        )
+    rows = session.exec(stmt.order_by(WbTicket.id.desc()).limit(limit)).all()
+    return {
+        "total": len(rows),
+        "items": [_ser(r) for r in rows],
+        "forms": {
+            k: {"direction": v.direction, "label": v.label} for k, v in WB_STOCK_FORMS.items()
+        },
+    }
+
+
+@router.get("/links")
+def list_doc_links(
+    user: CurrentUserDep,
+    session: SessionDep,
+    doc_type: str = Query(...),
+    doc_id: int = Query(..., ge=1),
+):
+    _require_weighbridge(session, user)
+    rows = links_for_doc(session, user.tenant_id, doc_type, doc_id)
+    return {"items": [_ser(r) for r in rows]}
 
 
 @router.get("/tickets/{id}", dependencies=[perm_dep("weighbridge.tickets", "view")])
@@ -398,6 +476,37 @@ def cancel_ticket(id: int, user: WriteUserDep, session: SessionDep, body: Cancel
     log_audit(session, user, "cancel", "wb_ticket", row.id, {"number": row.number, "reason": row.cancel_reason})
     session.commit()
     return _ser(row)
+
+
+@router.post("/tickets/{id}/attach")
+def attach_to_stock_doc(id: int, user: WriteUserDep, session: SessionDep, body: AttachBody):
+    """Link a ticket onto an already-saved stock document. Module-gated."""
+    _require_weighbridge(session, user)
+    stamp_row = None
+    if body.doc_type == "invoice":
+        stamp_row = session.exec(
+            select(Invoice).where(Invoice.id == body.doc_id, Invoice.tenant_id == user.tenant_id)
+        ).first()
+        if not stamp_row:
+            raise HTTPException(404, "Invoice not found")
+    elif body.doc_type == "bill":
+        from models import Bill
+        stamp_row = session.exec(
+            select(Bill).where(Bill.id == body.doc_id, Bill.tenant_id == user.tenant_id)
+        ).first()
+        if not stamp_row:
+            raise HTTPException(404, "Bill not found")
+    ticket = attach_ticket(
+        session, user, id, body.doc_type, body.doc_id, stamp_row=stamp_row,
+    )
+    session.commit()
+    session.refresh(ticket)
+    log_audit(
+        session, user, "attach", "wb_ticket", ticket.id,
+        {"number": ticket.number, "doc_type": body.doc_type, "doc_id": body.doc_id},
+    )
+    session.commit()
+    return _ser(ticket)
 
 
 @router.post("/tickets/{id}/copy-gate-pass", dependencies=[perm_dep("weighbridge.tickets", "edit")])

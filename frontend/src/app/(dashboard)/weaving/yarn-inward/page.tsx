@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt } from "@/context/SettingsContext"
 import { RateKgLb, WeightTripleDisplay } from "@/components/weaving/WeightDisplays"
+import WeighbridgeAttach, { type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 import { ratePerLb, weightTriple } from "@/lib/weavingUnits"
 
 type Contract = { id: number; number: string; assumed_yarn_rate_per_kg: number }
@@ -40,6 +41,7 @@ export default function YarnInwardPage() {
     contract_id: "", yarn_type_id: "", date: today(),
     gross_kg: "", tare_kg: "", rate_per_kg: "", yarn_value: "",
   })
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
 
   const load = useCallback(() => {
     apiFetch<Row[]>("/api/weaving/yarn-inwards").then(d => setRows(Array.isArray(d) ? d : [])).catch(() => setRows([]))
@@ -80,10 +82,12 @@ export default function YarnInwardPage() {
           tare_kg: tare,
           rate_per_kg: form.rate_per_kg !== "" ? rateKg : null,
           yarn_value: form.yarn_value !== "" ? parseFloat(form.yarn_value) : null,
+          wb_ticket_id: wbTicketId,
         }),
       })
       setShowForm(false)
       setForm({ contract_id: "", yarn_type_id: "", date: today(), gross_kg: "", tare_kg: "", rate_per_kg: "", yarn_value: "" })
+      setWbTicketId(null)
       load()
     } catch (ex: unknown) {
       setErr(ex instanceof Error ? ex.message : "Save failed")
@@ -143,6 +147,21 @@ export default function YarnInwardPage() {
           <form onSubmit={submit} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-lg p-5 space-y-3">
             <h2 className="text-lg font-semibold">New Yarn Inward</h2>
             {err && <p className="text-sm text-red-600">{err}</p>}
+            <WeighbridgeAttach
+              compact
+              direction="inbound"
+              value={wbTicketId}
+              onChange={(t: WbTicketSnap | null) => {
+                setWbTicketId(t?.id ?? null)
+                if (!t) return
+                setForm(f => ({
+                  ...f,
+                  date: t.ticket_date || f.date,
+                  gross_kg: t.gross_kg ? String(t.gross_kg) : f.gross_kg,
+                  tare_kg: t.tare_kg ? String(t.tare_kg) : f.tare_kg,
+                }))
+              }}
+            />
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className="text-xs text-[var(--text-muted)]">Contract *</label>
