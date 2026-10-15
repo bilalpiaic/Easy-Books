@@ -626,6 +626,8 @@ def _ser_stage(r: SpStageEntry) -> dict:
         "labour_cost": float(r.labour_cost), "overhead_cost": float(r.overhead_cost),
         "status": r.status, "machine_id": r.machine_id, "shift_id": r.shift_id,
         "operator_id": r.operator_id, "notes": r.notes,
+        "source": getattr(r, "source", "manual") or "manual",
+        "plc_event_id": getattr(r, "plc_event_id", None),
     }
 
 
@@ -686,6 +688,8 @@ def _ser_cone(r: SpConeOutput) -> dict:
         "unit_cost": float(r.unit_cost), "total_cost": float(r.total_cost),
         "machine_id": r.machine_id, "shift_id": r.shift_id, "operator_id": r.operator_id,
         "notes": r.notes,
+        "source": getattr(r, "source", "manual") or "manual",
+        "plc_event_id": getattr(r, "plc_event_id", None),
     }
 
 

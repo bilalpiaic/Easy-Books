@@ -130,7 +130,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/guide":                  ["help", "user guide", "docs", "manual"],
   "/agent":                  ["ai chat", "assistant", "ask books", "ai agent"],
   "/settings":               ["preferences", "configuration", "company settings"],
-  "/apps":                   ["add-ons", "modules", "install module", "extensions", "marketplace", "weighbridge", "weighbridge slip", "gate pass", "for you", "yarn spinning", "spinning module", "spinning mill"],
+  "/apps":                   ["add-ons", "modules", "install module", "extensions", "marketplace", "weighbridge", "weighbridge slip", "gate pass", "for you", "yarn spinning", "spinning module", "spinning mill", "plc shop floor", "shop floor"],
   "/weighbridge":            ["weighbridge", "scale", "truck weigh", "mill scale", "gate pass", "tare", "gross", "net kg"],
   "/weighbridge/tickets":    ["weighbridge tickets", "weighbridge register", "vehicle in out", "wb ticket"],
   "/weighbridge/tickets/new":["new weighbridge ticket", "first weigh", "second weigh"],
@@ -160,6 +160,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/weaving/yarn-inward":    ["yarn inward", "yarn receipt"],
   "/weaving/sizing":         ["sizing entry", "size pickup"],
   "/weaving/production":     ["weaving production", "grey meters", "loom production"],
+  "/shop-floor":              ["plc", "modbus", "opc ua", "machine data", "auto feed", "shop floor", "loom counter", "machine wise production"],
   "/weaving/dispatch":       ["weaving dispatch", "fabric delivery"],
   "/weaving/calculators/weaving": ["ne calculator", "yarn consumption calc", "weaving calc"],
   "/weaving/calculators/sizing":  ["sizing calculator", "pickup calc"],
@@ -452,6 +453,11 @@ const ACTIONS: NavResult[] = [
     id: "qa:wv-production", type: "action", label: "Weaving Production",
     sub: "Record loom production", href: "/weaving/production",
     keywords: ["production form", "grey meters entry"],
+  },
+  {
+    id: "qa:plc-feed", type: "action", label: "PLC Feed",
+    sub: "Map mill machines and ingest auto production readings", href: "/shop-floor",
+    keywords: ["plc ingest", "modbus", "opcua", "machine counter", "auto recording"],
   },
   {
     id: "qa:wv-dispatch", type: "action", label: "Weaving Dispatch",

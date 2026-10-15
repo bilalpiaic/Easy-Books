@@ -245,6 +245,8 @@ class SpStageEntry(SQLModel, table=True):
     status: str = Field(default="draft", index=True)
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     notes: Optional[str] = None
+    source: str = Field(default="manual")  # manual | plc
+    plc_event_id: Optional[int] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
@@ -271,6 +273,8 @@ class SpConeOutput(SQLModel, table=True):
     status: str = Field(default="draft", index=True)
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     notes: Optional[str] = None
+    source: str = Field(default="manual")  # manual | plc
+    plc_event_id: Optional[int] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 

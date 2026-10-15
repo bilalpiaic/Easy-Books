@@ -171,6 +171,7 @@ from models_weaving import (
     WvContract, WvYarnInward, WvSizing, WvProduction, WvDispatch,
 )
 from models_weighbridge import WbTicket
+from models_plc import PlcDevice
 from models_spinning import (
     STAGE_ORDER,
     SpYarnSpec, SpFiberGrade, SpMachine, SpShift, SpOperator, SpWasteType,
@@ -5986,6 +5987,47 @@ def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: li
     s.flush()
 
 
+def _ensure_plc_demo_devices(s: Session, user: User) -> None:
+    """Idempotent mill PLC mappings for demo tenants (looms / ring / scale)."""
+    tid = user.tenant_id
+    if s.exec(select(PlcDevice).where(PlcDevice.tenant_id == tid)).first():
+        return
+    loom = s.exec(select(WvLoom).where(WvLoom.tenant_id == tid, WvLoom.code == "L-01")).first()
+    contract = s.exec(select(WvContract).where(WvContract.tenant_id == tid)).first()
+    if loom and contract:
+        s.add(PlcDevice(
+            tenant_id=tid, code="L-01", name="Airjet Loom 1",
+            protocol="modbus_tcp", event_type="weaving.production",
+            binding={"contract_id": contract.id, "shift_code": "A"},
+            auto_apply=True, created_by_id=user.id,
+            notes="Demo mapping — mill gateway POSTs grey_meters as L-01",
+        ))
+    ring = s.exec(select(SpMachine).where(SpMachine.tenant_id == tid, SpMachine.code == "RING-01")).first()
+    lot = s.exec(select(SpSpinLot).where(SpSpinLot.tenant_id == tid)).first()
+    if ring:
+        binding: dict = {"stage": "spinning"}
+        if lot:
+            binding["spin_lot_id"] = lot.id
+        s.add(PlcDevice(
+            tenant_id=tid, code="RING-01", name="Ring Frame 1",
+            protocol="s7", event_type="spinning.stage",
+            binding=binding, auto_apply=False, created_by_id=user.id,
+            notes="Stage readings queue for Apply — they post WIP/GL",
+        ))
+    scale = s.exec(select(WbTicket).where(WbTicket.tenant_id == tid)).first()
+    if scale is not None or loom or ring:
+        existing_wb = s.exec(select(PlcDevice).where(
+            PlcDevice.tenant_id == tid, PlcDevice.code == "WB-01",
+        )).first()
+        if not existing_wb and (scale is not None or loom or ring):
+            s.add(PlcDevice(
+                tenant_id=tid, code="WB-01", name="Inbound weighbridge",
+                protocol="http_gateway", event_type="weighbridge.weigh",
+                binding={}, auto_apply=True, created_by_id=user.id,
+            ))
+    s.flush()
+
+
 def _seed_weighbridge(
     s: Session, user: User, customers: list[Customer], vendors: list[Vendor],
     *, inbound_commodity: str = "Raw cotton", outbound_commodity: str = "Yarn cones",
@@ -7170,6 +7212,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
                 s.commit()
                 _seed_weighbridge(s, user, customers, vendors)
                 s.commit()
+                _ensure_plc_demo_devices(s, user)
+                s.commit()
                 # Lot-track after consumption so store issues/sales don't
                 # require lot numbers that the memo seed never collected.
                 _seed_inventory_depth(s, user, stock)
@@ -7200,6 +7244,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             s.commit()
             _seed_weighbridge(s, user, customers, vendors)
             s.commit()
+            _ensure_plc_demo_devices(s, user)
+            s.commit()
 
         if business_model == "textile_processing":
             if not lite:
@@ -7212,6 +7258,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
                 inbound_commodity="Grey fabric",
                 outbound_commodity="Packed fabric",
             )
+            s.commit()
+            _ensure_plc_demo_devices(s, user)
             s.commit()
 
         # ── PRA e-Invoice demo (Pakistani retail trader) ───────────────────────

@@ -7,7 +7,7 @@ Recommended packs, Optional modules, and Marketplace listings are grouped by **h
 | Band | What it is | Module IDs |
 |------|------------|------------|
 | **Core** | Always-on ledger | `base` |
-| **Operations** | Horizontal capabilities used across industries | `inventory`, `production`, `purchase_store`, `pos`, `ecommerce`, `weighbridge` |
+| **Operations** | Horizontal capabilities used across industries | `inventory`, `production`, `purchase_store`, `pos`, `ecommerce`, `weighbridge`, `shop_floor` |
 | **HR & Payroll** | People and pay | `hrm` |
 | **Business nature** (Industry) | Full verticals | `telecom`, `healthcare`, `weaving`, `spinning`, `textile_processing` |
 | **Country & statutory** (Localization) | Tax / e-invoice by jurisdiction | `pra`, `uae_vat`, `sa_zatca`, `in_gst`, `eu_peppol`, `uk_mtd`, `my_invois` |
@@ -37,9 +37,9 @@ Source of truth: `MODULE_REGISTRY` in `backend/db.py` (`category` field) and `AD
 | Pack | Modules | Demo |
 |------|---------|------|
 | Trader | `inventory`, `pos` | `demo.trader@easy-books.app` |
-| Manufacturing | `inventory`, `production`, `purchase_store`, `weaving`, `weighbridge` | `demo.manufacturing@easy-books.app` |
-| Yarn Spinning | `inventory`, `purchase_store`, `spinning`, `weighbridge` | `demo.spinning@easy-books.app` |
-| Textile Processing | `inventory`, `purchase_store`, `textile_processing`, `weighbridge` | `demo.processing@easy-books.app` |
+| Manufacturing | `inventory`, `production`, `purchase_store`, `weaving`, `weighbridge`, `shop_floor` | `demo.manufacturing@easy-books.app` |
+| Yarn Spinning | `inventory`, `purchase_store`, `spinning`, `weighbridge`, `shop_floor` | `demo.spinning@easy-books.app` |
+| Textile Processing | `inventory`, `purchase_store`, `textile_processing`, `weighbridge`, `shop_floor` | `demo.processing@easy-books.app` |
 | Healthcare | `hrm`, `inventory`, `healthcare` | `demo.hospital@easy-books.app` |
 | Telecom Franchise | `inventory`, `telecom` | `demo.telecom@easy-books.app` |
 
@@ -75,6 +75,7 @@ Withholding tax and the CIT worksheet are **core accounting** (vendor WHT flags 
 | Point of Sale | Shift, register, cash-up; same GL as invoices |
 | eCommerce Connectors | Shopify / WooCommerce → draft invoices |
 | Weighbridge | Ticket desk (memo/ops, no GL). Pre-installed on mill models; also a dep of Weaving / Spinning / Textile Processing. Stock forms pick a ticket (GI/GO, grey in, invoice, OGP, GRN, credit/debit notes, transfers, mill receipts/dispatches). Public Marketplace overlay (Gate pass + Lot ref on invoices) |
+| PLC Shop Floor (`shop_floor`) | Mill gateway POSTs loom/frame/scale readings to `/api/plc/ingest`. Install from Add-ons (Optional, or mill Recommended packs). UI `/shop-floor`. Easy-Books never opens Modbus/OPC-UA. |
 
 ---
 
@@ -91,12 +92,12 @@ Withholding tax and the CIT worksheet are **core accounting** (vendor WHT flags 
 ```
 simple / services     → base
 trader                → base, inventory, pos
-manufacturing         → base, inventory, production, purchase_store, weaving, weighbridge
+manufacturing         → base, inventory, production, purchase_store, weaving, weighbridge, shop_floor
 telecom_franchise     → base, inventory, telecom
 pra_einvoice          → base, pra
 hospital              → base, hrm, inventory, healthcare
-yarn_spinning         → base, inventory, purchase_store, spinning, weighbridge
-textile_processing    → base, inventory, purchase_store, textile_processing, weighbridge
+yarn_spinning         → base, inventory, purchase_store, spinning, weighbridge, shop_floor
+textile_processing    → base, inventory, purchase_store, textile_processing, weighbridge, shop_floor
 ```
 
 After signup the user manages modules independently. Localization demos may also enable a country pack on selected tenants.

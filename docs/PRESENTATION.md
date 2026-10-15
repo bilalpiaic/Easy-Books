@@ -18,7 +18,7 @@
 
 It combines:
 
-- Nine **business models** (CoA seed at signup — structural and irreversible) × installable modules (Odoo-style `MODULE_REGISTRY`, 21 ids, orthogonal to the CoA — grouped **Operations / HR / Business nature / Country & statutory / Intelligence**)
+- Nine **business models** (CoA seed at signup — structural and irreversible) × installable modules (Odoo-style `MODULE_REGISTRY`, 22 ids, orthogonal to the CoA — grouped **Operations / HR / Business nature / Country & statutory / Intelligence**)
 - **One GL writer** — [`backend/services/posting.py`](../backend/services/posting.py) — so every financial number on screen is derived live from the journal (no shadow-balance drift)
 - Vertical depth rarely bundled in one SME product: contract manufacturing custody, telecom franchise, PRA e-invoice (Pakistan), hospital OPD/IPD/Lab, purchase→gate→store chain, weaving unit control, **yarn spinning with full GL costing**, and a multi-provider agentic AI assistant
 - **IFRS Track A (shipped):** consolidation (IFRS 10), intercompany recon, leases (IFRS 16), IFRS 15 SSP + contract assets, assets depth (IAS 16/36), dimensional analytics, inventory depth (IAS 2), month-end close + auditor pack, tax rate history
@@ -126,9 +126,9 @@ Data for script / Electron installs lives under `~/.easy-books` (never touched b
 flowchart TB
   Signup[Signup picks business_model] --> CoA[Seed hierarchical CoA]
   Signup --> Mods[MODULES_BY_MODEL defaults]
-  Mods --> Registry[MODULE_REGISTRY 21 modules]
+  Mods --> Registry[MODULE_REGISTRY 22 modules]
   Registry --> Base[base always]
-  Registry --> Ops[inventory production purchase_store pos ecommerce weighbridge]
+  Registry --> Ops[inventory production purchase_store pos ecommerce weighbridge shop_floor]
   Registry --> Ind[telecom healthcare weaving spinning textile_processing]
   Registry --> Loc[pra uae_vat sa_zatca in_gst eu_peppol uk_mtd my_invois]
   Registry --> HR[hrm]
@@ -143,7 +143,7 @@ flowchart TB
 | ID | Category | Gates |
 |----|----------|-------|
 | `base` | Core | Overview, Ledger, AR, AP, Banking, Reports (always installed) |
-| `inventory` `production` `purchase_store` `pos` `ecommerce` `weighbridge` | Operations | Stock, mfg, P2P/store, POS, eCom, weigh tickets |
+| `inventory` `production` `purchase_store` `pos` `ecommerce` `weighbridge` `shop_floor` | Operations | Stock, mfg, P2P/store, POS, eCom, weigh tickets, PLC mill feed |
 | `hrm` | HR | Payroll, leave, expense claims |
 | `telecom` `healthcare` `weaving` `spinning` `textile_processing` | Industry (business nature) | Verticals |
 | `pra` `uae_vat` `sa_zatca` `in_gst` `eu_peppol` `uk_mtd` `my_invois` | Localization (country & statutory) | Tax / e-invoice dashboards + logs |

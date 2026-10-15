@@ -27,12 +27,12 @@ export const DEMO_TENANTS: Record<DemoTenantKey, {
   simple:         { label: "Simple",              email: "demo.simple@easy-books.app",         model: "simple",              modules: ["base"] },
   services:       { label: "Services",            email: "demo.services@easy-books.app",       model: "services",            modules: ["base"] },
   trader:         { label: "Trader",              email: "demo.trader@easy-books.app",         model: "trader",              modules: ["base", "inventory", "pos"] },
-  manufacturing:  { label: "Manufacturing",       email: "demo.manufacturing@easy-books.app",  model: "manufacturing",       modules: ["base", "inventory", "production", "purchase_store", "weaving", "weighbridge"] },
+  manufacturing:  { label: "Manufacturing",       email: "demo.manufacturing@easy-books.app",  model: "manufacturing",       modules: ["base", "inventory", "production", "purchase_store", "weaving", "weighbridge", "shop_floor"] },
   telecom:        { label: "Telecom Franchise",   email: "demo.telecom@easy-books.app",        model: "telecom_franchise",   modules: ["base", "inventory", "telecom"] },
   pra:            { label: "FBR Digital Invoicing", email: "demo.pra@easy-books.app",            model: "pra_einvoice",        modules: ["base", "pra"] },
   hospital:       { label: "Hospital",            email: "demo.hospital@easy-books.app",       model: "hospital",            modules: ["base", "hrm", "inventory", "healthcare", "uk_mtd"] },
-  spinning:       { label: "Yarn Spinning",       email: "demo.spinning@easy-books.app",       model: "yarn_spinning",       modules: ["base", "inventory", "purchase_store", "spinning", "weighbridge"] },
-  processing:     { label: "Textile Processing",  email: "demo.processing@easy-books.app",     model: "textile_processing",  modules: ["base", "inventory", "purchase_store", "textile_processing", "weighbridge", "my_invois"] },
+  spinning:       { label: "Yarn Spinning",       email: "demo.spinning@easy-books.app",       model: "yarn_spinning",       modules: ["base", "inventory", "purchase_store", "spinning", "weighbridge", "shop_floor"] },
+  processing:     { label: "Textile Processing",  email: "demo.processing@easy-books.app",     model: "textile_processing",  modules: ["base", "inventory", "purchase_store", "textile_processing", "weighbridge", "my_invois", "shop_floor"] },
 }
 
 export const CATALOG_KINDS: { id: CatalogKind | "all"; label: string }[] = [
@@ -169,7 +169,7 @@ const TENANT_ENTRIES: CatalogEntry[] = [
   },
   {
     id: "tenant-manufacturing", kind: "tenant", title: "Manufacturing mill", href: "/dashboard/operations",
-    captureTenant: "manufacturing", segment: "Overview", modules: ["base", "inventory", "production", "purchase_store", "weaving", "weighbridge"],
+    captureTenant: "manufacturing", segment: "Overview", modules: ["base", "inventory", "production", "purchase_store", "weaving", "weighbridge", "shop_floor"],
     tenants: ["manufacturing"], tags: ["tenant", "manufacturing", "weaving", "weighbridge", "purchases", "inventory"],
     explanation: "Value-add mill. Production floor (BoM, rate plans, work orders), the full purchase/store chain (demand → comparative → PO → gate inward/outward → store issue), weaving unit-control, and Marketplace Weighbridge. ZATCA is seeded for KSA e-invoicing.",
     steps: ["Start on the Operations home — mill KPIs live here.", "Walk Purchases: an approved demand, a comparative, then a PO.", "Open Weaving and Weighbridge from the top nav."],
@@ -199,7 +199,7 @@ const TENANT_ENTRIES: CatalogEntry[] = [
   },
   {
     id: "tenant-spinning", kind: "tenant", title: "Yarn spinning mill", href: "/spinning",
-    captureTenant: "spinning", segment: "Spinning", modules: ["base", "inventory", "purchase_store", "spinning", "weighbridge"],
+    captureTenant: "spinning", segment: "Spinning", modules: ["base", "inventory", "purchase_store", "spinning", "weighbridge", "shop_floor"],
     tenants: ["spinning"], tags: ["tenant", "spinning", "weighbridge", "purchases", "gl", "manufacturing"],
     explanation: "Cotton-to-yarn mill with full GL from day one. Bale receipt → multi-stage lots (blowroom/card/draw/ring) → cone output → waste log → yarn dispatch. CoA extras 1200–1204 (RM/WIP/FG) and 5901–5904 waste. Weighbridge is pre-granted.",
     steps: ["Receive bales (Dr 1200 Raw Cotton).", "Open a spin lot and post stage entries (WIP 1201–1203).", "Record cone output (Dr 1204 FG) and dispatch."],
@@ -207,7 +207,7 @@ const TENANT_ENTRIES: CatalogEntry[] = [
   },
   {
     id: "tenant-processing", kind: "tenant", title: "Textile processing unit", href: "/processing",
-    captureTenant: "processing", segment: "Processing", modules: ["base", "inventory", "purchase_store", "textile_processing", "weighbridge", "my_invois"],
+    captureTenant: "processing", segment: "Processing", modules: ["base", "inventory", "purchase_store", "textile_processing", "weighbridge", "my_invois", "shop_floor"],
     tenants: ["processing"], tags: ["tenant", "processing", "weighbridge", "inventory", "purchases", "localization"],
     explanation: "Grey-in / process / packed-out mill. Sales orders, grey inward lots, mending, kachi/pakki parchi, rejection outward, PPC stages, fresh dispatch, labor bills, grey settlement, and inspections. Customer-owned grey is custody stock until processed. Weighbridge tickets are pre-installed for the yard scale. Malaysia MyInvois is seeded on this demo.",
     steps: ["Create a sales order, then grey-in a lot against it.", "Move the lot through PPC stages.", "Issue pakki parchi and dispatch; settle leftover grey."],

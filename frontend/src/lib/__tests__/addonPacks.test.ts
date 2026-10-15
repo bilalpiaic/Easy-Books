@@ -66,4 +66,14 @@ describe("addon packs by category of use", () => {
     expect(byId.healthcare).not.toContain("weighbridge")
     expect(byId.telecom).not.toContain("weighbridge")
   })
+
+  it("injects PLC Shop Floor via mill Add-on packs, not hospital or telecom", () => {
+    const byId = Object.fromEntries(ADDON_PACKS.map(p => [p.id, p.modules]))
+    expect(byId.manufacturing).toContain("shop_floor")
+    expect(byId.yarn_spinning).toContain("shop_floor")
+    expect(byId.textile_processing).toContain("shop_floor")
+    expect(byId.trader).not.toContain("shop_floor")
+    expect(byId.healthcare).not.toContain("shop_floor")
+    expect(byId.telecom).not.toContain("shop_floor")
+  })
 })

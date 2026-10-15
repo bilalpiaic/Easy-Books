@@ -171,6 +171,7 @@ export const TITLE_MAP: Record<string, string> = {
   "/weaving/yarn-inward":          "Yarn Inward",
   "/weaving/sizing":               "Sizing",
   "/weaving/production":           "Weaving Production",
+  "/shop-floor":                   "PLC Feed",
   "/weaving/dispatch":             "Weaving Dispatch",
   "/weaving/calculators/weaving":   "Weaving Calculator",
   "/weaving/calculators/sizing":   "Sizing Calculator",

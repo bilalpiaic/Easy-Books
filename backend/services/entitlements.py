@@ -21,7 +21,7 @@ from db import MODULE_REGISTRY
 # None = every MODULE_REGISTRY id.
 PLAN_MODULES: dict[str, list[str] | None] = {
     "free": ["base"],
-    "starter": ["base", "inventory", "pos", "weighbridge"],
+    "starter": ["base", "inventory", "pos", "weighbridge", "shop_floor"],
     "pro": [
         "base",
         "inventory",
@@ -32,6 +32,7 @@ PLAN_MODULES: dict[str, list[str] | None] = {
         "ai_assistant",
         "ecommerce",
         "weighbridge",
+        "shop_floor",
         "sa_zatca",
         "in_gst",
         "eu_peppol",

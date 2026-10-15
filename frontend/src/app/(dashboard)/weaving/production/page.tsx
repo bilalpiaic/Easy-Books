@@ -8,6 +8,7 @@ import { fmtDate } from "@/lib/utils"
 import { useFmt } from "@/context/SettingsContext"
 import { WeightTripleDisplay } from "@/components/weaving/WeightDisplays"
 import { weightTriple } from "@/lib/weavingUnits"
+import StatusBadge from "@/components/StatusBadge"
 
 type Contract = { id: number; number: string; contract_meters: number; weaving_rate: number }
 type Master = { id: number; code: string; name: string }
@@ -24,6 +25,7 @@ type Row = {
   grey_meters: number
   efficiency_pct: number
   weaving_charges: number
+  source?: string
 }
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -132,7 +134,10 @@ export default function ProductionPage() {
           <tbody>
             {(rows ?? []).map(r => (
               <tr key={r.id} className="border-t border-[var(--border)]">
-                <td className="px-3 py-2 whitespace-nowrap font-medium">{r.number}</td>
+                <td className="px-3 py-2 whitespace-nowrap font-medium">
+                  {r.number}
+                  {r.source === "plc" && <span className="ml-2"><StatusBadge status="plc" /></span>}
+                </td>
                 <td className="px-3 py-2 whitespace-nowrap">{fmtDate(r.date)}</td>
                 <td className="px-3 py-2">
                   <Link href={`/weaving/contracts/${r.contract_id}`} className="text-[var(--primary)]">

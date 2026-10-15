@@ -73,6 +73,7 @@ export const DEFAULT_OPS_QUICK_ACTIONS = [
   "new_po",
   "new_spin_lot",
   "new_weighbridge_ticket",
+  "plc_feed",
   "new_grey_lot",
   "new_opd",
   "telecom_tracker",
