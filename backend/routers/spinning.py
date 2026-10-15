@@ -34,6 +34,7 @@ from services import spinning_calc as calc
 from services.money import D, ZERO, money
 from services.permissions import perm_dep
 from services import spinning_posting as posting
+from services.weighbridge_docs import attach_if_any
 
 router = APIRouter(prefix="/api/spinning", tags=["spinning"])
 
@@ -537,6 +538,7 @@ class BaleReceiptCreate(BaseModel):
     fiber_grade_id: Optional[int] = None
     lot_no: Optional[str] = None
     notes: Optional[str] = None
+    wb_ticket_id: Optional[int] = None
 
 
 def _ser_bale(r: SpBaleReceipt) -> dict:
@@ -577,6 +579,8 @@ def create_bale_receipt(user: WriteUserDep, session: SessionDep, body: BaleRecei
         lot_no=body.lot_no, notes=body.notes, created_by_id=user.id,
     )
     session.add(row)
+    session.flush()
+    attach_if_any(session, user, body.wb_ticket_id, "sp_bale_receipt", row.id)
     session.commit()
     session.refresh(row)
     return _ser_bale(row)
@@ -789,6 +793,7 @@ class YarnDispatchCreate(BaseModel):
     rate_per_kg: Decimal
     invoice_id: Optional[int] = None
     notes: Optional[str] = None
+    wb_ticket_id: Optional[int] = None
 
 
 def _ser_dispatch(r: SpYarnDispatch) -> dict:
@@ -825,6 +830,8 @@ def create_dispatch(user: WriteUserDep, session: SessionDep, body: YarnDispatchC
         notes=body.notes, created_by_id=user.id,
     )
     session.add(row)
+    session.flush()
+    attach_if_any(session, user, body.wb_ticket_id, "sp_yarn_dispatch", row.id)
     session.commit()
     session.refresh(row)
     return _ser_dispatch(row)

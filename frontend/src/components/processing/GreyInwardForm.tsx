@@ -11,6 +11,7 @@ import Link from "next/link"
 import { Plus, Trash2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
+import WeighbridgeAttach, { WeighbridgeLinked, type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 
 type SO = {
   id: number
@@ -162,6 +163,7 @@ export default function GreyInwardForm({ mode, initial }: Props) {
   const [rejDriver, setRejDriver] = useState(initial?.rej_driver_name || "")
   const [rejMobile, setRejMobile] = useState(initial?.rej_mobile || "")
   const [rejVehicle, setRejVehicle] = useState(initial?.rej_vehicle || "")
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
   const [thans, setThans] = useState<ThanRow[]>(() => {
     if (initial?.thans?.length) {
       return initial.thans.map(t => ({
@@ -302,6 +304,7 @@ export default function GreyInwardForm({ mode, initial }: Props) {
           rej_vehicle: rejVehicle || null,
           notes: notes || null,
           thans: payloadThans,
+          wb_ticket_id: wbTicketId,
         }),
       })
       router.push(`/processing/lots/${created.id}`)
@@ -420,6 +423,24 @@ export default function GreyInwardForm({ mode, initial }: Props) {
       </div>
 
       {err && <p className="text-sm text-red-600 print:hidden">{err}</p>}
+
+      {readOnly && initial?.id ? (
+        <WeighbridgeLinked docType="grey_lot" docId={initial.id} />
+      ) : (
+        <WeighbridgeAttach
+          direction="inbound"
+          value={wbTicketId}
+          onChange={(t: WbTicketSnap | null) => {
+            setWbTicketId(t?.id ?? null)
+            if (!t) return
+            if (t.lot_ref) setLotNo(prev => prev || t.lot_ref || "")
+            if (t.ticket_date) setDate(t.ticket_date)
+            const extra = [t.number, t.vehicle_no, t.net_kg ? `net ${Number(t.net_kg).toFixed(2)} kg` : ""]
+              .filter(Boolean).join(" · ")
+            setLotRemarks(prev => prev || extra)
+          }}
+        />
+      )}
 
       {/* Header metadata */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 border border-[var(--border)] rounded-lg p-3 bg-[var(--surface)]">

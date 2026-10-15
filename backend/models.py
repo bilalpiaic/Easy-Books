@@ -3264,7 +3264,7 @@ from models_weaving import (  # noqa: E402,F401
     WvFabricQuality, WvLoom, WvYarnType, WvShift, WvOperator,
     WvContract, WvYarnInward, WvSizing, WvProduction, WvDispatch, WvCalcRun,
 )
-from models_weighbridge import WbTicket  # noqa: E402,F401
+from models_weighbridge import WbDocLink, WbTicket  # noqa: E402,F401
 from models_plc import PlcDevice, PlcEvent  # noqa: E402,F401
 from models_spinning import (  # noqa: E402,F401
     SpYarnSpec, SpFiberGrade, SpMachine, SpShift, SpOperator, SpWasteType,

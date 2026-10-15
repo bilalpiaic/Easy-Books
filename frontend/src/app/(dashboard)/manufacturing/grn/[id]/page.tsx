@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 import { useTranslation } from "react-i18next"
+import { WeighbridgeLinked } from "@/components/weighbridge/WeighbridgeAttach"
 
 interface GrnLine {
   id: number
@@ -88,6 +89,9 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
           <h1 className="text-2xl font-bold text-[var(--text-primary)] mt-1">
             {grn.number}
           </h1>
+          <div className="mt-1.5">
+            <WeighbridgeLinked docType="grn" docId={grn.id} />
+          </div>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <Link

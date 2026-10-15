@@ -1134,6 +1134,7 @@ Mill login → Weighbridge (top nav) / Ctrl+K
     → Second weigh → net = |gross − tare|, WB-YYYY-seq
     → Print slip (Kg / Lbs / Bags)
     → Optional: Copy Gate pass onto invoice custom_fields
+    → Stock forms (GI / GO / grey in / invoice / OGP / GRN / CN / DN / transfers / mill receipts) pick the ticket
 ```
 
 | Who | Workspace |

@@ -76,6 +76,7 @@ Withholding tax and the CIT worksheet are **core accounting** (vendor WHT flags 
 | eCommerce Connectors | Shopify / WooCommerce → draft invoices |
 | Weighbridge | Ticket desk (memo/ops, no GL). Pre-installed on mill models; also a dep of Weaving / Spinning / Textile Processing. Public Marketplace overlay (Gate pass + Lot ref on invoices) |
 | PLC Shop Floor (`shop_floor`) | Mill gateway POSTs loom/frame/scale readings to `/api/plc/ingest`. Install from Add-ons (Optional, or mill Recommended packs). UI `/shop-floor`. Easy-Books never opens Modbus/OPC-UA. |
+| Weighbridge | Ticket desk (memo/ops, no GL). Pre-installed on mill models; also a dep of Weaving / Spinning / Textile Processing. Stock forms pick a ticket (GI/GO, grey in, invoice, OGP, GRN, credit/debit notes, transfers, mill receipts/dispatches). Public Marketplace overlay (Gate pass + Lot ref on invoices) |
 
 ---
 

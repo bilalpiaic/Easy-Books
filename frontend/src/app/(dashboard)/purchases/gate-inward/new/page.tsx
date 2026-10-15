@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ArrowLeft, DoorOpen, Save, AlertCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { todayLocal } from "@/lib/utils"
+import WeighbridgeAttach, { type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 
 interface PO { id: number; number: string; vendor_name: string | null; status: string }
 
@@ -42,6 +43,7 @@ function NewGateInwardInner() {
   const [vehicleNo, setVehicleNo] = useState("")
   const [challanNo, setChallanNo] = useState("")
   const [remarks, setRemarks] = useState("")
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
 
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
@@ -101,6 +103,7 @@ function NewGateInwardInner() {
           challan_no: challanNo || null,
           remarks: remarks || null,
           lines: submitLines,
+          wb_ticket_id: wbTicketId,
         }),
       })
       router.push(`/purchases/gate-inward/${gi.id}`)
@@ -164,6 +167,23 @@ function NewGateInwardInner() {
             />
           </div>
         </div>
+
+        <WeighbridgeAttach
+          direction="inbound"
+          value={wbTicketId}
+          onChange={(t: WbTicketSnap | null) => {
+            setWbTicketId(t?.id ?? null)
+            if (!t) return
+            setVehicleNo(t.vehicle_no || "")
+            if (t.number) setChallanNo(prev => prev || t.number)
+            if (t.ticket_date) setGateDate(t.ticket_date)
+            if (t.driver_name || t.net_kg) {
+              const extra = [t.number, t.driver_name, t.net_kg ? `net ${Number(t.net_kg).toFixed(2)} kg` : ""]
+                .filter(Boolean).join(" · ")
+              setRemarks(prev => prev || extra)
+            }
+          }}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>

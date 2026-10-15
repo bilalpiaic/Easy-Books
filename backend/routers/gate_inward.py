@@ -11,6 +11,7 @@ from routers.common import SessionDep, WriteUserDep, log_audit, next_number
 from services.gate import gi_coverage
 from services.money import D
 from services.permissions import perm_dep, apply_own_filter
+from services.weighbridge_docs import attach_if_any
 
 router = APIRouter(
     prefix="/api/gate-inwards", tags=["gate-inwards"],
@@ -31,6 +32,7 @@ class GIIn(BaseModel):
     challan_no: Optional[str] = None
     remarks: Optional[str] = None
     lines: List[GILineIn] = []
+    wb_ticket_id: Optional[int] = None
 
 
 class GICancel(BaseModel):
@@ -227,6 +229,10 @@ def create_gi(session: SessionDep, user: WriteUserDep, body: GIIn):
         ))
     session.flush()
     _recompute_po_status(session, user.tenant_id, po)
+    attach_if_any(
+        session, user, body.wb_ticket_id, "gate_inward", gi.id,
+        extra_fks={"po_id": po.id},
+    )
     log_audit(session, user, "CREATE", "gate_inward", gi.id, {"number": number})
     session.commit()
     return _serialize(session, gi)

@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Plus, Trash2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useTranslation } from "react-i18next"
+import WeighbridgeAttach, { type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 
 interface Customer { id: number; name: string }
 interface Product  { id: number; code: string; name: string }
@@ -37,6 +38,7 @@ export default function NewGrnPage() {
   const [locationId, setLocationId]   = useState("")
   const [notes, setNotes]             = useState("")
   const [lines, setLines]             = useState<LineState[]>([emptyLine()])
+  const [wbTicketId, setWbTicketId]   = useState<number | null>(null)
 
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState<string | null>(null)
@@ -77,6 +79,7 @@ export default function NewGrnPage() {
         received_date: receivedDate,
         location_id:   locationId ? parseInt(locationId) : undefined,
         notes:         notes || undefined,
+        wb_ticket_id:  wbTicketId,
         lines: validLines.map(l => ({
           product_id:     parseInt(l.product_id),
           qty:            parseFloat(l.qty),
@@ -149,6 +152,26 @@ export default function NewGrnPage() {
               />
             </div>
           </div>
+
+          <WeighbridgeAttach
+            direction="inbound"
+            value={wbTicketId}
+            onChange={(t: WbTicketSnap | null) => {
+              setWbTicketId(t?.id ?? null)
+              if (!t) return
+              if (t.ticket_date) setReceivedDate(t.ticket_date)
+              if (t.party_type === "customer" && t.party_id) {
+                const c = customers.find(x => x.id === t.party_id)
+                if (c) setCustomerId(String(c.id))
+              }
+              if (t.lot_ref) {
+                setLines(prev => prev.map((l, i) => i === 0 && !l.lot_no ? { ...l, lot_no: t.lot_ref || "" } : l))
+              }
+              const extra = [t.number, t.vehicle_no, t.net_kg ? `net ${Number(t.net_kg).toFixed(2)} kg` : ""]
+                .filter(Boolean).join(" · ")
+              setNotes(prev => prev || extra)
+            }}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt } from "@/context/SettingsContext"
 import { RateKgLb, WeightTripleDisplay } from "@/components/weaving/WeightDisplays"
+import WeighbridgeAttach, { type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 import { weightTriple } from "@/lib/spinningUnits"
 
 type Row = {
@@ -42,6 +43,7 @@ export default function BaleReceiptsPage() {
     product_id: "", spin_lot_id: "", date: today(),
     gross_kg: "", tare_kg: "", moisture_pct: "0", rate_per_kg: "", lot_no: "", notes: "",
   })
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
 
   const load = useCallback(() => {
     apiFetch<Row[]>("/api/spinning/bale-receipts").then(d => setRows(Array.isArray(d) ? d : [])).catch(() => setRows([]))
@@ -81,10 +83,12 @@ export default function BaleReceiptsPage() {
           spin_lot_id: form.spin_lot_id ? Number(form.spin_lot_id) : null,
           lot_no: form.lot_no || null,
           notes: form.notes || null,
+          wb_ticket_id: wbTicketId,
         }),
       })
       setShowForm(false)
       setForm({ product_id: "", spin_lot_id: "", date: today(), gross_kg: "", tare_kg: "", moisture_pct: "0", rate_per_kg: "", lot_no: "", notes: "" })
+      setWbTicketId(null)
       load()
     } catch (ex: unknown) {
       setErr(ex instanceof Error ? ex.message : "Save failed")
@@ -164,6 +168,22 @@ export default function BaleReceiptsPage() {
           <form onSubmit={submit} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] w-full max-w-lg p-5 space-y-3 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold">New Bale Receipt</h2>
             {err && <p className="text-sm text-red-600">{err}</p>}
+            <WeighbridgeAttach
+              compact
+              direction="inbound"
+              value={wbTicketId}
+              onChange={(t: WbTicketSnap | null) => {
+                setWbTicketId(t?.id ?? null)
+                if (!t) return
+                setForm(f => ({
+                  ...f,
+                  date: t.ticket_date || f.date,
+                  gross_kg: t.gross_kg ? String(t.gross_kg) : f.gross_kg,
+                  tare_kg: t.tare_kg ? String(t.tare_kg) : f.tare_kg,
+                  lot_no: f.lot_no || t.lot_ref || "",
+                }))
+              }}
+            />
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className="text-xs text-[var(--text-muted)]">Product *</label>

@@ -6,6 +6,7 @@ import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt } from "@/context/SettingsContext"
+import { WeighbridgeLinked } from "@/components/weighbridge/WeighbridgeAttach"
 
 interface Line {
   product_id: number
@@ -71,6 +72,11 @@ export default function StockTransferDetailPage() {
               {fmtDate(t.transfer_date)} · {t.from_location_name} → {t.to_location_name} ·{" "}
               <span className="capitalize">{t.status.replace("_", " ")}</span>
             </p>
+          )}
+          {t && (
+            <div className="mt-1.5">
+              <WeighbridgeLinked docType="stock_transfer" docId={t.id} />
+            </div>
           )}
         </div>
         <Link href="/inventory/transfers" className="text-sm text-[var(--primary)] hover:underline">← List</Link>

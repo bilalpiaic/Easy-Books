@@ -9,6 +9,7 @@ import { useFmt, useSettings } from '@/context/SettingsContext'
 import { usePRAPortal } from '@/hooks/usePRAPortal'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
 import { CustomFieldsInputs, type CustomFieldValues } from '@/components/studio/CustomFieldsInputs'
+import WeighbridgeAttach, { type WbTicketSnap } from '@/components/weighbridge/WeighbridgeAttach'
 import { useFormSchema } from '@/components/studio/formSchema'
 import { DI_INVOICE_TYPES, DI_PROVINCES, DI_SALE_TYPES, DI_UOM, namesFromRef } from '@/lib/diConstants'
 
@@ -148,6 +149,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const [promoMsg, setPromoMsg] = useState("")
   const [icCounterparties, setIcCounterparties] = useState<IcCounterparty[]>([])
   const [customFields, setCustomFields] = useState<CustomFieldValues>({})
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
   const { fields: schemaFields, fieldAccess, visible: vis, required: req } = useFormSchema('invoice')
   const currencyTouched = useRef(false)
 
@@ -398,6 +400,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
       ic_counterparty_tenant_id: form.is_intercompany && form.ic_counterparty_tenant_id
         ? parseInt(form.ic_counterparty_tenant_id) : null,
       custom_fields: customFields,
+      ...(mode === 'create' && wbTicketId ? { wb_ticket_id: wbTicketId } : {}),
     }
     try {
       if (mode === 'edit' && invoice) {
@@ -464,6 +467,25 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
           </div>
           )}
         </div>
+        {mode === 'create' && (
+          <WeighbridgeAttach
+            direction="outbound"
+            value={wbTicketId}
+            onChange={(t: WbTicketSnap | null) => {
+              setWbTicketId(t?.id ?? null)
+              if (!t) return
+              setCustomFields(cf => ({
+                ...cf,
+                'x.gate_pass_no': t.number,
+                ...(t.lot_ref ? { 'x.lot_ref': t.lot_ref } : {}),
+              }))
+              if (t.party_type === 'customer' && t.party_id) {
+                const c = customers.find(x => x.id === t.party_id)
+                if (c) setForm(p => ({ ...p, customer_id: String(c.id), customer_name: c.name }))
+              }
+            }}
+          />
+        )}
         {vis('is_intercompany') && icCounterparties.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-page)] border border-[var(--border)]">
             <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
