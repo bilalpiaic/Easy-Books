@@ -2678,6 +2678,8 @@ Every tenant can use **Weighbridge**. Manufacturing, yarn-spinning, and textile-
 
 The Marketplace listing (`partner.easybooks.weighbridge`) is a **Studio overlay** on sales invoices (Gate pass + Lot ref). Use **Copy Gate pass** on a completed inbound ticket to write the ticket number onto `invoice.custom_fields["x.gate_pass_no"]` without needing invoice edit rights.
 
+When the workspace is installed, **every stock-movement form** (any tenant) can pick a ticket and copy vehicle / lot / weights onto the document: Gate Inward, Gate Outward, Grey In, sales invoice, vendor bill, Rejection OGP, fresh dispatch, bale receipt, yarn inward, weaving dispatch, yarn dispatch, goods receipt (GRN), credit notes, debit notes, and stock transfers. The ticket is linked (one ticket may back several documents); the books still move only when you bill, receive, or post as usual. Store issues and POS remain desk/counter movements with no truck scale.
+
 Until the module is installed, nav is hidden and the ticket API returns 403.
 
 ### 41.1 Who has the workspace
@@ -2702,7 +2704,8 @@ Password for every demo: `demo1234`.
 6. **Print slip** (portrait): ticket #, vehicle, times, Gross / Tare / Net in Kg, Lbs, and Bags (`Kg × 2.2046226218`, bags = lbs / 100 — same as Weaving).
 7. Register (`/weighbridge/tickets` or `/weighbridge/reports/register`): search, date range, freeze panes, `fmtDate`.
 8. Cancel with a reason while the ticket is not completed.
-9. Completed **inbound**: **Copy Gate pass** onto a linked invoice.
+9. Completed **inbound**: **Copy Gate pass** onto a linked invoice, or pick the ticket on Gate Inward / Grey In / bill / bale receipt / GRN / credit note so vehicle and lot fill from the scale.
+10. Completed **outbound**: pick the ticket on Gate Outward, sales invoice, OGP, dispatch, debit note, or stock transfer. Invoice Gate pass (`x.gate_pass_no`) stamps from the ticket number.
 
 Gate clerks need `weighbridge.tickets` (view/edit). The register report also has `weighbridge.reports`. They do **not** need invoice or PO rights to run the desk.
 

@@ -15,6 +15,7 @@ import { useModules } from "@/context/ModuleContext"
 import StatusBadge from "@/components/StatusBadge"
 import { useMessages } from "@/context/MessageContext"
 import { fmtDate } from "@/lib/utils"
+import { WeighbridgeLinked } from "@/components/weighbridge/WeighbridgeAttach"
 
 interface AuditEntry {
   id: number
@@ -426,6 +427,9 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           <FileSignature className="w-7 h-7 text-[var(--primary)] shrink-0 mt-1" />
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">Invoice {inv.number}</h1>
+            <div className="mt-1">
+              <WeighbridgeLinked docType="invoice" docId={inv.id} />
+            </div>
             <p className="text-sm text-[var(--text-primary)]/60">
               Issued {inv.issue_date} · Due {inv.due_date}
               {inv.currency && inv.currency !== baseCurrency && (

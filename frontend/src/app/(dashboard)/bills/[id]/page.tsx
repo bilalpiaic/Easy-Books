@@ -12,6 +12,7 @@ import { downloadPdf } from "@/lib/downloadPdf"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
 import { useMessages } from "@/context/MessageContext"
+import { WeighbridgeLinked } from "@/components/weighbridge/WeighbridgeAttach"
 
 interface AuditEntry {
   id: number
@@ -228,6 +229,9 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
           <Receipt className="w-7 h-7 text-[var(--primary)] shrink-0 mt-1" />
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">Bill {bill.number}</h1>
+            <div className="mt-1">
+              <WeighbridgeLinked docType="bill" docId={bill.id} />
+            </div>
             <p className="text-sm text-[var(--text-primary)]/60">
               Dated {bill.bill_date} · Due {bill.due_date}
               {bill.currency && bill.currency !== baseCurrency && (

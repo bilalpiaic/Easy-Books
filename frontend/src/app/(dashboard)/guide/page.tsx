@@ -1511,6 +1511,8 @@ function WeighbridgePanel() {
         "Record first weigh (tare or gross) → status weighed in. Vehicle is on site.",
         "Record the other weigh → net = |gross − tare|. Number is WB-YYYY-seq. Print the slip (Kg, Lbs, Bags).",
         "Completed inbound: Copy Gate pass onto a linked invoice (writes x.gate_pass_no on invoice JSON; still no GL).",
+        "On Gate Inward, Grey In, bills, GRN, credit notes, bale/yarn inward: pick the inbound ticket — vehicle, lot and weights fill from the scale.",
+        "On Gate Outward, sales invoice, OGP, dispatch, debit notes, stock transfers: pick the outbound ticket the same way.",
         "Cancel with a reason while the ticket is not completed.",
       ]} />
 

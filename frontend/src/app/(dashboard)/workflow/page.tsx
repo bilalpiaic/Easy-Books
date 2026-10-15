@@ -869,9 +869,9 @@ function WeighbridgeFlow() {
         />
         <Arrow />
         <StepBox
-          title="Copy Gate pass"
+          title="Copy onto stock forms"
           accent="green"
-          impact="Completed inbound can write the ticket # onto invoice x.gate_pass_no. Overlay still optional via Marketplace."
+          impact="Pick the ticket on Gate In/Out, Grey In, invoice, OGP, bills, mill receipts/dispatches. Vehicle, lot, weights come from the scale. Invoice still stamps x.gate_pass_no."
         />
       </HFlow>
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-900 leading-relaxed">

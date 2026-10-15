@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
+import WeighbridgeAttach, { type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 
 type Disp = { id: number; number: string; date: string; lot_id: number; meters: number; invoice_id?: number; status: string }
 type PO = { id: number; number: string; status: string }
@@ -15,6 +16,7 @@ export default function DispatchPage() {
   const [pos, setPos] = useState<PO[]>([])
   const [err, setErr] = useState("")
   const [form, setForm] = useState({ production_order_id: "", date: today(), meters: "", vehicle: "", challan: "" })
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
 
   function load() {
     apiFetch<Disp[]>("/api/textile-processing/dispatches").then(d => setRows(Array.isArray(d) ? d : [])).catch(() => setRows([]))
@@ -34,6 +36,7 @@ export default function DispatchPage() {
           vehicle: form.vehicle || null,
           challan: form.challan || null,
           create_invoice: true,
+          wb_ticket_id: wbTicketId,
         }),
       })
       load()
@@ -51,6 +54,23 @@ export default function DispatchPage() {
       <p className="text-sm text-[var(--text-muted)]">Creates process-charge invoice from SO rates × billed meters.</p>
       {err && <p className="text-sm text-red-600">{err}</p>}
       <form onSubmit={submit} className="grid grid-cols-2 md:grid-cols-3 gap-2 border border-[var(--border)] rounded-xl p-3 print:hidden">
+        <div className="col-span-2 md:col-span-3">
+          <WeighbridgeAttach
+            compact
+            direction="outbound"
+            value={wbTicketId}
+            onChange={(t: WbTicketSnap | null) => {
+              setWbTicketId(t?.id ?? null)
+              if (!t) return
+              setForm(f => ({
+                ...f,
+                vehicle: t.vehicle_no || f.vehicle,
+                challan: f.challan || t.number,
+                date: t.ticket_date || f.date,
+              }))
+            }}
+          />
+        </div>
         <select className={input} value={form.production_order_id} onChange={e => setForm({ ...form, production_order_id: e.target.value })} required>
           <option value="">Production order…</option>
           {pos.filter(p => p.status !== "cancelled").map(p => (

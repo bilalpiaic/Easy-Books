@@ -9,6 +9,7 @@ import { useFmt, useSettings } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
 import { isForeignCurrency, toBase } from "@/lib/fx"
 import { useTranslation } from "react-i18next"
+import { WeighbridgeLinked } from "@/components/weighbridge/WeighbridgeAttach"
 
 interface Line { id: number; description: string; qty: number; rate: number; amount: number; unit: string | null }
 interface DebitNoteDetail {
@@ -71,6 +72,9 @@ export default function DebitNoteDetailPage({ params }: { params: Promise<{ id: 
                 <> · {dn.currency} @ {dn.exchange_rate} · {baseCurrency} {fmt(toBase(dn.total, { exchange_rate: dn.exchange_rate }))}</>
               )}
             </p>
+            <div className="mt-1.5">
+              <WeighbridgeLinked docType="debit_note" docId={dn.id} />
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
