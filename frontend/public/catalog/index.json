@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-10",
+  "generated": "2026-10-15",
   "entries": [
     {
       "id": "tenant-simple",
@@ -244,7 +244,7 @@
       "title": "Textile processing unit",
       "kind": "tenant",
       "href": "/processing",
-      "explanation": "Grey-in / process / packed-out mill. Sales orders, grey inward lots, mending, kachi/pakki parchi, rejection outward, PPC stages, fresh dispatch, labor bills, grey settlement, and inspections. Customer-owned grey is custody stock until processed. Malaysia MyInvois is seeded on this demo.",
+      "explanation": "Grey-in / process / packed-out mill. Sales orders, grey inward lots, mending, kachi/pakki parchi, rejection outward, PPC stages, fresh dispatch, labor bills, grey settlement, and inspections. Customer-owned grey is custody stock until processed. Weighbridge tickets are pre-installed for the yard scale. Malaysia MyInvois is seeded on this demo.",
       "steps": [
         "Create a sales order, then grey-in a lot against it.",
         "Move the lot through PPC stages.",
@@ -253,6 +253,7 @@
       "tags": [
         "tenant",
         "processing",
+        "weighbridge",
         "inventory",
         "purchases",
         "localization"
@@ -265,6 +266,7 @@
         "inventory",
         "purchase_store",
         "textile_processing",
+        "weighbridge",
         "my_invois"
       ],
       "segment": "Processing",
@@ -468,7 +470,8 @@
       ],
       "tenants": [
         "manufacturing",
-        "spinning"
+        "spinning",
+        "processing"
       ],
       "modules": [
         "weighbridge"
@@ -1319,7 +1322,8 @@
       ],
       "tenants": [
         "manufacturing",
-        "spinning"
+        "spinning",
+        "processing"
       ],
       "modules": [
         "weighbridge"
@@ -1801,11 +1805,11 @@
       "title": "Print vs Save PDF",
       "kind": "workflow",
       "href": "/trial-balance",
-      "explanation": "Every Print control has a Save PDF beside it. Print uses the browser dialog and a black-and-white Courier (dot-matrix) stylesheet for low-ink paper. Save PDF snapshots the on-screen cream/gold layout (html-to-image + jsPDF) so the file matches what you see. Server WeasyPrint PDFs remain on document Download PDF where that engine is wired.",
+      "explanation": "Every Print control has a Save PDF beside it. Print uses the browser dialog and a black-and-white Courier (dot-matrix) stylesheet for low-ink paper. Save PDF builds a formatted A4 document (ruled tables, PrintHeader, filters/LOVs omitted, footer n / N) — not a screenshot of the live UI. Server WeasyPrint PDFs remain on document Download PDF where that engine is wired.",
       "steps": [
         "Open any report or voucher with Print in the toolbar.",
-        "Print — confirm the preview is monochrome Courier.",
-        "Save PDF — the download keeps on-screen colours, type, and cards.",
+        "Print — confirm the preview is monochrome Courier with no filter chrome.",
+        "Save PDF — the download is a formatted A4 document with page numbers when it spans pages.",
         "On an invoice, Download PDF (if shown) is the server template, distinct from Save PDF."
       ],
       "tags": [
@@ -1835,7 +1839,7 @@
       "title": "Login",
       "kind": "screen",
       "href": "/login",
-      "explanation": "Email + password into a tenant. Demo companies all use password demo1234. Forgot-password always returns a generic confirmation; demo accounts never receive mail. Try demo is hidden when ALLOW_DEMO_LOGIN=false.",
+      "explanation": "Email + password into a tenant. Demo companies all use password demo1234. Forgot-password always returns a generic confirmation; demo accounts never receive mail. Try demo is hidden when ALLOW_DEMO_LOGIN=false. Standalone installs lock the whole copy (login and signup) after the 15-day trial; files are not deleted.",
       "steps": [
         "Enter the tenant owner email.",
         "Password demo1234 on every seeded demo.",
@@ -5769,7 +5773,8 @@
       ],
       "tenants": [
         "manufacturing",
-        "spinning"
+        "spinning",
+        "processing"
       ],
       "modules": [
         "weighbridge"
@@ -5788,7 +5793,8 @@
       ],
       "tenants": [
         "manufacturing",
-        "spinning"
+        "spinning",
+        "processing"
       ],
       "modules": [
         "weighbridge"
@@ -5807,7 +5813,8 @@
       ],
       "tenants": [
         "manufacturing",
-        "spinning"
+        "spinning",
+        "processing"
       ],
       "modules": [
         "weighbridge"
@@ -5827,7 +5834,8 @@
       ],
       "tenants": [
         "manufacturing",
-        "spinning"
+        "spinning",
+        "processing"
       ],
       "modules": [
         "weighbridge"
@@ -8554,7 +8562,8 @@
       ],
       "tenants": [
         "manufacturing",
-        "spinning"
+        "spinning",
+        "processing"
       ],
       "modules": [
         "weighbridge"
