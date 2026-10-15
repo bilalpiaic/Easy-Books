@@ -160,6 +160,7 @@ _MODULE_LINKS: dict[str, list[str]] = {
     "spinning": ["coa", "stock_locations", "inventory", "invoices", "bills"],
     "textile_processing": ["coa", "stock_locations", "invoices", "bills", "gate_inward"],
     "weaving": ["coa", "stock_locations"],
+    "weighbridge": ["invoices", "gate_inward"],
     "healthcare": ["coa", "stock_locations", "inventory", "invoices"],
     "telecom": ["coa", "stock_locations"],
     "hrm": ["coa"],

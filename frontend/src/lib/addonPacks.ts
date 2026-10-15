@@ -101,8 +101,8 @@ export const ADDON_PACKS: AddonPack[] = [
     label: "Textile Processing",
     tagline: "Printing / ballor unit",
     group: "industry",
-    modules: ["inventory", "purchase_store", "textile_processing"],
-    features: ["Grey lots & mending", "PPC stages & wastage", "Process billing & grey credit"],
+    modules: ["inventory", "purchase_store", "textile_processing", "weighbridge"],
+    features: ["Grey lots & mending", "PPC stages & wastage", "Process billing & grey credit", "Weighbridge tickets"],
   },
   {
     id: "healthcare",

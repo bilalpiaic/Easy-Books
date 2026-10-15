@@ -79,7 +79,7 @@ Hospital (and any ungranted tenant) `GET /api/marketplace/catalog` JSON **does n
 
 **Weighbridge** is a **public** listing (`partner.easybooks.weighbridge`). It ships a `studio` bundle: invoice **Gate pass** (`x.gate_pass_no`, required, printed) and **Lot ref** (`x.lot_ref`, optional, form-only). Install writes `CustomFieldDef` rows; uninstall archives them. Values never post to the GL. No partner code runs.
 
-The first-party **Weighbridge** module (`weighbridge`) is the ticket workspace under its own nav section (#391). Mills get it pre-installed; other segments install it from Add-ons → Optional. The listing is the invoice overlay; the module is the scale desk. See [USER_GUIDE.md §41](../USER_GUIDE.md#41-weighbridge-mill-workspace).
+The first-party **Weighbridge** module (`weighbridge`) is the ticket workspace under its own nav section (#391). Manufacturing, yarn spinning, and textile processing get it pre-installed; other segments install it from Add-ons → Optional. The listing is the invoice overlay; the module is the scale desk. See [USER_GUIDE.md §41](../USER_GUIDE.md#41-weighbridge-mill-workspace).
 
 **User path**
 

@@ -876,7 +876,8 @@ function WeighbridgeFlow() {
       </HFlow>
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-900 leading-relaxed">
         Weighbridge is available to every tenant (traders included) from Add-ons → Optional or Marketplace.
-        Mills still get it pre-installed. Step-by-step: User Guide → Weighbridge tab.
+        Manufacturing, yarn spinning, and textile processing mills get it pre-installed.
+        Step-by-step: User Guide → Weighbridge tab.
       </div>
     </div>
   )

@@ -61,7 +61,7 @@
 |---|---|
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
-| Demo tenants | 9 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice/hospital/yarn_spinning/textile_processing (emails `demo.{model}@easy-books.app` — spinning uses `demo.spinning@easy-books.app`, processing uses `demo.processing@easy-books.app`; password `demo1234`). **Weighbridge** is a public Marketplace listing (gate pass + lot on invoices; no GL) for every demo tenant; mills also get the ticket workspace pre-installed. |
+| Demo tenants | 9 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice/hospital/yarn_spinning/textile_processing (emails `demo.{model}@easy-books.app` — spinning uses `demo.spinning@easy-books.app`, processing uses `demo.processing@easy-books.app`; password `demo1234`). **Weighbridge** is a public Marketplace listing (gate pass + lot on invoices; no GL) for every demo tenant; manufacturing, yarn spinning, and textile processing also get the ticket workspace pre-installed. |
 | Add-ons | Grouped by use on `/apps`: Operations · HR · Business nature · Country & statutory · Intelligence. See [`docs/ADDONS.md`](./docs/ADDONS.md). |
 | Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **dual-home dashboard (v4)** — Financial \| Operations toggle on `/dashboard`, each home drag/resize/add/remove independently, per-breakpoint (desktop/tablet/phone), saved per user via `/api/dashboard/layout`; home preference in Settings → Advanced (`eb.home_dashboard`); ops aggregate `GET /api/dashboard/operations-summary`; staff rights `dashboard.financial` / `dashboard.operations`; **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+); **PRA portal mode** — admin/owner can toggle between Full Accounting view and a clean 7-item PRA-focused sidebar; non-admin users always land in portal mode (v2.8.1+); **Ctrl+K universal search** — 3-tier command palette (open tabs → nav index → API, 8 entity types, prefix filter syntax, recent searches) (v3.0+); **in-app auto-update** — `UpdateAvailablePopup` + `UpdateProgressScreen` with 4-phase progress and changelog (v3.0+); **mobile navigation** — `BottomNav`, `FAB`, `MoreDrawer` (v3.0+); **QB token system** — all 155+ pages migrated to CSS custom properties, dark mode entirely token-driven (v3.0+) |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
@@ -457,7 +457,7 @@ Easy-Books implements the following international accounting standards and best 
 | Demo PRA Co. | `demo.pra@easy-books.app` | PRA e-Invoice | Pakistani retail — PRA eIMS, PKR, NTN/CNIC, PCT codes |
 | City General Hospital | `demo.hospital@easy-books.app` | Healthcare / Hospital | OPD/IPD, Lab, Procedures, Pharmacy store |
 | Demo Yarn Spinning Mill | `demo.spinning@easy-books.app` | Yarn Spinning | Bale receipt → multi-stage lots → cone output → dispatch (full GL). Marketplace **Weighbridge** (For you). |
-| Demo Textile Processing | `demo.processing@easy-books.app` | Textile Processing | Grey inward / processing floor |
+| Demo Textile Processing | `demo.processing@easy-books.app` | Textile Processing | Grey inward / processing floor; Weighbridge pre-installed |
 
 **Password (all):** `demo1234`
 
@@ -1072,7 +1072,7 @@ any       → maintenance (PUT /beds/{id} status=maintenance — admin only)
 
 ### 4.10 WEAVING UNIT CONTROL (#140)
 
-Installable Industry module (`weaving`, deps `base`+`inventory`). **v1 is operational / memo only — no GL posting.**
+Installable Industry module (`weaving`, deps `base`+`inventory`+`weighbridge`). **v1 is operational / memo only — no GL posting.** Yarn/grey trucks use the Weighbridge workspace (pulled in with Weaving).
 
 ```
 Master Data → Contracts (+ Rate/Costing) → Yarn Inward → Sizing → Production → Dispatch
@@ -1138,14 +1138,14 @@ Mill login → Weighbridge (top nav) / Ctrl+K
 
 | Who | Workspace |
 |-----|---------|
-| `manufacturing` / `yarn_spinning` (and entitled install) | Module pre-installed / Optional card |
+| `manufacturing` / `yarn_spinning` / `textile_processing`, or any tenant with Weaving / Spinning / Processing installed | Module pre-installed (Weaving pulls Weighbridge as a dep) |
 | Hospital / simple / ungranted | Nav hidden; API 403 |
 
 Private Marketplace listing still installs Studio Gate pass (`x.gate_pass_no`) + Lot ref (`x.lot_ref`) on invoices. Uninstall archives definitions. End-user steps: [USER_GUIDE.md §41](./USER_GUIDE.md#41-weighbridge-mill-workspace).
 
 ### 4.13 TEXTILE PROCESSING
 
-Business nature pack `textile_processing`. Customer-owned grey lots → mending → kachi parchi → PPC stages → pakki parchi → dispatch; leftover grey settled; contractor labour billed. Demo: `demo.processing@easy-books.app`. Pair with a country pack from Add-ons → Country & statutory.
+Business nature pack `textile_processing`. Customer-owned grey lots → mending → kachi parchi → PPC stages → pakki parchi → dispatch; leftover grey settled; contractor labour billed. Weighbridge tickets are pre-installed (yard scale for grey in / packed out). Demo: `demo.processing@easy-books.app`. Pair with a country pack from Add-ons → Country & statutory.
 
 ### 4.14 POS & ECOMMERCE
 

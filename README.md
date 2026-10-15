@@ -217,7 +217,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **FBR Digital Invoicing (PRAL DI API v1.12, add-on `pra`):** validate-then-post to `gw.fbr.gov.pk`; sandbox `scenarioId` SN001–SN028; FBR `invoiceNumber` + 1-inch QR on print; buyer registration/province; HS/`saleType`/MRP/SRO line fields; debit notes with `invoiceRefNo`; Settings Test Connection uses `validateinvoicedata`
 - **Yarn Spinning:** cotton bale receipt → multi-stage lot tracking (carding/drawing/roving/spinning/winding) → cone output → yarn dispatch with full GL costing (`1200`–`1204` WIP chain, waste accounts `5901`–`5904`, COGS at dispatch)
 - **Textile Processing:** grey inward → mending → kachi/pakki parchi → PPC stages → dispatch (`demo.processing@easy-books.app`)
-- **Weighbridge:** public Marketplace overlay (Gate pass + Lot ref on **sales invoices**, Studio data, no extra GL) plus first-party ticket workspace (pre-installed for mills; Optional for other segments)
+- **Weighbridge:** public Marketplace overlay (Gate pass + Lot ref on **sales invoices**, Studio data, no extra GL) plus first-party ticket workspace (pre-installed for manufacturing, yarn spinning, and textile processing; Optional for other segments)
 
 ---
 
@@ -338,7 +338,7 @@ npm run dev
 | `demo.pra@easy-books.app` | FBR Digital Invoicing (PRA add-on) |
 | `demo.hospital@easy-books.app` | Healthcare |
 | `demo.spinning@easy-books.app` | Yarn Spinning (full GL production chain); Marketplace **Weighbridge** (For you) |
-| `demo.processing@easy-books.app` | Textile Processing (grey inward / processing floor) |
+| `demo.processing@easy-books.app` | Textile Processing (grey inward / processing floor; Weighbridge pre-installed) |
 
 The first install takes an extra ~20–30 seconds while the seeder runs; subsequent starts are fast (the seeder is guarded — skips if any user already exists, so updating an existing install is migrate-only and no demo data is added). To opt out and start with a clean slate, set `SEED_DEMO=false` before running the installer.
 

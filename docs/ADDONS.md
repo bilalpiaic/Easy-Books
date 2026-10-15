@@ -39,7 +39,7 @@ Source of truth: `MODULE_REGISTRY` in `backend/db.py` (`category` field) and `AD
 | Trader | `inventory`, `pos` | `demo.trader@easy-books.app` |
 | Manufacturing | `inventory`, `production`, `purchase_store`, `weaving`, `weighbridge` | `demo.manufacturing@easy-books.app` |
 | Yarn Spinning | `inventory`, `purchase_store`, `spinning`, `weighbridge` | `demo.spinning@easy-books.app` |
-| Textile Processing | `inventory`, `purchase_store`, `textile_processing` | `demo.processing@easy-books.app` |
+| Textile Processing | `inventory`, `purchase_store`, `textile_processing`, `weighbridge` | `demo.processing@easy-books.app` |
 | Healthcare | `hrm`, `inventory`, `healthcare` | `demo.hospital@easy-books.app` |
 | Telecom Franchise | `inventory`, `telecom` | `demo.telecom@easy-books.app` |
 
@@ -74,7 +74,7 @@ Withholding tax and the CIT worksheet are **core accounting** (vendor WHT flags 
 | Purchases & Store | Demand → quotation → comparative → PO → gate inward / outward → store issue |
 | Point of Sale | Shift, register, cash-up; same GL as invoices |
 | eCommerce Connectors | Shopify / WooCommerce → draft invoices |
-| Weighbridge | Ticket desk (memo/ops, no GL). Also a public Marketplace overlay (Gate pass + Lot ref on invoices) |
+| Weighbridge | Ticket desk (memo/ops, no GL). Pre-installed on mill models; also a dep of Weaving / Spinning / Textile Processing. Public Marketplace overlay (Gate pass + Lot ref on invoices) |
 
 ---
 
@@ -96,7 +96,7 @@ telecom_franchise     → base, inventory, telecom
 pra_einvoice          → base, pra
 hospital              → base, hrm, inventory, healthcare
 yarn_spinning         → base, inventory, purchase_store, spinning, weighbridge
-textile_processing    → base, inventory, purchase_store, textile_processing
+textile_processing    → base, inventory, purchase_store, textile_processing, weighbridge
 ```
 
 After signup the user manages modules independently. Localization demos may also enable a country pack on selected tenants.

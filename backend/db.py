@@ -216,6 +216,11 @@ def _ensure_yarn_spinning_module(session: Session) -> None:
 def _ensure_mill_weighbridge_module(session: Session) -> None:
     """Install first-party Weighbridge on mill tenants that may already have it.
 
+    Covers mill *models* (manufacturing, yarn spinning, textile processing)
+    and mill *modules* (weaving / spinning / textile_processing). Weaving has
+    no business_model of its own — Optional install of Weaving still needs
+    the yard desk.
+
     Nav / Ctrl+K / ``/weighbridge/*`` gate on ``enabled_modules``. A code-only
     deploy must not leave an entitled mill tenant without the workspace.
 
@@ -226,15 +231,15 @@ def _ensure_mill_weighbridge_module(session: Session) -> None:
     from models import Tenant
     from routers.modules import _get_enabled, install_module_for_tenant
     from services.entitlements import can_install
-    from services.marketplace.catalog import MILL_WEIGHBRIDGE_MODELS
+    from services.marketplace.catalog import mill_wants_weighbridge
 
-    mills = session.exec(
-        select(Tenant).where(Tenant.business_model.in_(list(MILL_WEIGHBRIDGE_MODELS)))
-    ).all()
     restored = 0
-    for tenant in mills:
+    for tenant in session.exec(select(Tenant)).all():
         try:
-            if "weighbridge" in _get_enabled(tenant):
+            enabled = _get_enabled(tenant)
+            if "weighbridge" in enabled:
+                continue
+            if not mill_wants_weighbridge(tenant, enabled):
                 continue
             if not can_install(tenant, "weighbridge"):
                 continue
@@ -762,10 +767,10 @@ MODULE_REGISTRY: dict[str, dict] = {
     },
     "weaving": {
         "label":       "Weaving",
-        "description": "Weaving unit control: contracts, yarn inward, sizing, production, dispatch, and operational dashboards (Kg/Lbs/Bags). Memo/ops in v1 — no GL posting.",
+        "description": "Weaving unit control: contracts, yarn inward, sizing, production, dispatch, and operational dashboards (Kg/Lbs/Bags). Memo/ops in v1 — no GL posting. Installs Weighbridge for yarn/grey truck weights.",
         "category":    "Industry",
         "icon":        "Scissors",
-        "deps":        ["base", "inventory"],
+        "deps":        ["base", "inventory", "weighbridge"],
         "always":      False,
         "default":     False,
         "tier":        "free",
@@ -776,7 +781,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "description": "Spinning mill production: cotton receipt, multi-stage lot tracking, cone output, waste, and full GL costing.",
         "category":    "Industry",
         "icon":        "CircleDot",
-        "deps":        ["base", "inventory", "purchase_store"],
+        "deps":        ["base", "inventory", "purchase_store", "weighbridge"],
         "always":      False,
         "default":     False,
         "tier":        "free",
@@ -798,7 +803,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "description": "Ballor/jobber printing unit: customer-owned grey lots, mending, PPC stages, process billing, contractor labor, and grey settlement.",
         "category":    "Industry",
         "icon":        "Layers",
-        "deps":        ["base", "inventory", "purchase_store"],
+        "deps":        ["base", "inventory", "purchase_store", "weighbridge"],
         "always":      False,
         "default":     False,
         "tier":        "free",
@@ -818,7 +823,7 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "pra_einvoice":      ["base", "pra"],
     "hospital":          ["base", "hrm", "inventory", "healthcare"],
     "yarn_spinning":     ["base", "inventory", "purchase_store", "spinning", "weighbridge"],
-    "textile_processing": ["base", "inventory", "purchase_store", "textile_processing"],
+    "textile_processing": ["base", "inventory", "purchase_store", "textile_processing", "weighbridge"],
 }
 
 

@@ -1526,8 +1526,9 @@ function WeighbridgePanel() {
           <tbody className="divide-y divide-[var(--border)]">
             {[
               ["Yarn spinning mill (this demo)", "Yes — pre-installed"],
-              ["Manufacturing mill", "Yes — pre-installed"],
-              ["Trader / other segments", "Install from Add-ons → Optional or Marketplace"],
+              ["Manufacturing / weaving mill", "Yes — pre-installed (Weaving installs Weighbridge)"],
+              ["Textile processing unit", "Yes — pre-installed"],
+              ["Trader / hospital / other segments", "Install from Add-ons → Optional or Marketplace"],
               ["Not installed", "Nav hidden, API 403 until you install"],
             ].map(([who, sees]) => (
               <tr key={who} className="hover:bg-[#faf8f4]">
