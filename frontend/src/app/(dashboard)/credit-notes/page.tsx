@@ -13,6 +13,7 @@ import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
 import PrintButton from "@/components/PrintButton"
+import WeighbridgeAttach, { type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 
 interface CreditNote {
   id: number
@@ -78,6 +79,7 @@ export default function CreditNotesPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
 
   function load() {
     setIsLoading(true)
@@ -90,6 +92,7 @@ export default function CreditNotesPage() {
 
   async function openModal() {
     setForm(makeEmptyForm(settings.currency || 'PKR'))
+    setWbTicketId(null)
     setFormError('')
     const [custData, invData, prodData] = await Promise.all([
       apiFetch<{ items: Customer[] }>('/api/customers?limit=200'),
@@ -145,6 +148,7 @@ export default function CreditNotesPage() {
             qty: parseFloat(l.qty) || 1,
             rate: parseFloat(l.rate) || 0,
           })),
+          wb_ticket_id: wbTicketId,
         }),
       })
       setModalOpen(false)
@@ -249,6 +253,29 @@ export default function CreditNotesPage() {
               <button onClick={() => setModalOpen(false)} className="text-[var(--text-primary)]/40 hover:text-[var(--text-primary)] text-xl">✕</button>
             </div>
             <div className="p-6 space-y-4">
+              <WeighbridgeAttach
+                compact
+                direction="inbound"
+                value={wbTicketId}
+                onChange={(t: WbTicketSnap | null) => {
+                  setWbTicketId(t?.id ?? null)
+                  if (!t) return
+                  setForm(f => {
+                    const next = { ...f, issue_date: t.ticket_date || f.issue_date }
+                    if (t.party_type === 'customer' && t.party_id) {
+                      const c = customers.find(x => x.id === t.party_id)
+                      if (c) {
+                        next.customer_id = String(c.id)
+                        next.customer_name = c.name
+                      }
+                    }
+                    const extra = [t.number, t.vehicle_no, t.net_kg ? `net ${Number(t.net_kg).toFixed(2)} kg` : '']
+                      .filter(Boolean).join(' · ')
+                    if (extra && !f.description) next.description = extra
+                    return next
+                  })
+                }}
+              />
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">{t('col.customer', 'Customer')}</label>
                 <select value={form.customer_id}

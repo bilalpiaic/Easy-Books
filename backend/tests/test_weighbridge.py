@@ -374,10 +374,12 @@ def test_wb_stock_forms_cover_truck_scale_docs():
     outbound = {k for k, v in WB_STOCK_FORMS.items() if v.direction == "outbound"}
     assert inbound == {
         "gate_inward", "grey_lot", "bill", "sp_bale_receipt", "wv_yarn_inward",
+        "grn", "credit_note",
     }
     assert outbound == {
         "gate_outward", "invoice", "rejection_ogp", "tp_dispatch",
         "wv_dispatch", "sp_yarn_dispatch",
+        "debit_note", "stock_transfer",
     }
 
 
@@ -521,3 +523,102 @@ def test_attach_endpoint_idempotent(client):
     assert second.status_code == 200, second.text
     fetched = client.get(f"/api/invoices/{invoice_id}", headers=auth).json()
     assert fetched["custom_fields"]["x.gate_pass_no"] == ticket.json()["number"]
+
+
+def test_grn_and_credit_note_attach_inbound_ticket(client):
+    auth = _signup(client, "wb-grn-cn@test.com", model="manufacturing")
+    cust = client.post("/api/customers", headers=auth, json={"name": "Brand Co"}).json()
+    prod = client.post("/api/products", headers=auth, json={
+        "code": "FAB", "name": "Fabric", "unit": "kg",
+        "product_type": "stock", "default_rate": 10,
+    }).json()
+    ticket = client.post("/api/weighbridge/tickets", headers=auth, json={
+        "direction": "inbound", "vehicle_no": "GRN-TRK",
+        "lot_ref": "LOT-G", "gross_kg": 500, "tare_kg": 50,
+    })
+    assert ticket.status_code == 201, ticket.text
+    tid = ticket.json()["id"]
+
+    grn = client.post("/api/grn", headers=auth, json={
+        "customer_id": cust["id"], "received_date": "2026-10-01",
+        "lines": [{"product_id": prod["id"], "qty": 100, "lot_no": "LOT-G"}],
+        "wb_ticket_id": tid,
+    })
+    assert grn.status_code == 201, grn.text
+    links = client.get(
+        f"/api/weighbridge/links?doc_type=grn&doc_id={grn.json()['id']}",
+        headers=auth,
+    )
+    assert links.json()["items"][0]["id"] == tid
+
+    cn = client.post("/api/credit-notes", headers=auth, json={
+        "customer_id": cust["id"], "issue_date": "2026-10-02",
+        "lines": [{"description": "Return", "qty": 1, "rate": 5}],
+        "wb_ticket_id": tid,
+    })
+    assert cn.status_code == 201, cn.text
+    cn_links = client.get(
+        f"/api/weighbridge/links?doc_type=credit_note&doc_id={cn.json()['id']}",
+        headers=auth,
+    )
+    assert cn_links.json()["items"][0]["id"] == tid
+
+
+def test_debit_note_and_transfer_attach_outbound_ticket(client):
+    auth = _signup(client, "wb-dn-st@test.com", model="trader")
+    _install(client, auth, "weighbridge", "inventory")
+    vendor = client.post("/api/vendors", headers=auth, json={"name": "Cotton Co"}).json()
+    bill = client.post("/api/bills", headers=auth, json={
+        "vendor_id": vendor["id"], "bill_date": "2026-10-01", "due_date": "2026-10-30",
+        "gst_rate": 0,
+        "lines": [{"description": "Yarn", "qty": 1, "rate": 20}],
+    })
+    assert bill.status_code == 201, bill.text
+    ticket = client.post("/api/weighbridge/tickets", headers=auth, json={
+        "direction": "outbound", "vehicle_no": "DN-TRK",
+        "gross_kg": 200, "tare_kg": 20,
+    })
+    assert ticket.status_code == 201, ticket.text
+    tid = ticket.json()["id"]
+
+    dn = client.post("/api/debit-notes", headers=auth, json={
+        "bill_id": bill.json()["id"], "vendor_id": vendor["id"],
+        "issue_date": "2026-10-02",
+        "lines": [{"description": "Return", "qty": 1, "rate": 20}],
+        "wb_ticket_id": tid,
+    })
+    assert dn.status_code == 201, dn.text
+    dn_links = client.get(
+        f"/api/weighbridge/links?doc_type=debit_note&doc_id={dn.json()['id']}",
+        headers=auth,
+    )
+    assert dn_links.json()["items"][0]["id"] == tid
+
+    locs = client.get("/api/stock-locations?type=own", headers=auth).json()["items"]
+    by_code = {l["code"]: l for l in locs}
+    if "WH2" not in by_code:
+        w = client.post("/api/stock-locations", headers=auth, json={
+            "code": "WH2", "name": "Warehouse 2", "type": "own",
+        })
+        assert w.status_code == 201, w.text
+        by_code["WH2"] = w.json()
+    main_id = by_code["MAIN"]["id"]
+    wh2_id = by_code["WH2"]["id"]
+    prod = client.post("/api/products", headers=auth, json={
+        "name": "Bolt", "product_type": "stock", "default_rate": 5,
+        "opening_qty": 10, "opening_cost": 2,
+    })
+    assert prod.status_code in (200, 201), prod.text
+    st = client.post("/api/stock-transfers", headers=auth, json={
+        "transfer_date": "2026-10-03",
+        "from_location_id": main_id,
+        "to_location_id": wh2_id,
+        "lines": [{"product_id": prod.json()["id"], "qty": 2}],
+        "wb_ticket_id": tid,
+    })
+    assert st.status_code == 201, st.text
+    st_links = client.get(
+        f"/api/weighbridge/links?doc_type=stock_transfer&doc_id={st.json()['id']}",
+        headers=auth,
+    )
+    assert st_links.json()["items"][0]["id"] == tid

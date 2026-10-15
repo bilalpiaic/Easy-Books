@@ -23,6 +23,7 @@ from services.inventory import (
 )
 from services.money import D, money
 from services.permissions import apply_own_filter, perm_dep
+from services.weighbridge_docs import attach_if_any
 
 router = APIRouter(
     prefix="/api/stock-transfers",
@@ -43,6 +44,7 @@ class TransferIn(BaseModel):
     to_location_id: int
     notes: Optional[str] = None
     lines: List[LineIn]
+    wb_ticket_id: Optional[int] = None
 
 
 class CancelIn(BaseModel):
@@ -189,6 +191,7 @@ def create_transfer(body: TransferIn, session: SessionDep, user: WriteUserDep):
             )
         )
     log_audit(session, user, "CREATE", "stock_transfer", st.id, {"number": number})
+    attach_if_any(session, user, body.wb_ticket_id, "stock_transfer", st.id)
     session.commit()
     session.refresh(st)
     return _serialize(session, st)

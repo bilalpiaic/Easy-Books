@@ -40,6 +40,10 @@ WB_STOCK_FORMS: dict[str, StockFormDef] = {
     "wv_yarn_inward": StockFormDef("wv_yarn_inward", "inbound", "Yarn Inward"),
     "wv_dispatch": StockFormDef("wv_dispatch", "outbound", "Weaving Dispatch"),
     "sp_yarn_dispatch": StockFormDef("sp_yarn_dispatch", "outbound", "Yarn Dispatch"),
+    "grn": StockFormDef("grn", "inbound", "Goods Receipt"),
+    "credit_note": StockFormDef("credit_note", "inbound", "Credit Note"),
+    "debit_note": StockFormDef("debit_note", "outbound", "Debit Note"),
+    "stock_transfer": StockFormDef("stock_transfer", "outbound", "Stock Transfer"),
 }
 
 PICKABLE_STATUSES = frozenset({"weighed_in", "completed"})

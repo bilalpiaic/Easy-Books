@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
+import WeighbridgeAttach, { type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 
 interface Loc { id: number; code: string; name: string; type: string }
 interface Product { id: number; name: string; product_type: string }
@@ -19,6 +20,7 @@ export default function NewStockTransferPage() {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState("")
   const [lines, setLines] = useState<Line[]>([{ product_id: 0, qty: "1" }])
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -61,6 +63,7 @@ export default function NewStockTransferPage() {
           to_location_id: toId,
           notes: notes || null,
           lines: bodyLines,
+          wb_ticket_id: wbTicketId,
         }),
       })
       router.push(`/inventory/transfers/${t.id}`)
@@ -80,6 +83,18 @@ export default function NewStockTransferPage() {
       {error && <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl px-3 py-2 text-sm">{error}</div>}
 
       <div className="bg-white border border-[var(--text-primary)]/10 rounded-2xl p-4 space-y-3">
+        <WeighbridgeAttach
+          direction="outbound"
+          value={wbTicketId}
+          onChange={(t: WbTicketSnap | null) => {
+            setWbTicketId(t?.id ?? null)
+            if (!t) return
+            if (t.ticket_date) setDate(t.ticket_date)
+            const extra = [t.number, t.vehicle_no, t.net_kg ? `net ${Number(t.net_kg).toFixed(2)} kg` : ""]
+              .filter(Boolean).join(" · ")
+            setNotes(prev => prev || extra)
+          }}
+        />
         <label className="block text-sm">
           <span className="text-xs text-[var(--text-primary)]/50">Date</span>
           <input type="date" className="block w-full border rounded-lg px-3 py-2 mt-1" value={date} onChange={(e) => setDate(e.target.value)} />

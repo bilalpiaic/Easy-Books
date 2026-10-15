@@ -12,6 +12,7 @@ import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
 import PrintButton from "@/components/PrintButton"
+import WeighbridgeAttach, { type WbTicketSnap } from "@/components/weighbridge/WeighbridgeAttach"
 
 interface DebitNote {
   id: number
@@ -71,6 +72,7 @@ export default function DebitNotesPage() {
   const [bills, setBills] = useState<Bill[]>([])
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [wbTicketId, setWbTicketId] = useState<number | null>(null)
 
   function load() {
     setIsLoading(true)
@@ -82,6 +84,7 @@ export default function DebitNotesPage() {
 
   async function openModal() {
     setForm(makeEmptyForm(settings.currency || 'PKR'))
+    setWbTicketId(null)
     setFormError('')
     const [vData, bData] = await Promise.all([
       apiFetch<{ items: Vendor[] }>('/api/vendors?limit=200'),
@@ -122,6 +125,7 @@ export default function DebitNotesPage() {
             qty: parseFloat(l.qty) || 1,
             rate: parseFloat(l.rate) || 0,
           })),
+          wb_ticket_id: wbTicketId,
         }),
       })
       setModalOpen(false); load()
@@ -217,6 +221,26 @@ export default function DebitNotesPage() {
               <button onClick={() => setModalOpen(false)} className="text-[var(--text-primary)]/40 hover:text-[var(--text-primary)] text-xl">✕</button>
             </div>
             <div className="p-6 space-y-4">
+              <WeighbridgeAttach
+                compact
+                direction="outbound"
+                value={wbTicketId}
+                onChange={(t: WbTicketSnap | null) => {
+                  setWbTicketId(t?.id ?? null)
+                  if (!t) return
+                  setForm(f => {
+                    const next = { ...f, issue_date: t.ticket_date || f.issue_date }
+                    if (t.party_type === 'vendor' && t.party_id) {
+                      const v = vendors.find(x => x.id === t.party_id)
+                      if (v) next.vendor_id = String(v.id)
+                    }
+                    const extra = [t.number, t.vehicle_no, t.net_kg ? `net ${Number(t.net_kg).toFixed(2)} kg` : '']
+                      .filter(Boolean).join(' · ')
+                    if (extra && !f.description) next.description = extra
+                    return next
+                  })
+                }}
+              />
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">{t('col.vendor', 'Vendor')}</label>

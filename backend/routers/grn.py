@@ -24,6 +24,7 @@ from .common import (
 )
 from models import InventoryLayer
 from services.permissions import perm_dep, apply_own_filter
+from services.weighbridge_docs import attach_if_any
 
 router = APIRouter(prefix="/api/grn", tags=["grn"], dependencies=[perm_dep("grn")])
 
@@ -42,6 +43,7 @@ class GRNCreate(BaseModel):
     location_id: Optional[int] = None        # defaults to first customer_custodial loc
     notes: Optional[str] = None
     lines: List[GRNLineIn]
+    wb_ticket_id: Optional[int] = None
 
 
 def _resolve_godown(session, tenant_id: int) -> Optional[StockLocation]:
@@ -218,6 +220,7 @@ def create_grn(session: SessionDep, user: WriteUserDep, body: GRNCreate):
         session, user, "CREATE", "grn", grn.id,
         {"number": number, "customer_id": body.customer_id},
     )
+    attach_if_any(session, user, body.wb_ticket_id, "grn", grn.id)
     session.commit()
     session.refresh(grn)
     return _serialise(session, grn)
