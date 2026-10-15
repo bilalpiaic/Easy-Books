@@ -86,7 +86,7 @@ Easy-Books provides **9 pre-seeded demo tenants** for immediate exploration:
 | `demo.pra@easy-books.app` | `demo1234` | PRA e-Invoice — Pakistani retail (PKR, NTN/CNIC, PCT codes, FINs) |
 | `demo.hospital@easy-books.app` | `demo1234` | Healthcare — hospital/clinic (OPD, IPD, Lab, Procedures, Store) |
 | `demo.spinning@easy-books.app` | `demo1234` | Yarn Spinning Mill (bale receipt, lots, stages, cones, dispatch; Marketplace **Weighbridge**) |
-| `demo.processing@easy-books.app` | `demo1234` | Textile Processing Unit (grey inward / processing floor) |
+| `demo.processing@easy-books.app` | `demo1234` | Textile Processing Unit (grey inward / processing floor; Weighbridge pre-installed) |
 
 **Rich mock data included (full year coverage):**
 - Each tenant has **100 invoices, 100 bills, 70 payments received, 70 bill payments**
@@ -1872,7 +1872,7 @@ Each first-party card shows name, description, category, dependencies, install s
 
 **Uninstalling** is blocked if another installed module depends on the one you want to remove (you must remove the dependent first). The Base module cannot be uninstalled.
 
-If your company is a mill (manufacturing or yarn spinning) **and Yarn Spinning is not installed**, Add-ons opens **Recommended** so the Yarn Spinning pack is visible. **Weighbridge** is a **public** Marketplace listing for every tenant (traders included) and a first-party Optional module. Mills still get the ticket workspace pre-installed. You can also go to `/apps?tab=recommended` or `/apps?tab=marketplace`, or press **Ctrl+K** and type `spinning` / `weighbridge`. See [§30A Yarn Spinning](#30a-yarn-spinning-module) and [§41 Weighbridge](#41-weighbridge-mill-workspace).
+If your company is a mill (manufacturing or yarn spinning) **and Yarn Spinning is not installed**, Add-ons opens **Recommended** so the Yarn Spinning pack is visible. **Weighbridge** is a **public** Marketplace listing for every tenant (traders included) and a first-party Optional module. Manufacturing, yarn spinning, and textile processing still get the ticket workspace pre-installed. You can also go to `/apps?tab=recommended` or `/apps?tab=marketplace`, or press **Ctrl+K** and type `spinning` / `weighbridge`. See [§30A Yarn Spinning](#30a-yarn-spinning-module) and [§41 Weighbridge](#41-weighbridge-mill-workspace).
 
 ### 29.3 First-time onboarding
 
@@ -2674,7 +2674,7 @@ The UI surfaces the server `detail` when available instead of a bare browser “
 
 ## 41. WEIGHBRIDGE
 
-Every tenant can use **Weighbridge**. Manufacturing and yarn-spinning mills get the first-party module (`weighbridge`) pre-installed; traders and other segments install it from **Add-ons → Optional** (starter/pro/enterprise) or see the **public** Marketplace overlay. v1 is a **ticket register** (memo/ops): record the vehicle, first weigh, second weigh, print a slip. **It does not post to the GL** (`services/posting.py` is never called).
+Every tenant can use **Weighbridge**. Manufacturing, yarn-spinning, and textile-processing mills get the first-party module (`weighbridge`) pre-installed (it is **not** spinning-only); traders and other segments install it from **Add-ons → Optional** (starter/pro/enterprise) or see the **public** Marketplace overlay. v1 is a **ticket register** (memo/ops): record the vehicle, first weigh, second weigh, print a slip. **It does not post to the GL** (`services/posting.py` is never called).
 
 The Marketplace listing (`partner.easybooks.weighbridge`) is a **Studio overlay** on sales invoices (Gate pass + Lot ref). Use **Copy Gate pass** on a completed inbound ticket to write the ticket number onto `invoice.custom_fields["x.gate_pass_no"]` without needing invoice edit rights.
 
@@ -2686,6 +2686,7 @@ Until the module is installed, nav is hidden and the ticket API returns 403.
 |---------|-------------------|
 | Yarn spinning mill (`demo.spinning@easy-books.app`) | Yes — pre-installed |
 | Manufacturing mill (`demo.manufacturing@easy-books.app`) | Yes — pre-installed |
+| Textile processing unit (`demo.processing@easy-books.app`) | Yes — pre-installed |
 | Trader / hospital / other segments | Install from Add-ons → Optional or Marketplace |
 | New public signup (Base Accounting only) | Marketplace overlay is visible; workspace after install |
 

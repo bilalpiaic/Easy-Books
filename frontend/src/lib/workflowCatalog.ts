@@ -32,7 +32,7 @@ export const DEMO_TENANTS: Record<DemoTenantKey, {
   pra:            { label: "FBR Digital Invoicing", email: "demo.pra@easy-books.app",            model: "pra_einvoice",        modules: ["base", "pra"] },
   hospital:       { label: "Hospital",            email: "demo.hospital@easy-books.app",       model: "hospital",            modules: ["base", "hrm", "inventory", "healthcare", "uk_mtd"] },
   spinning:       { label: "Yarn Spinning",       email: "demo.spinning@easy-books.app",       model: "yarn_spinning",       modules: ["base", "inventory", "purchase_store", "spinning", "weighbridge"] },
-  processing:     { label: "Textile Processing",  email: "demo.processing@easy-books.app",     model: "textile_processing",  modules: ["base", "inventory", "purchase_store", "textile_processing", "my_invois"] },
+  processing:     { label: "Textile Processing",  email: "demo.processing@easy-books.app",     model: "textile_processing",  modules: ["base", "inventory", "purchase_store", "textile_processing", "weighbridge", "my_invois"] },
 }
 
 export const CATALOG_KINDS: { id: CatalogKind | "all"; label: string }[] = [
@@ -207,9 +207,9 @@ const TENANT_ENTRIES: CatalogEntry[] = [
   },
   {
     id: "tenant-processing", kind: "tenant", title: "Textile processing unit", href: "/processing",
-    captureTenant: "processing", segment: "Processing", modules: ["base", "inventory", "purchase_store", "textile_processing", "my_invois"],
-    tenants: ["processing"], tags: ["tenant", "processing", "inventory", "purchases", "localization"],
-    explanation: "Grey-in / process / packed-out mill. Sales orders, grey inward lots, mending, kachi/pakki parchi, rejection outward, PPC stages, fresh dispatch, labor bills, grey settlement, and inspections. Customer-owned grey is custody stock until processed. Malaysia MyInvois is seeded on this demo.",
+    captureTenant: "processing", segment: "Processing", modules: ["base", "inventory", "purchase_store", "textile_processing", "weighbridge", "my_invois"],
+    tenants: ["processing"], tags: ["tenant", "processing", "weighbridge", "inventory", "purchases", "localization"],
+    explanation: "Grey-in / process / packed-out mill. Sales orders, grey inward lots, mending, kachi/pakki parchi, rejection outward, PPC stages, fresh dispatch, labor bills, grey settlement, and inspections. Customer-owned grey is custody stock until processed. Weighbridge tickets are pre-installed for the yard scale. Malaysia MyInvois is seeded on this demo.",
     steps: ["Create a sales order, then grey-in a lot against it.", "Move the lot through PPC stages.", "Issue pakki parchi and dispatch; settle leftover grey."],
   },
 ]
@@ -375,7 +375,7 @@ const WORKFLOW_ENTRIES: CatalogEntry[] = [
   },
   {
     id: "wf-weighbridge", kind: "workflow", title: "Weighbridge ticket", href: "/weighbridge/tickets/new",
-    captureTenant: "manufacturing", segment: "Weighbridge", modules: ["weighbridge"], tenants: ["manufacturing", "spinning"],
+    captureTenant: "manufacturing", segment: "Weighbridge", modules: ["weighbridge"], tenants: ["manufacturing", "spinning", "processing"],
     tags: ["weighbridge", "workflow", "manufacturing"],
     explanation: "Two-weigh mill ticket: first weigh (gross or tare), second weigh, net kg with lb/bag derived. Inbound completed tickets can stamp x.gate_pass_no on a linked invoice. No GL — the books move when you bill or receive against the vehicle.",
     steps: ["New ticket — vehicle, product, first weigh.", "Second weigh when the lorry returns.", "Complete; optionally copy gate pass onto the invoice.", "Review the Ticket Register."],

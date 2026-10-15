@@ -5988,6 +5988,7 @@ def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: li
 
 def _seed_weighbridge(
     s: Session, user: User, customers: list[Customer], vendors: list[Vendor],
+    *, inbound_commodity: str = "Raw cotton", outbound_commodity: str = "Yarn cones",
 ) -> None:
     """Weighbridge mill tickets (#391). Idempotent — skips if tickets exist."""
     tid = user.tenant_id
@@ -6013,7 +6014,7 @@ def _seed_weighbridge(
         party_type="vendor" if vendor else "other",
         party_id=vendor.id if vendor else None,
         party_name=vendor.name if vendor else "Walk-in mill truck",
-        commodity="Raw cotton",
+        commodity=inbound_commodity,
         lot_ref="LOT-WB-01",
         gross_kg=g,
         tare_kg=t,
@@ -6040,7 +6041,7 @@ def _seed_weighbridge(
         party_type="customer" if customer else "other",
         party_id=customer.id if customer else None,
         party_name=customer.name if customer else "Mill dispatch",
-        commodity="Yarn cones",
+        commodity=outbound_commodity,
         lot_ref="LOT-WB-02",
         tare_kg=tare,
         first_weigh_kind="tare",
@@ -7205,6 +7206,12 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
                 _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
                 s.commit()
             _seed_textile_processing(s, user, customers, vendors)
+            s.commit()
+            _seed_weighbridge(
+                s, user, customers, vendors,
+                inbound_commodity="Grey fabric",
+                outbound_commodity="Packed fabric",
+            )
             s.commit()
 
         # ── PRA e-Invoice demo (Pakistani retail trader) ───────────────────────

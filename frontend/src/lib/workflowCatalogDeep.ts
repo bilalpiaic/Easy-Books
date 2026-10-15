@@ -8,7 +8,7 @@ const ALL: DemoTenantKey[] = [
   "simple", "services", "trader", "manufacturing", "telecom", "pra", "hospital", "spinning", "processing",
 ]
 const MILL: DemoTenantKey[] = ["manufacturing", "spinning", "processing"]
-const WB: DemoTenantKey[] = ["manufacturing", "spinning"]
+const WB: DemoTenantKey[] = ["manufacturing", "spinning", "processing"]
 
 type Row = {
   id: string

@@ -19,9 +19,15 @@ from services.marketplace.manifest import CatalogEntry, ExtensionManifest
 
 WEIGHBRIDGE_ID = "partner.easybooks.weighbridge"
 _PRIVATE_META_KEY = "_marketplace_private"
-# Mill models still pre-install the first-party workspace; the Marketplace
-# listing itself is public (traders and other segments also need weighbridge).
-MILL_WEIGHBRIDGE_MODELS = frozenset({"manufacturing", "yarn_spinning"})
+# Yard-scale sites pre-install the first-party workspace (not spinning-only).
+# The Marketplace listing itself is public (traders and other segments also
+# need the invoice overlay). Hospital / telecom / services / simple stay
+# install-from-Optional — they do not weigh inbound trucks.
+MILL_WEIGHBRIDGE_MODELS = frozenset({
+    "manufacturing",
+    "yarn_spinning",
+    "textile_processing",
+})
 
 
 def private_listing_ids(tenant: Tenant) -> set[str]:

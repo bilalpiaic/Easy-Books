@@ -64,10 +64,78 @@ def test_weighbridge_preinstalled_on_manufacturing(client):
     assert r.json()["total"] == 0
 
 
-def test_weighbridge_on_yarn_spinning_model_defaults():
+def test_weighbridge_on_mill_model_defaults():
+    """Weighbridge is a mill Operations module — not spinning-only.
+
+    Pre-installed wherever a yard scale is practical (manufacturing, yarn
+    spinning, textile processing). Hospital / telecom / services / simple
+    stay Optional; trader keeps inventory+POS and installs from Add-ons.
+    """
     from db import MODULES_BY_MODEL
-    assert "weighbridge" in MODULES_BY_MODEL["yarn_spinning"]
-    assert "weighbridge" in MODULES_BY_MODEL["manufacturing"]
+    from services.marketplace.catalog import MILL_WEIGHBRIDGE_MODELS
+
+    mills = {"manufacturing", "yarn_spinning", "textile_processing"}
+    assert MILL_WEIGHBRIDGE_MODELS == mills
+    for model in mills:
+        assert "weighbridge" in MODULES_BY_MODEL[model], model
+    for model in ("simple", "services", "trader", "telecom_franchise", "hospital", "pra_einvoice"):
+        assert "weighbridge" not in MODULES_BY_MODEL[model], model
+
+
+def test_weighbridge_backfill_restores_on_textile_processing(client):
+    """Existing processing tenants missing the workspace get it on boot."""
+    from sqlmodel import Session
+    import db as db_mod
+    from models import Tenant
+    from routers.modules import _get_enabled
+
+    auth = _signup(client, "wb-tp-restore@test.com")
+    me = client.get("/api/auth/me", headers=auth)
+    tid = me.json()["tenant"]["id"]
+
+    with Session(db_mod.engine) as s:
+        mill = s.get(Tenant, tid)
+        mill.business_model = "textile_processing"
+        mill.enabled_modules = '["base", "inventory", "purchase_store", "textile_processing"]'
+        s.add(mill)
+        s.commit()
+
+    blocked = client.get("/api/weighbridge/tickets", headers=auth)
+    assert blocked.status_code == 403
+
+    with Session(db_mod.engine) as s:
+        db_mod._ensure_mill_weighbridge_module(s)
+        mill = s.get(Tenant, tid)
+        assert "weighbridge" in _get_enabled(mill)
+
+    ok = client.get("/api/weighbridge/tickets", headers=auth)
+    assert ok.status_code == 200, ok.text
+
+
+def test_weighbridge_backfill_skips_hospital(client):
+    from sqlmodel import Session
+    import db as db_mod
+    from models import Tenant
+    from routers.modules import _get_enabled
+
+    auth = _signup(client, "wb-hosp-skip@test.com", model="simple", company="City Clinic")
+    me = client.get("/api/auth/me", headers=auth)
+    tid = me.json()["tenant"]["id"]
+
+    with Session(db_mod.engine) as s:
+        hosp = s.get(Tenant, tid)
+        hosp.business_model = "hospital"
+        hosp.enabled_modules = '["base", "hrm", "inventory", "healthcare"]'
+        s.add(hosp)
+        s.commit()
+
+    with Session(db_mod.engine) as s:
+        db_mod._ensure_mill_weighbridge_module(s)
+        hosp = s.get(Tenant, tid)
+        assert "weighbridge" not in _get_enabled(hosp)
+
+    r = client.get("/api/weighbridge/summary", headers=auth)
+    assert r.status_code == 403
 
 
 def test_weighbridge_happy_path_and_state_machine(client):

@@ -216,6 +216,9 @@ def _ensure_yarn_spinning_module(session: Session) -> None:
 def _ensure_mill_weighbridge_module(session: Session) -> None:
     """Install first-party Weighbridge on mill tenants that may already have it.
 
+    Covers manufacturing, yarn spinning, and textile processing — every
+    business model that weighs inbound/outbound trucks. Not spinning-only.
+
     Nav / Ctrl+K / ``/weighbridge/*`` gate on ``enabled_modules``. A code-only
     deploy must not leave an entitled mill tenant without the workspace.
 
@@ -818,7 +821,7 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "pra_einvoice":      ["base", "pra"],
     "hospital":          ["base", "hrm", "inventory", "healthcare"],
     "yarn_spinning":     ["base", "inventory", "purchase_store", "spinning", "weighbridge"],
-    "textile_processing": ["base", "inventory", "purchase_store", "textile_processing"],
+    "textile_processing": ["base", "inventory", "purchase_store", "textile_processing", "weighbridge"],
 }
 
 

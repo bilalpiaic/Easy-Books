@@ -491,7 +491,7 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 | `pra_einvoice` | Pakistani retail (FBR-registered) | Same CoA as `simple`; FBR Digital Invoicing (`pra`) pre-installed — this is a **country pack**, not a business nature |
 | `hospital` | Healthcare / Hospital | + Hospital CoA: `1100` AR, `2350` Patient Deposit Liability; revenue `4100` OPD / `4110` IPD Ward / `4112` Nursing / `4115` Lab / `4120` Procedures / `4121` Pharmacy; `5010` COGS (drug/supply inventory). Healthcare module pre-installed |
 | `yarn_spinning` | Yarn spinning mill | + Spinning CoA: `1200` Raw Cotton / `1201`–`1203` WIP stages / `1204` Finished Yarn / `5901`–`5904` waste / `5100` Direct Labour / `5200` Overhead / `5010` COGS. Spinning + `purchase_store` + `weighbridge` pre-installed |
-| `textile_processing` | Ballor / printing unit | Processing CoA + grey custody; `inventory` + `purchase_store` + `textile_processing` pre-installed |
+| `textile_processing` | Ballor / printing unit | Processing CoA + grey custody; `inventory` + `purchase_store` + `textile_processing` + `weighbridge` pre-installed |
 
 ### 6.2 Module System (UI visibility & billing)
 
@@ -536,7 +536,7 @@ Categories of use on Add-ons: **Core · Operations · HR · Industry (business n
 "pra_einvoice":       ["base", "pra"]
 "hospital":           ["base", "hrm", "inventory", "healthcare"]
 "yarn_spinning":      ["base", "inventory", "purchase_store", "spinning", "weighbridge"]
-"textile_processing": ["base", "inventory", "purchase_store", "textile_processing"]
+"textile_processing": ["base", "inventory", "purchase_store", "textile_processing", "weighbridge"]
 ```
 
 **Module rules:**
@@ -1350,7 +1350,7 @@ UI: **System → Add-ons** (`/apps`) tab **Marketplace** (`?tab=marketplace`). I
 
 ### 10E.3 Weighbridge (first-party workspace + public Marketplace listing)
 
-Module id `weighbridge` (Operations, icon Scale, `nav_sections: ["Weighbridge"]`). Pre-installed on `manufacturing` and `yarn_spinning`; installable on starter/pro for other segments. v1 table `wb_ticket`: inbound/outbound tickets, first/second weigh, `net_kg = |gross − tare|`, number `WB-YYYY-seq`. **No GL** — `routers/weighbridge.py` must not import `services.posting`. Hub `/weighbridge`, tickets `/weighbridge/tickets`, print slip, optional copy to `invoice.custom_fields["x.gate_pass_no"]`.
+Module id `weighbridge` (Operations, icon Scale, `nav_sections: ["Weighbridge"]`). Pre-installed on mill models that weigh trucks (`manufacturing`, `yarn_spinning`, `textile_processing`) — not spinning-only. Installable on starter/pro for other segments (traders, hospitals). v1 table `wb_ticket`: inbound/outbound tickets, first/second weigh, `net_kg = |gross − tare|`, number `WB-YYYY-seq`. **No GL** — `routers/weighbridge.py` must not import `services.posting`. Hub `/weighbridge`, tickets `/weighbridge/tickets`, print slip, optional copy to `invoice.custom_fields["x.gate_pass_no"]`.
 
 Listing id `partner.easybooks.weighbridge` is the optional **public** Studio overlay on invoices (not a replacement for the workspace).
 

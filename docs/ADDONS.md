@@ -39,7 +39,7 @@ Source of truth: `MODULE_REGISTRY` in `backend/db.py` (`category` field) and `AD
 | Trader | `inventory`, `pos` | `demo.trader@easy-books.app` |
 | Manufacturing | `inventory`, `production`, `purchase_store`, `weaving`, `weighbridge` | `demo.manufacturing@easy-books.app` |
 | Yarn Spinning | `inventory`, `purchase_store`, `spinning`, `weighbridge` | `demo.spinning@easy-books.app` |
-| Textile Processing | `inventory`, `purchase_store`, `textile_processing` | `demo.processing@easy-books.app` |
+| Textile Processing | `inventory`, `purchase_store`, `textile_processing`, `weighbridge` | `demo.processing@easy-books.app` |
 | Healthcare | `hrm`, `inventory`, `healthcare` | `demo.hospital@easy-books.app` |
 | Telecom Franchise | `inventory`, `telecom` | `demo.telecom@easy-books.app` |
 
@@ -96,7 +96,7 @@ telecom_franchise     → base, inventory, telecom
 pra_einvoice          → base, pra
 hospital              → base, hrm, inventory, healthcare
 yarn_spinning         → base, inventory, purchase_store, spinning, weighbridge
-textile_processing    → base, inventory, purchase_store, textile_processing
+textile_processing    → base, inventory, purchase_store, textile_processing, weighbridge
 ```
 
 After signup the user manages modules independently. Localization demos may also enable a country pack on selected tenants.

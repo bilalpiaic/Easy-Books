@@ -56,4 +56,14 @@ describe("addon packs by category of use", () => {
       expect(pack.features.length).toBeGreaterThan(0)
     }
   })
+
+  it("preinstalls weighbridge on mill packs, not hospital or telecom", () => {
+    const byId = Object.fromEntries(ADDON_PACKS.map(p => [p.id, p.modules]))
+    expect(byId.manufacturing).toContain("weighbridge")
+    expect(byId.yarn_spinning).toContain("weighbridge")
+    expect(byId.textile_processing).toContain("weighbridge")
+    expect(byId.trader).not.toContain("weighbridge")
+    expect(byId.healthcare).not.toContain("weighbridge")
+    expect(byId.telecom).not.toContain("weighbridge")
+  })
 })
