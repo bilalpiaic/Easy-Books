@@ -1072,7 +1072,7 @@ any       → maintenance (PUT /beds/{id} status=maintenance — admin only)
 
 ### 4.10 WEAVING UNIT CONTROL (#140)
 
-Installable Industry module (`weaving`, deps `base`+`inventory`). **v1 is operational / memo only — no GL posting.**
+Installable Industry module (`weaving`, deps `base`+`inventory`+`weighbridge`). **v1 is operational / memo only — no GL posting.** Yarn/grey trucks use the Weighbridge workspace (pulled in with Weaving).
 
 ```
 Master Data → Contracts (+ Rate/Costing) → Yarn Inward → Sizing → Production → Dispatch
@@ -1138,7 +1138,7 @@ Mill login → Weighbridge (top nav) / Ctrl+K
 
 | Who | Workspace |
 |-----|---------|
-| `manufacturing` / `yarn_spinning` / `textile_processing` (and entitled install) | Module pre-installed / Optional card |
+| `manufacturing` / `yarn_spinning` / `textile_processing`, or any tenant with Weaving / Spinning / Processing installed | Module pre-installed (Weaving pulls Weighbridge as a dep) |
 | Hospital / simple / ungranted | Nav hidden; API 403 |
 
 Private Marketplace listing still installs Studio Gate pass (`x.gate_pass_no`) + Lot ref (`x.lot_ref`) on invoices. Uninstall archives definitions. End-user steps: [USER_GUIDE.md §41](./USER_GUIDE.md#41-weighbridge-mill-workspace).

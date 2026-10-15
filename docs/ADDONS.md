@@ -74,7 +74,7 @@ Withholding tax and the CIT worksheet are **core accounting** (vendor WHT flags 
 | Purchases & Store | Demand → quotation → comparative → PO → gate inward / outward → store issue |
 | Point of Sale | Shift, register, cash-up; same GL as invoices |
 | eCommerce Connectors | Shopify / WooCommerce → draft invoices |
-| Weighbridge | Ticket desk (memo/ops, no GL). Also a public Marketplace overlay (Gate pass + Lot ref on invoices) |
+| Weighbridge | Ticket desk (memo/ops, no GL). Pre-installed on mill models; also a dep of Weaving / Spinning / Textile Processing. Public Marketplace overlay (Gate pass + Lot ref on invoices) |
 
 ---
 

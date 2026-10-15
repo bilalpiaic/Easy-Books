@@ -2685,7 +2685,7 @@ Until the module is installed, nav is hidden and the ticket API returns 403.
 | Company | Weighbridge module |
 |---------|-------------------|
 | Yarn spinning mill (`demo.spinning@easy-books.app`) | Yes — pre-installed |
-| Manufacturing mill (`demo.manufacturing@easy-books.app`) | Yes — pre-installed |
+| Manufacturing / weaving mill (`demo.manufacturing@easy-books.app`) | Yes — pre-installed (Weaving also pulls Weighbridge) |
 | Textile processing unit (`demo.processing@easy-books.app`) | Yes — pre-installed |
 | Trader / hospital / other segments | Install from Add-ons → Optional or Marketplace |
 | New public signup (Base Accounting only) | Marketplace overlay is visible; workspace after install |

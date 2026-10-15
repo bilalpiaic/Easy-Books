@@ -68,18 +68,26 @@ def test_weighbridge_on_mill_model_defaults():
     """Weighbridge is a mill Operations module — not spinning-only.
 
     Pre-installed wherever a yard scale is practical (manufacturing, yarn
-    spinning, textile processing). Hospital / telecom / services / simple
-    stay Optional; trader keeps inventory+POS and installs from Add-ons.
+    spinning, textile processing). Weaving has no business_model — the
+    weaving mill is manufacturing, or Optional Weaving which now depends
+    on weighbridge. Hospital / telecom / services / simple stay Optional;
+    trader keeps inventory+POS and installs from Add-ons.
     """
-    from db import MODULES_BY_MODEL
-    from services.marketplace.catalog import MILL_WEIGHBRIDGE_MODELS
+    from db import MODULE_REGISTRY, MODULES_BY_MODEL
+    from services.marketplace.catalog import (
+        MILL_WEIGHBRIDGE_MODELS,
+        MILL_WEIGHBRIDGE_MODULES,
+    )
 
     mills = {"manufacturing", "yarn_spinning", "textile_processing"}
     assert MILL_WEIGHBRIDGE_MODELS == mills
+    assert MILL_WEIGHBRIDGE_MODULES == {"weaving", "spinning", "textile_processing"}
     for model in mills:
         assert "weighbridge" in MODULES_BY_MODEL[model], model
     for model in ("simple", "services", "trader", "telecom_franchise", "hospital", "pra_einvoice"):
         assert "weighbridge" not in MODULES_BY_MODEL[model], model
+    for mid in MILL_WEIGHBRIDGE_MODULES:
+        assert "weighbridge" in MODULE_REGISTRY[mid]["deps"], mid
 
 
 def test_weighbridge_backfill_restores_on_textile_processing(client):
@@ -107,6 +115,52 @@ def test_weighbridge_backfill_restores_on_textile_processing(client):
         db_mod._ensure_mill_weighbridge_module(s)
         mill = s.get(Tenant, tid)
         assert "weighbridge" in _get_enabled(mill)
+
+    ok = client.get("/api/weighbridge/tickets", headers=auth)
+    assert ok.status_code == 200, ok.text
+
+
+def test_install_weaving_pulls_weighbridge(client):
+    """Weaving mill (Optional industry pack) must show the scale desk."""
+    auth = _signup(client, "wb-weave-dep@test.com")
+    r = client.post("/api/modules/weaving/install", headers=auth)
+    assert r.status_code == 200, r.text
+    enabled = set(r.json()["enabled_modules"])
+    assert "weaving" in enabled
+    assert "weighbridge" in enabled
+    listed = client.get("/api/modules", headers=auth).json()
+    wb = next(m for m in listed if m["id"] == "weighbridge")
+    assert wb["installed"] is True
+    tickets = client.get("/api/weighbridge/tickets", headers=auth)
+    assert tickets.status_code == 200, tickets.text
+
+
+def test_weighbridge_backfill_restores_on_weaving_module(client):
+    """Existing weaving tenants (no mill business_model) get the workspace."""
+    from sqlmodel import Session
+    import db as db_mod
+    from models import Tenant
+    from routers.modules import _get_enabled
+
+    auth = _signup(client, "wb-weave-restore@test.com")
+    me = client.get("/api/auth/me", headers=auth)
+    tid = me.json()["tenant"]["id"]
+
+    with Session(db_mod.engine) as s:
+        mill = s.get(Tenant, tid)
+        mill.business_model = "trader"
+        mill.enabled_modules = '["base", "inventory", "weaving"]'
+        s.add(mill)
+        s.commit()
+
+    blocked = client.get("/api/weighbridge/tickets", headers=auth)
+    assert blocked.status_code == 403
+
+    with Session(db_mod.engine) as s:
+        db_mod._ensure_mill_weighbridge_module(s)
+        mill = s.get(Tenant, tid)
+        assert "weighbridge" in _get_enabled(mill)
+        assert "weaving" in _get_enabled(mill)
 
     ok = client.get("/api/weighbridge/tickets", headers=auth)
     assert ok.status_code == 200, ok.text
