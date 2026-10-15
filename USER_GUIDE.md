@@ -64,6 +64,7 @@
 40. [Save PDF troubleshooting](#40-save-pdf-troubleshooting)
 41. [Weighbridge](#41-weighbridge-mill-workspace)
 42. [Weaving](#42-weaving)
+42a. [Shop-floor PLC feed](#42a-shop-floor-plc-feed)
 43. [Textile Processing](#43-textile-processing)
 44. [Point of Sale](#44-point-of-sale)
 45. [eCommerce Connectors](#45-ecommerce-connectors)
@@ -2748,6 +2749,21 @@ v1 is **memo/ops only** — no GL. Weights in Kg; Lbs/Bags derived.
 4. Daily ops and contract-control reports keep the mill honest.
 
 Do not confuse with **Yarn Spinning**, which posts every approve to the GL.
+
+---
+
+## 42a. SHOP-FLOOR PLC FEED
+
+> Shown when Weaving, Spinning, Processing, Manufacturing, or Weighbridge is installed. Open **PLC Feed** (`/shop-floor`) or press **Ctrl+K** and type `plc`.
+
+Machine-wise production does not have to be typed. A mill-side gateway (Node-RED, Kepware, Ignition) reads the PLC and POSTs JSON to **`POST /api/plc/ingest`**. Easy-Books never opens Modbus or OPC-UA itself.
+
+1. Map each machine code (loom `L-01`, ring frame `RING-01`, scale `WB-01`) on **PLC Feed**.
+2. Create an API key under **Settings → API keys**. The gateway authenticates as that user.
+3. Send `idempotency_key` + `machine_code` + `event_type` + `readings`. Retries of the same key do not double-count.
+4. **Weaving production** and **weighbridge weighs** write mill documents immediately (no GL). **Spinning stages** wait for **Apply** because they post WIP. Cone output lands as a draft until you approve it.
+
+Full tag map: [`docs/PLC_FEED.md`](docs/PLC_FEED.md).
 
 ---
 

@@ -135,6 +135,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "weaving.reports":        {"label": "Weaving Reports",       "category": "Weaving"},
     "weighbridge.tickets":    {"label": "Weighbridge Tickets",   "category": "Weighbridge"},
     "weighbridge.reports":    {"label": "Weighbridge Register",  "category": "Weighbridge"},
+    "shop_floor.plc":         {"label": "PLC Shop Floor Feed",   "category": "Shop Floor"},
     "spinning.setup":         {"label": "Spinning Setup",        "category": "Spinning"},
     "spinning.plans":         {"label": "Production Plans",      "category": "Spinning"},
     "spinning.lots":          {"label": "Spin Lots",             "category": "Spinning"},

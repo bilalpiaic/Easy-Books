@@ -143,6 +143,8 @@ def _ser_production(r: WvProduction) -> dict[str, Any]:
         "efficiency_pct": float(r.efficiency_pct),
         "weaving_charges": float(r.weaving_charges),
         "notes": r.notes,
+        "source": getattr(r, "source", "manual") or "manual",
+        "plc_event_id": getattr(r, "plc_event_id", None),
     }
 
 

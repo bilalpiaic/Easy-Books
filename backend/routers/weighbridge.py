@@ -83,6 +83,8 @@ def _ser(row: WbTicket) -> dict:
         "invoice_id": row.invoice_id,
         "sp_bale_receipt_id": row.sp_bale_receipt_id,
         "cancel_reason": row.cancel_reason,
+        "source": getattr(row, "source", "manual") or "manual",
+        "plc_event_id": getattr(row, "plc_event_id", None),
         "created_at": _iso(row.created_at),
         "created_by_id": row.created_by_id,
     }

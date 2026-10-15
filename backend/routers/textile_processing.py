@@ -310,6 +310,8 @@ def _ser_stage(r: TpStageEntry) -> dict:
         "labor_qty": _f(r.labor_qty), "labor_rate": _f(r.labor_rate),
         "labor_amount": _f(r.labor_amount), "started_at": r.started_at,
         "ended_at": r.ended_at, "status": r.status, "notes": r.notes,
+        "source": getattr(r, "source", "manual") or "manual",
+        "plc_event_id": getattr(r, "plc_event_id", None),
     }
 
 

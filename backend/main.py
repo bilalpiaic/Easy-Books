@@ -46,6 +46,7 @@ from routers import marketplace
 from routers import healthcare, healthcare_reports, healthcare_dialysis
 from routers import weaving, weaving_reports, weaving_calculators
 from routers import weighbridge
+from routers import plc
 from routers import spinning, spinning_reports, spinning_calculators
 from routers import textile_processing, textile_processing_reports
 # Side-effect import: registers TOTP/OAuth routes on auth.router (#118)
@@ -498,6 +499,7 @@ _ROUTERS = [
     weaving_reports.router,
     weaving_calculators.router,
     weighbridge.router,
+    plc.router,
     spinning.router,
     spinning_reports.router,
     spinning_calculators.router,

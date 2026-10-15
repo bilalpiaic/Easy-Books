@@ -28,6 +28,8 @@ const BADGE: Record<string, { bg: string; fg: string }> = {
   info:       { bg: "var(--badge-blue-bg)",   fg: "var(--text-link)" },
   approved:   { bg: "var(--badge-purple-bg)", fg: "#7C3AED" },
   applied:    { bg: "var(--badge-green-bg)",  fg: "var(--success)" },
+  error:      { bg: "var(--badge-red-bg)",    fg: "var(--danger)" },
+  plc:        { bg: "var(--badge-blue-bg)",   fg: "var(--text-link)" },
   open:       { bg: "var(--badge-blue-bg)",   fg: "var(--text-link)" },
 }
 

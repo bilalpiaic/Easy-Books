@@ -55,5 +55,7 @@ class WbTicket(SQLModel, table=True):
     invoice_id: Optional[int] = None
     sp_bale_receipt_id: Optional[int] = None
     cancel_reason: Optional[str] = None
+    source: str = Field(default="manual")  # manual | plc
+    plc_event_id: Optional[int] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by_id: Optional[int] = None

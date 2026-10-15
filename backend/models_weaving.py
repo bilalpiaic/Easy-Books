@@ -227,6 +227,8 @@ class WvProduction(SQLModel, table=True):
     efficiency_pct: Decimal = _qty()
     weaving_charges: Decimal = _money()
     notes: Optional[str] = None
+    source: str = Field(default="manual")  # manual | plc
+    plc_event_id: Optional[int] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
