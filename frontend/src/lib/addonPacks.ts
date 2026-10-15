@@ -29,7 +29,7 @@ export const MODULE_CATEGORY_META: Record<
 > = {
   Operations: {
     label: "Operations",
-    hint: "Horizontal capabilities used across industries — stock, manufacturing, purchases, POS, eCommerce, weighbridge",
+    hint: "Horizontal capabilities used across industries — stock, manufacturing, purchases, POS, eCommerce, weighbridge, PLC shop floor",
   },
   HR: {
     label: "HR & Payroll",
@@ -85,24 +85,24 @@ export const ADDON_PACKS: AddonPack[] = [
     label: "Manufacturing",
     tagline: "Value-addition",
     group: "industry",
-    modules: ["inventory", "production", "purchase_store", "weaving", "weighbridge"],
-    features: ["BoM & production orders", "Purchases & Store", "Weaving unit control", "Weighbridge tickets"],
+    modules: ["inventory", "production", "purchase_store", "weaving", "weighbridge", "shop_floor"],
+    features: ["BoM & production orders", "Purchases & Store", "Weaving unit control", "Weighbridge tickets", "PLC shop-floor feed"],
   },
   {
     id: "yarn_spinning",
     label: "Yarn Spinning",
     tagline: "Spinning mill",
     group: "industry",
-    modules: ["inventory", "purchase_store", "spinning", "weighbridge"],
-    features: ["Bale receipt & lots", "Multi-stage tracking", "Cone output & GL costing", "Weighbridge tickets"],
+    modules: ["inventory", "purchase_store", "spinning", "weighbridge", "shop_floor"],
+    features: ["Bale receipt & lots", "Multi-stage tracking", "Cone output & GL costing", "Weighbridge tickets", "PLC shop-floor feed"],
   },
   {
     id: "textile_processing",
     label: "Textile Processing",
     tagline: "Printing / ballor unit",
     group: "industry",
-    modules: ["inventory", "purchase_store", "textile_processing", "weighbridge"],
-    features: ["Grey lots & mending", "PPC stages & wastage", "Process billing & grey credit", "Weighbridge tickets"],
+    modules: ["inventory", "purchase_store", "textile_processing", "weighbridge", "shop_floor"],
+    features: ["Grey lots & mending", "PPC stages & wastage", "Process billing & grey credit", "Weighbridge tickets", "PLC shop-floor feed"],
   },
   {
     id: "healthcare",

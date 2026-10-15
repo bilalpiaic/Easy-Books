@@ -798,6 +798,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["Weighbridge"],
     },
+    "shop_floor": {
+        "label":       "PLC Shop Floor",
+        "description": "Auto-record mill production from machinery. A shop-floor gateway POSTs loom, ring-frame, processing-line, and weighbridge readings — Easy-Books never opens Modbus or OPC-UA. Install from Add-ons, then map machine codes on PLC Feed.",
+        "category":    "Operations",
+        "icon":        "Cpu",
+        "deps":        ["base"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Overview"],
+    },
     "textile_processing": {
         "label":       "Textile Processing",
         "description": "Ballor/jobber printing unit: customer-owned grey lots, mending, PPC stages, process billing, contractor labor, and grey settlement.",
@@ -818,12 +829,12 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "simple":            ["base"],
     "services":          ["base"],
     "trader":            ["base", "inventory", "pos"],
-    "manufacturing":     ["base", "inventory", "production", "purchase_store", "weaving", "weighbridge"],
+    "manufacturing":     ["base", "inventory", "production", "purchase_store", "weaving", "weighbridge", "shop_floor"],
     "telecom_franchise": ["base", "inventory", "telecom"],
     "pra_einvoice":      ["base", "pra"],
     "hospital":          ["base", "hrm", "inventory", "healthcare"],
-    "yarn_spinning":     ["base", "inventory", "purchase_store", "spinning", "weighbridge"],
-    "textile_processing": ["base", "inventory", "purchase_store", "textile_processing", "weighbridge"],
+    "yarn_spinning":     ["base", "inventory", "purchase_store", "spinning", "weighbridge", "shop_floor"],
+    "textile_processing": ["base", "inventory", "purchase_store", "textile_processing", "weighbridge", "shop_floor"],
 }
 
 

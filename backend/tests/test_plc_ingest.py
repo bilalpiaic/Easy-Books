@@ -21,11 +21,25 @@ def test_plc_module_gate(client):
     auth = _signup(client, "plc-gate@test.com")
     r = client.get("/api/plc/devices", headers=auth)
     assert r.status_code == 403
+    assert "Add-ons" in r.json()["detail"]
+
+    _install(client, auth, "inventory", "weaving")
+    r = client.get("/api/plc/devices", headers=auth)
+    assert r.status_code == 403
+    assert "Add-ons" in r.json()["detail"]
+
+    _install(client, auth, "shop_floor")
+    r = client.get("/api/plc/devices", headers=auth)
+    assert r.status_code == 200
+    listed = client.get("/api/modules", headers=auth).json()
+    card = next(m for m in listed if m["id"] == "shop_floor")
+    assert card["installed"] is True
+    assert card["category"] == "Operations"
 
 
 def test_plc_weaving_production_auto_apply_and_idempotent(client):
     auth = _signup(client, "plc-weave@test.com")
-    _install(client, auth, "inventory", "weaving")
+    _install(client, auth, "inventory", "weaving", "shop_floor")
 
     cust = client.post("/api/customers", headers=auth, json={"name": "Buyer"}).json()
     loom = client.post("/api/weaving/looms", headers=auth, json={"code": "L-01", "name": "Loom 1"}).json()
@@ -84,7 +98,7 @@ def test_plc_weaving_production_auto_apply_and_idempotent(client):
 
 def test_plc_spinning_stage_waits_for_apply_no_silent_gl(client):
     auth = _signup(client, "plc-spin@test.com")
-    _install(client, auth, "inventory", "purchase_store", "spinning")
+    _install(client, auth, "inventory", "purchase_store", "spinning", "shop_floor")
 
     yarn = client.post("/api/products", headers=auth, json={
         "code": "YARN20", "name": "20Ne Yarn", "unit": "kg", "product_type": "stock",
@@ -135,7 +149,7 @@ def test_plc_spinning_stage_waits_for_apply_no_silent_gl(client):
 
 def test_plc_cone_output_draft_and_api_key_auth(client):
     auth = _signup(client, "plc-cone@test.com")
-    _install(client, auth, "inventory", "purchase_store", "spinning")
+    _install(client, auth, "inventory", "purchase_store", "spinning", "shop_floor")
     yarn = client.post("/api/products", headers=auth, json={
         "code": "YARN20", "name": "20Ne Yarn", "unit": "kg", "product_type": "stock",
     }).json()
@@ -172,7 +186,7 @@ def test_plc_cone_output_draft_and_api_key_auth(client):
 
 def test_plc_weighbridge_creates_ticket(client):
     auth = _signup(client, "plc-wb@test.com")
-    _install(client, auth, "inventory", "weighbridge")
+    _install(client, auth, "inventory", "weighbridge", "shop_floor")
     client.post("/api/plc/devices", headers=auth, json={
         "code": "WB-01",
         "name": "Inbound scale",
@@ -201,7 +215,7 @@ def test_plc_weighbridge_creates_ticket(client):
 
 def test_plc_reject_and_missing_fields(client):
     auth = _signup(client, "plc-rej@test.com")
-    _install(client, auth, "inventory", "weaving")
+    _install(client, auth, "inventory", "weaving", "shop_floor")
     r = client.post("/api/plc/ingest", headers=auth, json={
         "idempotency_key": "orphan-1",
         "machine_code": "UNKNOWN",
@@ -223,3 +237,14 @@ def test_shop_floor_permission_registered():
     from services.permissions import PERMISSION_RESOURCES
     assert "shop_floor.plc" in PERMISSION_RESOURCES
     assert PERMISSION_RESOURCES["shop_floor.plc"]["category"] == "Shop Floor"
+
+
+def test_shop_floor_addon_on_mill_defaults():
+    from db import MODULE_REGISTRY, MODULES_BY_MODEL
+    assert MODULE_REGISTRY["shop_floor"]["category"] == "Operations"
+    assert MODULE_REGISTRY["shop_floor"]["icon"] == "Cpu"
+    assert "shop_floor" in MODULES_BY_MODEL["manufacturing"]
+    assert "shop_floor" in MODULES_BY_MODEL["yarn_spinning"]
+    assert "shop_floor" in MODULES_BY_MODEL["textile_processing"]
+    for model in ("simple", "services", "trader", "telecom_franchise", "hospital", "pra_einvoice"):
+        assert "shop_floor" not in MODULES_BY_MODEL[model], model

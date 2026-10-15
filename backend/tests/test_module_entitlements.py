@@ -49,6 +49,7 @@ def test_module_categories_group_by_use():
     }
     operations = {
         "inventory", "production", "purchase_store", "pos", "ecommerce", "weighbridge",
+        "shop_floor",
     }
     for mid in localization:
         assert MODULE_REGISTRY[mid]["category"] == "Localization", mid
@@ -82,10 +83,12 @@ def test_plan_allows_free_and_pro():
     assert plan_allows(pro, "hrm")
     assert plan_allows(pro, "ai_assistant")
     assert plan_allows(pro, "weighbridge")
+    assert plan_allows(pro, "shop_floor")
     assert not plan_allows(pro, "spinning")
     assert not plan_allows(pro, "healthcare")
     starter = Tenant(name="s", plan="starter")
     assert plan_allows(starter, "weighbridge")
+    assert plan_allows(starter, "shop_floor")
     assert not plan_allows(starter, "spinning")
 
 

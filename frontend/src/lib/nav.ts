@@ -16,16 +16,13 @@ import {
   Cpu,
 } from "lucide-react"
 
-/** Mill modules that light the shared PLC Feed page. */
-const MILL_PLC_MODULES = ["weaving", "spinning", "textile_processing", "production", "weighbridge"] as const
-
 export type NavItem = {
   label: string
   href: string
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "uk_mtd" | "my_invois" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "weighbridge" | "textile_processing" | "pos" | "ecommerce"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "uk_mtd" | "my_invois" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "weighbridge" | "textile_processing" | "pos" | "ecommerce" | "shop_floor"
   /** Visible when *any* of these modules is installed (Operations home). */
   forAnyModule?: readonly string[]
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
@@ -62,7 +59,7 @@ export function navItemActive(pathname: string, href: string): boolean {
 export const NAV: NavItem[] = [
   { label: "Dashboard",        href: "/dashboard",         icon: LayoutDashboard,  section: "Overview" },
   { label: "Operations",       href: "/dashboard/operations", icon: Factory,       section: "Overview", forAnyModule: PURPOSE_MODULES },
-  { label: "PLC Feed",         href: "/shop-floor",          icon: Cpu,            section: "Overview", forAnyModule: MILL_PLC_MODULES },
+  { label: "PLC Feed",         href: "/shop-floor",          icon: Cpu,            section: "Overview", forModule: "shop_floor" },
   { label: "New Entry",        href: "/entry",             icon: PlusCircle,       section: "Ledger" },
   { label: "Journal",          href: "/journal",           icon: ClipboardList,    section: "Ledger" },
   { label: "Recurring",        href: "/recurring",         icon: RefreshCw,        section: "Ledger" },
@@ -301,7 +298,7 @@ export type TopNavSection = {
   /** Shorter label for the crowded top-nav strip; full `label` used in menus. */
   shortLabel?: string
   /** If present, only visible when this module is installed */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "uk_mtd" | "my_invois" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "weighbridge" | "textile_processing" | "pos" | "ecommerce"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "uk_mtd" | "my_invois" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "weighbridge" | "textile_processing" | "pos" | "ecommerce" | "shop_floor"
 }
 
 /** Core sections always shown + module-gated sections shown inline */
@@ -467,7 +464,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
   dashboard: [
     { label: "Financial",  href: "/dashboard?view=financial", icon: LayoutDashboard, section: "dashboard" },
     { label: "Operations", href: "/dashboard/operations",     icon: Factory,         section: "dashboard", forAnyModule: PURPOSE_MODULES },
-    { label: "PLC Feed",   href: "/shop-floor",               icon: Cpu,             section: "dashboard", forAnyModule: MILL_PLC_MODULES },
+    { label: "PLC Feed",   href: "/shop-floor",               icon: Cpu,             section: "dashboard", forModule: "shop_floor" },
   ],
   banking: [
     { label: "Bank Accounts",   href: "/bank-accounts",   icon: Landmark,   section: "banking" },
@@ -524,7 +521,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "New Ticket",      href: "/weighbridge/tickets/new",      icon: PlusCircle,    section: "weighbridge", forModule: "weighbridge" },
     { label: "Tickets",         href: "/weighbridge/tickets",          icon: ClipboardList, section: "weighbridge", forModule: "weighbridge" },
     { label: "Ticket Register", href: "/weighbridge/reports/register", icon: Table2,        section: "weighbridge", forModule: "weighbridge" },
-    { label: "PLC Feed",        href: "/shop-floor",                   icon: Cpu,           section: "weighbridge", forModule: "weighbridge" },
+    { label: "PLC Feed",        href: "/shop-floor",                   icon: Cpu,           section: "weighbridge", forModule: "shop_floor" },
   ],
   accounting: [
     { label: "New Entry",         href: "/entry",             icon: PlusCircle,      section: "accounting" },
@@ -600,7 +597,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Yarn Inward",      href: "/weaving/yarn-inward",  icon: PackagePlus,    section: "weaving", forModule: "weaving" },
     { label: "Sizing",           href: "/weaving/sizing",       icon: Layers,         section: "weaving", forModule: "weaving" },
     { label: "Production",       href: "/weaving/production",   icon: Factory,        section: "weaving", forModule: "weaving" },
-    { label: "PLC Feed",         href: "/shop-floor",           icon: Cpu,            section: "weaving", forModule: "weaving" },
+    { label: "PLC Feed",         href: "/shop-floor",           icon: Cpu,            section: "weaving", forModule: "shop_floor" },
     { label: "Dispatch",         href: "/weaving/dispatch",     icon: Truck,          section: "weaving", forModule: "weaving" },
     { label: "Weaving Calc",     href: "/weaving/calculators/weaving", icon: Calculator, section: "weaving", forModule: "weaving" },
     { label: "Sizing Calc",      href: "/weaving/calculators/sizing",  icon: Calculator, section: "weaving", forModule: "weaving" },
@@ -616,7 +613,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Spin Lots",        href: "/spinning/lots",                icon: Factory,         section: "spinning", forModule: "spinning" },
     { label: "Bale Receipts",    href: "/spinning/bale-receipts",       icon: PackagePlus,     section: "spinning", forModule: "spinning" },
     { label: "Stage Entries",    href: "/spinning/stages",              icon: Activity,        section: "spinning", forModule: "spinning" },
-    { label: "PLC Feed",         href: "/shop-floor",                   icon: Cpu,             section: "spinning", forModule: "spinning" },
+    { label: "PLC Feed",         href: "/shop-floor",                   icon: Cpu,             section: "spinning", forModule: "shop_floor" },
     { label: "Cone Output",      href: "/spinning/cone-output",         icon: Package,         section: "spinning", forModule: "spinning" },
     { label: "Waste Logs",       href: "/spinning/waste",               icon: AlertTriangle,   section: "spinning", forModule: "spinning" },
     { label: "Yarn Dispatch",    href: "/spinning/dispatch",            icon: Truck,           section: "spinning", forModule: "spinning" },
@@ -637,7 +634,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Grey Rej Outward",  href: "/processing/rejection",          icon: DoorOpen,       section: "processing", forModule: "textile_processing" },
     { label: "Production Orders", href: "/processing/production-orders",  icon: Factory,        section: "processing", forModule: "textile_processing" },
     { label: "PPC Stages",        href: "/processing/stages",             icon: Activity,       section: "processing", forModule: "textile_processing" },
-    { label: "PLC Feed",          href: "/shop-floor",                    icon: Cpu,            section: "processing", forModule: "textile_processing" },
+    { label: "PLC Feed",          href: "/shop-floor",                    icon: Cpu,            section: "processing", forModule: "shop_floor" },
     { label: "Fresh Dispatch",    href: "/processing/dispatch",           icon: Truck,          section: "processing", forModule: "textile_processing" },
     { label: "Labor Bills",       href: "/processing/labor-bills",        icon: Receipt,        section: "processing", forModule: "textile_processing" },
     { label: "Grey Settlement",   href: "/processing/settlements",        icon: Scale,          section: "processing", forModule: "textile_processing" },
@@ -654,7 +651,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Stock Locations",   href: "/manufacturing/stock-locations",   icon: Warehouse,    section: "manufacturing", forModule: "production" },
     { label: "Goods Receipt",     href: "/manufacturing/grn",               icon: PackagePlus,  section: "manufacturing", forModule: "production", notForModule: "purchase_store" },
     { label: "Production Orders", href: "/manufacturing/production-orders", icon: Warehouse,    section: "manufacturing", forModule: "production" },
-    { label: "PLC Feed",          href: "/shop-floor",                      icon: Cpu,          section: "manufacturing", forModule: "production" },
+    { label: "PLC Feed",          href: "/shop-floor",                      icon: Cpu,          section: "manufacturing", forModule: "shop_floor" },
     { label: "Scrap Reasons",     href: "/manufacturing/scrap-reasons",     icon: AlertTriangle, section: "manufacturing", forModule: "production" },
     { label: "Mfg Reports",       href: "/manufacturing/reports",           icon: BarChart2,    section: "manufacturing", forModule: "production" },
   ],
@@ -715,6 +712,6 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "system" },
     { label: "Catalog",       href: "/settings/catalog",     icon: Images,      section: "system" },
     { label: "AI Assistant",  href: "/agent",                icon: Sparkles,    section: "system", forModule: "ai_assistant" },
-    { label: "PLC Feed",      href: "/shop-floor",           icon: Cpu,         section: "system", forAnyModule: MILL_PLC_MODULES },
+    { label: "PLC Feed",      href: "/shop-floor",           icon: Cpu,         section: "system", forModule: "shop_floor" },
   ],
 }

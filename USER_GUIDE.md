@@ -1873,7 +1873,7 @@ Each first-party card shows name, description, category, dependencies, install s
 
 **Uninstalling** is blocked if another installed module depends on the one you want to remove (you must remove the dependent first). The Base module cannot be uninstalled.
 
-If your company is a mill (manufacturing or yarn spinning) **and Yarn Spinning is not installed**, Add-ons opens **Recommended** so the Yarn Spinning pack is visible. **Weighbridge** is a **public** Marketplace listing for every tenant (traders included) and a first-party Optional module. Manufacturing, yarn spinning, and textile processing still get the ticket workspace pre-installed. You can also go to `/apps?tab=recommended` or `/apps?tab=marketplace`, or press **Ctrl+K** and type `spinning` / `weighbridge`. See [§30A Yarn Spinning](#30a-yarn-spinning-module) and [§41 Weighbridge](#41-weighbridge-mill-workspace).
+If your company is a mill (manufacturing or yarn spinning) **and Yarn Spinning is not installed**, Add-ons opens **Recommended** so the Yarn Spinning pack is visible. **Weighbridge** is a **public** Marketplace listing for every tenant (traders included) and a first-party Optional module. Manufacturing, yarn spinning, and textile processing still get the ticket workspace pre-installed. **PLC Shop Floor** (`shop_floor`) is a first-party Optional Operations module — mill Recommended packs include it so machine counters can auto-record production. You can also go to `/apps?tab=recommended` or `/apps?tab=marketplace`, or press **Ctrl+K** and type `spinning` / `weighbridge` / `plc`. See [§30A Yarn Spinning](#30a-yarn-spinning-module), [§41 Weighbridge](#41-weighbridge-mill-workspace), and [§42a Shop-floor PLC feed](#42a-shop-floor-plc-feed).
 
 ### 29.3 First-time onboarding
 
@@ -2754,14 +2754,15 @@ Do not confuse with **Yarn Spinning**, which posts every approve to the GL.
 
 ## 42a. SHOP-FLOOR PLC FEED
 
-> Shown when Weaving, Spinning, Processing, Manufacturing, or Weighbridge is installed. Open **PLC Feed** (`/shop-floor`) or press **Ctrl+K** and type `plc`.
+> Install **PLC Shop Floor** from **System → Add-ons** (`shop_floor`). Mill Recommended packs (Manufacturing, Yarn Spinning, Textile Processing) include it. Open **PLC Feed** (`/shop-floor`) or press **Ctrl+K** and type `plc`.
 
 Machine-wise production does not have to be typed. A mill-side gateway (Node-RED, Kepware, Ignition) reads the PLC and POSTs JSON to **`POST /api/plc/ingest`**. Easy-Books never opens Modbus or OPC-UA itself.
 
-1. Map each machine code (loom `L-01`, ring frame `RING-01`, scale `WB-01`) on **PLC Feed**.
-2. Create an API key under **Settings → API keys**. The gateway authenticates as that user.
-3. Send `idempotency_key` + `machine_code` + `event_type` + `readings`. Retries of the same key do not double-count.
-4. **Weaving production** and **weighbridge weighs** write mill documents immediately (no GL). **Spinning stages** wait for **Apply** because they post WIP. Cone output lands as a draft until you approve it.
+1. Install **PLC Shop Floor** from Add-ons (Optional, or a mill Recommended pack).
+2. Map each machine code (loom `L-01`, ring frame `RING-01`, scale `WB-01`) on **PLC Feed**.
+3. Create an API key under **Settings → API keys**. The gateway authenticates as that user.
+4. Send `idempotency_key` + `machine_code` + `event_type` + `readings`. Retries of the same key do not double-count.
+5. **Weaving production** and **weighbridge weighs** write mill documents immediately (no GL). **Spinning stages** wait for **Apply** because they post WIP. Cone output lands as a draft until you approve it.
 
 Full tag map: [`docs/PLC_FEED.md`](docs/PLC_FEED.md).
 

@@ -5,6 +5,10 @@ weighbridges) is entered on green forms today. This feed lets a **shop-floor
 gateway** push those readings so machine-wise production is recorded
 automatically.
 
+Install the **PLC Shop Floor** add-on from **System → Add-ons** (`shop_floor`) —
+Optional, or as part of a mill Recommended pack. The API and `/shop-floor` page
+are hidden until that module is installed.
+
 Easy-Books **does not poll Modbus, OPC-UA, Siemens S7, or MQTT**. Those
 protocols stay on the mill OT network. A gateway (Node-RED, Kepware, Ignition,
 or a small agent) reads PLC tags and POSTs JSON to `/api/plc/ingest`.

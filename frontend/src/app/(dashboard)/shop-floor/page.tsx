@@ -150,8 +150,10 @@ export default function ShopFloorPage() {
       <div>
         <h1 className="text-xl font-semibold text-[var(--text-primary)]">PLC Feed</h1>
         <p className="text-sm text-[var(--text-muted)]">
-          Auto-record mill production from machinery. A shop-floor gateway reads the PLC and POSTs JSON —
-          Easy-Books never opens Modbus or OPC-UA itself. Map machine codes here, then point the gateway at{" "}
+          Auto-record mill production from machinery. Install this portfolio from{" "}
+          <Link href="/apps?tab=optional" className="text-[var(--primary)]">Add-ons</Link>, then a shop-floor
+          gateway reads the PLC and POSTs JSON — Easy-Books never opens Modbus or OPC-UA itself. Map machine
+          codes here, then point the gateway at{" "}
           <code className="text-xs">POST /api/plc/ingest</code> with an{" "}
           <Link href="/settings" className="text-[var(--primary)]">API key</Link>.
         </p>

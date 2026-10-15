@@ -92,11 +92,10 @@ _PROTOCOLS = {"modbus_tcp", "opcua", "mqtt", "s7", "http_gateway"}
 def require_shop_floor(session: Session, user: User) -> list[str]:
     tenant = session.get(Tenant, user.tenant_id)
     enabled = _get_enabled(tenant) if tenant else []
-    if not any(m in enabled for m in MILL_MODULES):
+    if "shop_floor" not in enabled:
         raise HTTPException(
             403,
-            "Install Weaving, Spinning, Processing, Manufacturing, or Weighbridge "
-            "to use the shop-floor PLC feed.",
+            "Install PLC Shop Floor from Add-ons to use this feed.",
         )
     return enabled
 
