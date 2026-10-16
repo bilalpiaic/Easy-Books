@@ -37,7 +37,8 @@ def trial_expired_detail() -> str:
     return (
         f"The {trial_days()}-day trial on this installation has ended. "
         "This copy of Easy-Books is locked. Your source folder and books "
-        "are not deleted. Contact Easy-Books to license this install."
+        "are not deleted. Paste a license token to activate this install, "
+        "or contact Easy-Books."
     )
 
 
@@ -291,6 +292,10 @@ def demo_trial_expired() -> bool:
 
 def install_locked() -> bool:
     """True when this standalone copy must refuse all work (not just demo logins)."""
+    from services.standalone_license import is_licensed
+
+    if is_licensed():
+        return False
     return demo_trial_expired()
 
 
@@ -340,6 +345,9 @@ def trial_info() -> dict[str, Any] | None:
         remaining = 0
     else:
         remaining = max(1, math.ceil((ends - now).total_seconds() / 86400))
+    from services.standalone_license import is_licensed
+
+    licensed = is_licensed()
     return {
         "applies": True,
         "days": days,
@@ -347,5 +355,6 @@ def trial_info() -> dict[str, Any] | None:
         "started_at": _format_dt(started),
         "ends_at": _format_dt(ends),
         "expired": expired,
-        "locked": expired,
+        "locked": expired and not licensed,
+        "licensed": licensed,
     }

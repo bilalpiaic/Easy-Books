@@ -348,7 +348,15 @@ Standalone and desktop installs start a **15-day trial** on first launch (`EB_ST
 - **macOS / Linux:** `bash docs/Extend_Trial.sh` (hidden password prompt; the password is not stored in the `.sh`).
 - **CLI:** `cd backend && PYTHONPATH=. uv run python -m scripts.extend_trial` (prompts, or `--password` / `EB_EXTEND_TRIAL_PASSWORD`).
 
-Then start Easy-Books again. Set `EB_SKIP_DEMO_TRIAL=true` only after the install is licensed. `dev.sh` is not a standalone install and is not limited.
+Then start Easy-Books again.
+
+**Licensed activation** (permanent unlock, still does not delete the folder or `~/.easy-books`): Easy-Books issues a signed `EB1.…` token bound to this copy’s **install ID** (shown on the trial-ended screen and Settings → Advanced → Install license) and the owner email. Paste it there, or run:
+
+- **Windows:** `docs\Activate_License.bat`
+- **macOS / Linux:** `bash docs/Activate_License.sh`
+- **CLI:** `cd backend && PYTHONPATH=. uv run python -m scripts.activate_license --token EB1.…`
+
+The license file is written in the books data dir (`~/.easy-books/.easy-books-license`), never `backend/`. Signing up with a real email does **not** license the install. `EB_SKIP_DEMO_TRIAL=true` remains a licensed override. `dev.sh` is not a standalone install and is not limited.
 
 The **desktop (Electron) app** also auto-loads the 9 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
 

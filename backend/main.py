@@ -35,6 +35,7 @@ from routers import (
     consolidation, leases, contract_assets, intercompany, india_gst,
     practice, custom_fields, form_schema, print_templates, ops_tenants,
     compliance, devices,
+    license as license_api,
 )
 from routers.pra import pra_router
 from routers.uae_einvoice import uae_router
@@ -319,6 +320,8 @@ def _standalone_trial_path_allowed(path: str) -> bool:
         return True
     if path.startswith("/api/version") or path.startswith("/api/v1/version"):
         return True
+    if path.startswith("/api/license") or path.startswith("/api/v1/license"):
+        return True
     return path.rstrip("/").endswith("/auth/oauth/providers")
 
 
@@ -327,7 +330,8 @@ async def check_standalone_trial_lock(request: Request, call_next):
     """After the 15-day premises trial, refuse every API except status/health.
 
     The install folder and data dir are left on disk; only the running copy
-    is locked. Licensed installs set EB_SKIP_DEMO_TRIAL=true.
+    is locked. A signed license in the books data dir, or EB_SKIP_DEMO_TRIAL=true,
+    unlocks the copy.
     """
     if request.method == "OPTIONS":
         return await call_next(request)
@@ -510,6 +514,7 @@ _ROUTERS = [
     devices.router,
     tasks.router,
     files.router,
+    license_api.router,
     billing.router,
     billing.stripe_router,
     portal.router,

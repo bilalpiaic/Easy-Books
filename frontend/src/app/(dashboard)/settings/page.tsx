@@ -1841,6 +1841,8 @@ export default function SettingsPage() {
       {/* ── Appearance ── */}
       <AppearanceSection />
 
+      {isAdminOrOwner && <StandaloneLicenseSection />}
+
       {/* Sample / Demo Data (evaluation) — admin/owner */}
       {isAdminOrOwner && <DemoSampleDataSection />}
 
@@ -3199,5 +3201,143 @@ function HomeDashboardSettingsCard({
         Open home →
       </Link>
     </div>
+  )
+}
+
+/* ── Standalone install license (on-prem trial unlock) ── */
+
+type LicenseStatusRow = {
+  install_id?: string | null
+  licensed?: boolean
+  skip_env?: boolean
+  standalone?: boolean
+  email?: string | null
+  issued_at?: string | null
+  expires_at?: string | null
+  activated_at?: string | null
+  data_dir?: string | null
+}
+
+function StandaloneLicenseSection() {
+  const { toast } = useMessages()
+  const [status, setStatus] = useState<LicenseStatusRow | null>(null)
+  const [hidden, setHidden] = useState(false)
+  const [token, setToken] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+  const [copied, setCopied] = useState(false)
+
+  const refresh = async () => {
+    try {
+      const data = await apiFetch<LicenseStatusRow>("/api/license/status")
+      setStatus(data)
+      setHidden(!(data.standalone || data.licensed || data.skip_env))
+    } catch {
+      setHidden(true)
+    }
+  }
+
+  useEffect(() => {
+    void refresh()
+  }, [])
+
+  if (hidden || !status) return null
+
+  const copyId = async () => {
+    if (!status.install_id) return
+    try {
+      await navigator.clipboard.writeText(status.install_id)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const activate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = token.trim()
+    if (!trimmed || busy) return
+    setBusy(true)
+    setError("")
+    try {
+      const data = await apiFetch<LicenseStatusRow>("/api/license/activate", {
+        method: "POST",
+        body: JSON.stringify({ token: trimmed }),
+      })
+      setStatus(data)
+      setToken("")
+      toast("License activated")
+    } catch (err: unknown) {
+      setError(String((err as Error).message ?? err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-3">
+      <h2 className="text-lg font-bold text-[var(--text-primary)]">Install license</h2>
+      <p className="text-sm text-[var(--text-primary)]/60">
+        Standalone copies lock after the trial. A signed license in the books
+        data folder unlocks this PC without deleting your source or data.
+        Cloud / <code>dev.sh</code> installs are not limited.
+      </p>
+      {status.licensed ? (
+        <p className="text-sm text-green-800">
+          Licensed{status.email ? ` for ${status.email}` : ""}.
+          {status.expires_at ? ` Expires ${fmtDate(String(status.expires_at))}.` : " Perpetual."}
+        </p>
+      ) : status.skip_env ? (
+        <p className="text-sm text-[var(--text-primary)]/80">
+          Unlocked via <code>EB_SKIP_DEMO_TRIAL</code>. Paste a signed token to
+          record a license file on this install as well.
+        </p>
+      ) : (
+        <p className="text-sm text-[var(--text-primary)]/80">
+          This install is on the standalone trial clock. Send the install ID
+          to Easy-Books and paste the token they issue.
+        </p>
+      )}
+      {status.install_id && (
+        <div>
+          <div className="text-xs uppercase tracking-wide text-[var(--text-primary)]/50 mb-1">
+            Install ID
+          </div>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-xs break-all bg-[var(--bg)] border border-[var(--border)] rounded-lg px-2 py-1.5">
+              {status.install_id}
+            </code>
+            <button
+              type="button"
+              onClick={copyId}
+              className="shrink-0 text-xs px-2 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[#faf8f4]"
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+        </div>
+      )}
+      <form onSubmit={activate} className="space-y-2">
+        <label className="block text-xs uppercase tracking-wide text-[var(--text-primary)]/50">
+          License token
+        </label>
+        <textarea
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          rows={3}
+          placeholder="EB1.…"
+          className="w-full text-xs font-mono border border-[var(--border)] rounded-lg px-2 py-2"
+        />
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <button
+          type="submit"
+          disabled={busy || !token.trim()}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--text-primary)] text-white hover:bg-[var(--text-primary)]/80 disabled:opacity-50"
+        >
+          {busy ? "Activating…" : status.licensed ? "Replace license" : "Activate license"}
+        </button>
+      </form>
+    </section>
   )
 }
