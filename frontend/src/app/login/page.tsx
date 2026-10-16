@@ -258,7 +258,7 @@ function LoginForm() {
                 {demoLoading ? "Opening demo…" : "Try demo"}
               </button>
             )}
-            {providers.demo_trial?.applies && !trialIsLocked(providers.demo_trial) && providers.demo_trial.days_remaining != null && (
+            {providers.demo_trial?.applies && !trialIsLocked(providers.demo_trial) && !providers.demo_trial.licensed && providers.demo_trial.days_remaining != null && (
               <p className="text-center text-xs text-[#1a1814]/55">
                 This installation&apos;s trial ends in{" "}
                 {providers.demo_trial.days_remaining}{" "}
