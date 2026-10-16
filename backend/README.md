@@ -29,7 +29,7 @@ For one-shot dev (backend + frontend + demo seed together), use `./dev.sh` at th
 | `PYTHONPATH=. uv run python -m scripts.autoseed_demo` | First-run demo loader — no-ops if any user exists or `SEED_DEMO=false` (used by installers) |
 | `PYTHONPATH=. uv run python -m scripts.extend_trial` | Restart the standalone trial clock for another 15 days (password prompted, or `--password` / `EB_EXTEND_TRIAL_PASSWORD`; Windows: `docs/Extend_Trial.bat`; macOS/Linux: `docs/Extend_Trial.sh`) |
 | `PYTHONPATH=. uv run python -m scripts.activate_license` | Activate a signed install license (`EB1.…` token) into `~/.easy-books`; Windows: `docs/Activate_License.bat`; macOS/Linux: `docs/Activate_License.sh` |
-| `PYTHONPATH=. uv run python -m scripts.issue_license` | Staff-only: sign a license (`EB_LICENSE_SIGNING_SEED` required; never commit) |
+| `PYTHONPATH=. uv run python -m scripts.issue_license` | Staff-only: sign a license on **staff’s machine** (`EB_LICENSE_SIGNING_SEED` required; never commit). Inputs are the customer’s install ID + owner email; output is an `EB1.…` token to send back. Map: `docs/LICENSE_ISSUER.md` |
 | `uv run alembic upgrade head` | Apply pending migrations |
 | `uv run alembic heads` | Show current migration head |
 

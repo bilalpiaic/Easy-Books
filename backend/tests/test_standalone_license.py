@@ -241,6 +241,18 @@ def test_issue_license_script_requires_seed(monkeypatch, tmp_path, capsys):
     assert "EB_LICENSE_SIGNING_SEED" in capsys.readouterr().err
 
 
+def test_issue_license_show_pubkey_needs_no_customer_id(monkeypatch, tmp_path, capsys):
+    _standalone(monkeypatch, tmp_path)
+    seed = _ephemeral_keypair(monkeypatch)
+    from scripts.issue_license import main
+    from services.standalone_license import public_key_from_seed
+
+    assert main(["--show-pubkey"]) == 0
+    assert capsys.readouterr().out.strip() == public_key_from_seed(seed)
+    assert main([]) == 1
+    assert "install-id" in capsys.readouterr().err
+
+
 def test_issue_and_activate_scripts_round_trip(monkeypatch, tmp_path, capsys):
     _standalone(monkeypatch, tmp_path)
     _ephemeral_keypair(monkeypatch)

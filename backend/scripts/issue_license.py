@@ -25,8 +25,8 @@ from services.standalone_trial import _parse_dt
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Issue a signed Easy-Books install license.")
-    parser.add_argument("--install-id", required=True, help="Customer .install-id UUID")
-    parser.add_argument("--email", required=True, help="Owner email on that install")
+    parser.add_argument("--install-id", default=None, help="Customer .install-id UUID")
+    parser.add_argument("--email", default=None, help="Owner email on that install")
     parser.add_argument(
         "--expires",
         default=None,
@@ -51,6 +51,10 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 1
         return 0
+
+    if not args.install_id or not args.email:
+        print("Need --install-id and --email (customer UUID + owner email).", file=sys.stderr)
+        return 1
 
     expires_at = None
     if args.expires:
