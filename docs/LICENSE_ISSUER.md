@@ -1,73 +1,103 @@
-# Staff license issuer — what moves, from where
+# Field staff: generate a license token for any client
 
-The issuer is **Easy-Books staff**, on **staff’s own machine** (or a vendor ops box). It is **not** run on the customer PC. Nothing in the customer source folder or `~/.easy-books` is copied off the premises. The only secret that can sign licenses is `EB_LICENSE_SIGNING_SEED`; it stays on staff and is never committed, never put in USER_GUIDE, and never sent to the customer.
+The token is created on **the field staff laptop / office PC** — an Easy-Books checkout **staff already have**, with the private signing seed in the environment. It is **not** created inside the client’s Easy-Books folder and **not** written to the client’s `~/.easy-books` until the client (or you, standing at their keyboard) **activates** the token.
 
-## Pieces and where they live
+One staff seed signs licenses for **every** client. Each token is bound to **that client’s install ID**. A token made for client A will not unlock client B.
 
-| Piece | Where it lives | Who holds it | Moves at issue time? |
-|---|---|---|---|
-| **Private signing seed** (`EB_LICENSE_SIGNING_SEED`, 64 hex chars) | Staff environment only | Easy-Books staff | **No.** Never copied to the customer, git, or field scripts. |
-| **Public key** (`LICENSE_PUBKEY_HEX`) | Already inside the shipped app: `backend/services/standalone_license.py` | Every install | **No.** Arrived with the product. The customer copy uses it to verify tokens. |
-| **Install ID** (UUID) | Customer books dir: `~/.easy-books/.install-id` (or `$EB_DATA_DIR`) | Customer PC | **Yes — customer → staff.** Copied from the Trial ended screen or Settings → Advanced → Install license. |
-| **Owner email** | Customer database (the owner who signed up) | Customer | **Yes — customer → staff.** Must match an owner on that install. |
-| **License token** (`EB1.<payload>.<signature>`) | Created on staff stdout; then stored on the customer as `~/.easy-books/.easy-books-license` | Staff creates, customer keeps | **Yes — staff → customer.** This is the only artifact staff sends. |
-| Source folder / books / SQLite | Customer PC | Customer | **No.** Not deleted, not copied, not replaced. |
+## Where you stand
 
-## Direction of travel
+| Place | What you do there |
+|---|---|
+| **Staff machine** (your laptop, office, ops box) | Generate the `EB1.…` token. Seed stays here. |
+| **Client PC** (their locked Easy-Books) | Read **Install ID** + owner email. Later paste the token. Do not put the seed on this PC. |
+| **Not used** | Client source folder, `backend/`, copying their books off the machine. |
 
-```
-CUSTOMER PC                                      STAFF MACHINE
-────────────                                     ─────────────
-Trial ended screen
-  Install ID  ──────────────────────────────►    python -m scripts.issue_license
-  Owner email ──────────────────────────────►      --install-id <uuid>
-                                                   --email owner@customer.test
-                                             +  EB_LICENSE_SIGNING_SEED   (stays here)
+On a site visit: keep **your** laptop next to their locked screen. Copy the UUID off their screen into your issuer. Paste the printed token back into their “License token” box. You never run the issuer from their `docs\` folder.
 
-                                             prints EB1.… token
-  lock screen / Settings /                   ◄────────────────────────────
-  docs/Activate_License.bat|.sh
+## One-time setup on the staff machine
 
-writes ~/.easy-books/.easy-books-license
-app verifies with public key already in the install
-copy unlocks; files stay on this PC
-```
-
-## What staff runs (staff checkout, not the customer folder)
-
-Use any Easy-Books **backend** checkout staff already has (after this change is on the branch). Do **not** log into the customer PC to issue. Do **not** set the seed on the customer copy.
+1. Have an Easy-Books checkout that includes `backend/scripts/issue_license.py` (this branch / a release that has it).
+2. Set the signing seed **once** on that machine (64 hex chars; not in git, not in USER_GUIDE):
 
 ```bash
-export EB_LICENSE_SIGNING_SEED=<staff seed, 64 hex chars>
+export EB_LICENSE_SIGNING_SEED=<staff seed>
+```
+
+Windows (current session):
+
+```bat
+set EB_LICENSE_SIGNING_SEED=<staff seed>
+```
+
+Confirm it matches the public key shipped in the product:
+
+```bash
 cd backend
-PYTHONPATH=. uv run python -m scripts.issue_license \
-  --install-id <uuid the customer copied> \
-  --email <owner email on that install>
-```
-
-Stdout is one line: `EB1.…`. Send **that string** to the customer (email, chat). Optional `--expires YYYY-MM-DD` for a time-limited license; omit it for perpetual.
-
-Confirm the seed matches the public key shipped in the app:
-
-```bash
 PYTHONPATH=. uv run python -m scripts.issue_license --show-pubkey
 # must print 90523f715496512c8959efb045fc0bebbc25e784a8d0131a8ad6b73648f474df
 ```
 
-## What the customer runs (customer PC only)
+## For each client (any number of clients)
 
-They do **not** receive the seed. They paste the `EB1.…` token:
+1. On the **client** lock screen (or Settings → Advanced → Install license) copy:
+   - **Install ID** (UUID)
+   - **Owner email** (the email they signed up with on that copy)
+2. On the **staff** machine, in **staff’s** checkout:
 
-- Trial ended screen → Activate license, or
-- Settings → Advanced → Install license, or
-- `docs\Activate_License.bat` / `bash docs/Activate_License.sh`
+```bat
+docs\Issue_License.bat
+```
 
-That writes `~/.easy-books/.easy-books-license` (same books dir as `install-and-run`, never `backend/`). Restart is only needed if they used the field script while the app was stopped; a paste on the lock screen reloads in place.
+```bash
+bash docs/Issue_License.sh
+```
 
-## What must not move
+Or:
 
-- Private seed → customer PC, git, USER_GUIDE, `docs/Activate_License.*`, `docs/Extend_Trial.*`
-- License file / install ID → staff git checkout (those files stay on the customer books dir)
-- Customer source folder or database → anywhere (lock and unlock leave them in place)
+```bash
+cd backend
+PYTHONPATH=. uv run python -m scripts.issue_license \
+  --install-id <that client's UUID> \
+  --email <that client's owner email>
+```
 
-`EB_SKIP_DEMO_TRIAL=true` on the customer process is a separate licensed override; it does not use the issuer. Extend trial (`docs/Extend_Trial.*`) is a courtesy 15-day clock restart, not a license.
+3. The command prints **one line** `EB1.…`. That string is the license token for **this** client only.
+4. Send it to them, or paste it on their lock screen / Settings, or have them run `docs\Activate_License.bat` / `bash docs/Activate_License.sh` **on the client PC**.
+5. For the next client, repeat from step 1 with **their** UUID and email. Do not reuse another client’s token.
+
+Optional time limit: add `--expires YYYY-MM-DD` on the Python command. Omit it for a perpetual license.
+
+## What the client’s PC then holds
+
+Activation writes only:
+
+- `~/.easy-books/.install-id` (already there)
+- `~/.easy-books/.easy-books-license` (the token, verified with the public key already in the app)
+
+Their source folder and books stay on that PC.
+
+## Pieces (what moves)
+
+| Piece | Where it lives | Moves? |
+|---|---|---|
+| Private seed `EB_LICENSE_SIGNING_SEED` | Staff environment | **No** — never client PC, git, or field `.bat`/`.sh` files |
+| Public key | Already in `backend/services/standalone_license.py` on every install | **No** |
+| Install ID | Client `~/.easy-books/.install-id` | Client → staff (copy/paste) |
+| Owner email | Client owner account | Client → staff |
+| `EB1.…` token | Staff stdout, then client `~/.easy-books/.easy-books-license` | Staff → client (the only artifact you send) |
+
+```
+CLIENT PC (locked)                      STAFF LAPTOP (issuer)
+──────────────────                      ────────────────────
+Install ID  ─────────────────────────►  docs/Issue_License.bat|.sh
+Owner email ─────────────────────────►  or python -m scripts.issue_license
+                                        + EB_LICENSE_SIGNING_SEED (stays here)
+
+EB1.… token ◄─────────────────────────  printed on staff screen
+
+paste / Activate_License.*
+        ▼
+~/.easy-books/.easy-books-license
+```
+
+`EB_SKIP_DEMO_TRIAL=true` on the client process is a separate override (no token). `docs/Extend_Trial.*` is another 15 days, not a license.

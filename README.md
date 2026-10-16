@@ -356,7 +356,7 @@ Then start Easy-Books again.
 - **macOS / Linux:** `bash docs/Activate_License.sh`
 - **CLI:** `cd backend && PYTHONPATH=. uv run python -m scripts.activate_license --token EB1.…`
 
-The license file is written in the books data dir (`~/.easy-books/.easy-books-license`), never `backend/`. Signing up with a real email does **not** license the install. `EB_SKIP_DEMO_TRIAL=true` remains a licensed override. `dev.sh` is not a standalone install and is not limited. Staff: what to run and what moves from the customer vs staff machine is in [`docs/LICENSE_ISSUER.md`](docs/LICENSE_ISSUER.md) (private seed stays on staff; only the `EB1.…` token is sent).
+The license file is written in the books data dir (`~/.easy-books/.easy-books-license`), never `backend/`. Signing up with a real email does **not** license the install. `EB_SKIP_DEMO_TRIAL=true` remains a licensed override. `dev.sh` is not a standalone install and is not limited. Staff generate tokens on **their** machine (`docs/Issue_License.bat` / `bash docs/Issue_License.sh`, or `python -m scripts.issue_license`) — not inside the client folder. Same seed, one token per client install ID. Map: [`docs/LICENSE_ISSUER.md`](docs/LICENSE_ISSUER.md).
 
 The **desktop (Electron) app** also auto-loads the 9 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
 

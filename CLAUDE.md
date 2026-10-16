@@ -299,9 +299,10 @@ EB_SKIP_DEMO_TRIAL=        # default false; true unlocks a licensed standalone i
 # Hash: scripts/extend_trial.py DEFAULT_PASSWORD_SHA256; override EB_EXTEND_TRIAL_PASSWORD_SHA256
 # Licensed activation: signed EB1 token in ~/.easy-books/.easy-books-license
 #   (install id ~/.easy-books/.install-id). Staff issuer (staff machine only):
-#   docs/LICENSE_ISSUER.md — customer sends install ID + owner email; staff
-#   run EB_LICENSE_SIGNING_SEED + python -m scripts.issue_license; only the
-#   EB1 token goes back. Field: docs/Activate_License.bat|.sh. Public key in
+#   docs/LICENSE_ISSUER.md — field staff generate tokens on THEIR laptop
+#   (docs/Issue_License.bat|.sh or python -m scripts.issue_license + seed).
+#   Customer sends install ID + owner email; only the EB1 token goes back.
+#   Activate on the client PC: docs/Activate_License.bat|.sh. Public key in
 #   services/standalone_license.py. Do not commit the signing seed.
 ENFORCE_MODULE_PLANS=      # default true; "false" unrestricts module install (pytest autouse)
 ```

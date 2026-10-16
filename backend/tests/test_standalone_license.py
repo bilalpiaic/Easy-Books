@@ -326,6 +326,68 @@ def test_activate_license_sh_accepts_piped_token(monkeypatch, tmp_path):
     assert lic.is_licensed() is True
 
 
+def test_issue_license_sh_requires_seed_on_staff_machine(monkeypatch, tmp_path):
+    from local_config import repo_root
+
+    env = os.environ.copy()
+    env.pop("EB_LICENSE_SIGNING_SEED", None)
+    script = repo_root() / "docs" / "Issue_License.sh"
+    proc = subprocess.run(
+        ["bash", str(script)],
+        input="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\nowner@co.test\n",
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(repo_root()),
+        timeout=60,
+    )
+    assert proc.returncode == 1
+    combined = proc.stdout + proc.stderr
+    assert "EB_LICENSE_SIGNING_SEED" in combined
+    assert "staff machine" in combined.lower()
+
+
+def test_issue_license_sh_prints_token_for_any_client(monkeypatch, tmp_path):
+    _ephemeral_keypair(monkeypatch)
+    from local_config import repo_root
+    from services.standalone_license import parse_token
+
+    env = os.environ.copy()
+    iid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    proc = subprocess.run(
+        ["bash", str(repo_root() / "docs" / "Issue_License.sh")],
+        input=f"{iid}\nOwner@Client.Test\n",
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(repo_root()),
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip().startswith("EB1.")]
+    assert lines, proc.stdout
+    payload = parse_token(lines[0])
+    assert payload["install_id"] == iid
+    assert payload["email"] == "owner@client.test"
+
+
+def test_issue_field_scripts_are_staff_only():
+    from local_config import repo_root
+    from scripts.extend_trial import DEFAULT_PASSWORD_SHA256
+
+    docs = repo_root() / "docs"
+    bat = (docs / "Issue_License.bat").read_text(encoding="utf-8")
+    sh = (docs / "Issue_License.sh").read_text(encoding="utf-8")
+    for text in (bat, sh):
+        assert "scripts.issue_license" in text
+        assert "EB_LICENSE_SIGNING_SEED" in text
+        assert "staff" in text.lower()
+        assert "Activate_License" not in text
+        assert DEFAULT_PASSWORD_SHA256 not in text
+        assert "do not run" in text.lower() or "Do not run" in text
+    assert sh.startswith("#!/usr/bin/env bash")
+
+
 def test_activate_field_scripts_have_no_secrets():
     from local_config import repo_root
     from services.standalone_license import LICENSE_PUBKEY_HEX

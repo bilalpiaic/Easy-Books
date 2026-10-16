@@ -1,11 +1,16 @@
 """Staff tool: issue a signed Easy-Books install license.
 
+Run on the **field-staff laptop / office checkout**, not on the client PC.
+Field wrappers: ``docs/Issue_License.bat`` / ``bash docs/Issue_License.sh``.
+Map: ``docs/LICENSE_ISSUER.md``. Same seed licenses any client; each token
+is bound to that client's install ID.
+
 Requires the private seed (never committed):
 
     export EB_LICENSE_SIGNING_SEED=<64 hex chars>
     cd backend
     PYTHONPATH=. uv run python -m scripts.issue_license \\
-        --install-id <uuid from GET /api/license/status> \\
+        --install-id <uuid from the client's lock screen> \\
         --email owner@customer.test
 
 Optional ``--expires YYYY-MM-DD`` for a time-limited license. Prints the
