@@ -7,9 +7,12 @@ after the 15-day trial. Tokens are Ed25519-signed:
     EB1.<base64url(json payload)>.<base64url(signature)>
 
 Payload: ``v``, ``install_id``, ``email``, ``issued_at``, optional ``expires_at``.
-The public key ships in this module. The private seed is staff-only
-(``EB_LICENSE_SIGNING_SEED``) and is never committed. Tests override the
-public key with ``EB_LICENSE_PUBKEY_HEX``.
+The public key ships in this module so the **client install can verify**
+a token. Minting tokens is **not** part of this product tree — field staff
+use the private repo ``bilalpiaic/Easy-Books-license-issuer`` on their own
+machine (seed ``EB_LICENSE_SIGNING_SEED``, never committed here). Tests
+override the public key with ``EB_LICENSE_PUBKEY_HEX`` and call
+``issue_token()`` with an ephemeral seed.
 
 Signup with a real email does **not** license the install. ``EB_SKIP_DEMO_TRIAL=true``
 remains a licensed override that skips the trial clock entirely.

@@ -232,37 +232,14 @@ def test_activate_script_writes_license(monkeypatch, tmp_path, capsys):
     assert lic.is_licensed() is True
 
 
-def test_issue_license_script_requires_seed(monkeypatch, tmp_path, capsys):
-    _standalone(monkeypatch, tmp_path)
-    monkeypatch.delenv("EB_LICENSE_SIGNING_SEED", raising=False)
-    from scripts.issue_license import main
-
-    assert main(["--install-id", "abc", "--email", "a@b.c"]) == 1
-    assert "EB_LICENSE_SIGNING_SEED" in capsys.readouterr().err
-
-
-def test_issue_license_show_pubkey_needs_no_customer_id(monkeypatch, tmp_path, capsys):
-    _standalone(monkeypatch, tmp_path)
-    seed = _ephemeral_keypair(monkeypatch)
-    from scripts.issue_license import main
-    from services.standalone_license import public_key_from_seed
-
-    assert main(["--show-pubkey"]) == 0
-    assert capsys.readouterr().out.strip() == public_key_from_seed(seed)
-    assert main([]) == 1
-    assert "install-id" in capsys.readouterr().err
-
-
 def test_issue_and_activate_scripts_round_trip(monkeypatch, tmp_path, capsys):
     _standalone(monkeypatch, tmp_path)
     _ephemeral_keypair(monkeypatch)
     from services import standalone_license as lic
     from scripts.activate_license import main as activate_main
-    from scripts.issue_license import main as issue_main
 
     iid = lic.ensure_install_id()
-    assert issue_main(["--install-id", iid, "--email", "Owner@Co.Test"]) == 0
-    token = capsys.readouterr().out.strip()
+    token = lic.issue_token(install_id=iid, email="Owner@Co.Test")
     assert token.startswith("EB1.")
     assert activate_main(["--token", token]) == 0
     assert lic.is_licensed() is True
@@ -326,66 +303,15 @@ def test_activate_license_sh_accepts_piped_token(monkeypatch, tmp_path):
     assert lic.is_licensed() is True
 
 
-def test_issue_license_sh_requires_seed_on_staff_machine(monkeypatch, tmp_path):
+def test_product_tree_does_not_ship_staff_issuer():
+    """A client git install must not contain token-minting field tools."""
     from local_config import repo_root
 
-    env = os.environ.copy()
-    env.pop("EB_LICENSE_SIGNING_SEED", None)
-    script = repo_root() / "docs" / "Issue_License.sh"
-    proc = subprocess.run(
-        ["bash", str(script)],
-        input="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\nowner@co.test\n",
-        capture_output=True,
-        text=True,
-        env=env,
-        cwd=str(repo_root()),
-        timeout=60,
-    )
-    assert proc.returncode == 1
-    combined = proc.stdout + proc.stderr
-    assert "EB_LICENSE_SIGNING_SEED" in combined
-    assert "staff machine" in combined.lower()
-
-
-def test_issue_license_sh_prints_token_for_any_client(monkeypatch, tmp_path):
-    _ephemeral_keypair(monkeypatch)
-    from local_config import repo_root
-    from services.standalone_license import parse_token
-
-    env = os.environ.copy()
-    iid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-    proc = subprocess.run(
-        ["bash", str(repo_root() / "docs" / "Issue_License.sh")],
-        input=f"{iid}\nOwner@Client.Test\n",
-        capture_output=True,
-        text=True,
-        env=env,
-        cwd=str(repo_root()),
-        timeout=60,
-    )
-    assert proc.returncode == 0, proc.stderr + proc.stdout
-    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip().startswith("EB1.")]
-    assert lines, proc.stdout
-    payload = parse_token(lines[0])
-    assert payload["install_id"] == iid
-    assert payload["email"] == "owner@client.test"
-
-
-def test_issue_field_scripts_are_staff_only():
-    from local_config import repo_root
-    from scripts.extend_trial import DEFAULT_PASSWORD_SHA256
-
-    docs = repo_root() / "docs"
-    bat = (docs / "Issue_License.bat").read_text(encoding="utf-8")
-    sh = (docs / "Issue_License.sh").read_text(encoding="utf-8")
-    for text in (bat, sh):
-        assert "scripts.issue_license" in text
-        assert "EB_LICENSE_SIGNING_SEED" in text
-        assert "staff" in text.lower()
-        assert "Activate_License" not in text
-        assert DEFAULT_PASSWORD_SHA256 not in text
-        assert "do not run" in text.lower() or "Do not run" in text
-    assert sh.startswith("#!/usr/bin/env bash")
+    root = repo_root()
+    assert not (root / "docs" / "Issue_License.sh").exists()
+    assert not (root / "docs" / "Issue_License.bat").exists()
+    assert not (root / "docs" / "LICENSE_ISSUER.md").exists()
+    assert not (root / "backend" / "scripts" / "issue_license.py").exists()
 
 
 def test_activate_field_scripts_have_no_secrets():
