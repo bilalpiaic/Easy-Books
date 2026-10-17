@@ -553,3 +553,197 @@ def test_extend_trial_sh_accepts_piped_password(monkeypatch, tmp_path):
     assert proc.returncode == 0, proc.stderr + proc.stdout
     assert st.demo_trial_expired() is False
     assert "Trial extended" in proc.stdout
+
+
+def test_force_expire_trial_locks_copy(client, monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    from services import standalone_trial as st
+
+    r = client.post("/api/auth/signup", json={
+        "email": "owner.force-expire@co.test",
+        "password": "pw12345678",
+        "full_name": "Owner",
+        "company_name": "Force Expire Co",
+    })
+    assert r.status_code == 200, r.text
+    assert client.post(
+        "/api/auth/login",
+        data={"username": "owner.force-expire@co.test", "password": "pw12345678"},
+    ).status_code == 200
+
+    info = st.force_expire_trial()
+    assert info["forced_expire"] is True
+    assert info["expired"] is True
+    assert info["locked"] is True
+    assert info["days_remaining"] == 0
+    assert st.demo_trial_expired() is True
+    assert st.install_locked() is True
+    assert (tmp_path / st.STAMP_NAME).is_file()
+    assert (tmp_path / st.EXPIRED_NAME).is_file()
+
+    blocked = client.post(
+        "/api/auth/login",
+        data={"username": "owner.force-expire@co.test", "password": "pw12345678"},
+    )
+    assert blocked.status_code == 403
+    assert blocked.json().get("code") == "standalone_trial_expired"
+    signup = client.post("/api/auth/signup", json={
+        "email": "too.late@co.test",
+        "password": "pw12345678",
+        "full_name": "Late",
+        "company_name": "Late Co",
+    })
+    assert signup.status_code == 403
+    assert client.get("/api/health").status_code == 200
+
+
+def test_force_expire_charges_easy_books_not_backend(monkeypatch, tmp_path):
+    """QA expire must land in ~/.easy-books (books), never backend/."""
+    home = tmp_path / "home"
+    books = home / ".easy-books"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.delenv("EB_DATA_DIR", raising=False)
+    monkeypatch.delenv("EB_PORTABLE", raising=False)
+    monkeypatch.delenv("EB_CLOUD_DATA_DIR", raising=False)
+    monkeypatch.setenv("EB_STANDALONE", "true")
+    monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.delenv("EB_SKIP_DEMO_TRIAL", raising=False)
+    books.mkdir(parents=True)
+
+    from local_config import repo_root
+    from services import standalone_trial as st
+
+    assert st.books_data_dir() == books
+    info = st.force_expire_trial()
+    assert info["expired"] is True
+    assert os.environ.get("EB_DATA_DIR") == str(books)
+    assert st.stamp_path().parent.resolve() == books.resolve()
+    assert (books / st.STAMP_NAME).is_file()
+    assert (books / st.EXPIRED_NAME).is_file()
+    assert st.stamp_path().parent.resolve() != (repo_root() / "backend").resolve()
+    assert st.install_locked() is True
+
+
+def test_expire_trial_script_yes_locks(monkeypatch, tmp_path, capsys):
+    _standalone(monkeypatch, tmp_path)
+    from services import standalone_trial as st
+    from scripts.expire_trial import main
+
+    assert st.demo_trial_expired() is False
+    assert main(["--yes"]) == 0
+    out = capsys.readouterr().out
+    assert "Trial force-expired" in out
+    assert str(tmp_path) in out
+    assert "backend/.demo-trial-started" not in out.replace("\\", "/")
+    assert st.demo_trial_expired() is True
+    assert st.install_locked() is True
+    assert (tmp_path / st.EXPIRED_NAME).is_file()
+
+
+def test_expire_trial_script_wrong_confirm_does_not_expire(monkeypatch, tmp_path, capsys):
+    _standalone(monkeypatch, tmp_path)
+    from services import standalone_trial as st
+    from scripts.expire_trial import main
+
+    stamp_before = None
+    if (tmp_path / st.STAMP_NAME).is_file():
+        stamp_before = (tmp_path / st.STAMP_NAME).read_text(encoding="utf-8")
+    monkeypatch.setattr("builtins.input", lambda *_a, **_k: "nope")
+    assert main([]) == 1
+    err = capsys.readouterr().err
+    assert "Not expired" in err
+    assert st.demo_trial_expired() is False
+    assert not (tmp_path / st.EXPIRED_NAME).is_file()
+    if stamp_before is not None:
+        assert (tmp_path / st.STAMP_NAME).read_text(encoding="utf-8") == stamp_before
+
+
+def test_expire_trial_script_eof_does_not_expire(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    from services import standalone_trial as st
+    from scripts.expire_trial import main
+
+    def _eof(*_a, **_k):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", _eof)
+    assert main([]) == 1
+    assert st.demo_trial_expired() is False
+    assert not (tmp_path / st.EXPIRED_NAME).is_file()
+
+
+def test_expire_trial_field_scripts_exist():
+    """docs/Expire_Trial.bat and .sh must prompt EXPIRE and charge ~/.easy-books."""
+    from local_config import repo_root
+
+    docs = repo_root() / "docs"
+    bat = (docs / "Expire_Trial.bat").read_text(encoding="utf-8")
+    sh = (docs / "Expire_Trial.sh").read_text(encoding="utf-8")
+    for text in (bat, sh):
+        assert "scripts.expire_trial" in text
+        assert "--yes" in text
+        assert "EXPIRE" in text
+        assert "EB_DATA_DIR" in text
+        assert ".easy-books" in text
+        assert "EasyBooks#Extend15" not in text
+    assert sh.startswith("#!/usr/bin/env bash")
+    assert "Type EXPIRE to continue" in sh
+    assert "Type EXPIRE to continue" in bat
+
+
+def test_expire_trial_sh_rejects_wrong_confirm(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    from local_config import repo_root
+    from services import standalone_trial as st
+
+    assert st.demo_trial_expired() is False
+    env = os.environ.copy()
+    env["EB_DATA_DIR"] = str(tmp_path)
+    env["EB_STANDALONE"] = "true"
+    env["APP_ENV"] = "local"
+    env.pop("EB_SKIP_DEMO_TRIAL", None)
+
+    script = repo_root() / "docs" / "Expire_Trial.sh"
+    proc = subprocess.run(
+        ["bash", str(script)],
+        input="nope\n",
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(repo_root()),
+        timeout=60,
+    )
+    assert proc.returncode == 1
+    assert "Not expired" in (proc.stdout + proc.stderr)
+    assert st.demo_trial_expired() is False
+    assert not (tmp_path / st.EXPIRED_NAME).is_file()
+
+
+def test_expire_trial_sh_accepts_piped_expire(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    from local_config import repo_root
+    from services import standalone_trial as st
+
+    assert st.demo_trial_expired() is False
+    env = os.environ.copy()
+    env["EB_DATA_DIR"] = str(tmp_path)
+    env["EB_STANDALONE"] = "true"
+    env["APP_ENV"] = "local"
+    env.pop("EB_SKIP_DEMO_TRIAL", None)
+
+    script = repo_root() / "docs" / "Expire_Trial.sh"
+    proc = subprocess.run(
+        ["bash", str(script)],
+        input="EXPIRE\n",
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(repo_root()),
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "Trial force-expired" in proc.stdout
+    assert st.demo_trial_expired() is True
+    assert st.install_locked() is True
+    assert (tmp_path / st.EXPIRED_NAME).is_file()

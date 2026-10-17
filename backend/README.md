@@ -28,6 +28,8 @@ For one-shot dev (backend + frontend + demo seed together), use `./dev.sh` at th
 | `PYTHONPATH=. uv run python -m scripts.seed_demo` | Seed all 8 demo tenants (one per business model, incl. PRA retail + hospital + yarn spinning) with 50+ records per entity: invoices, bills, payments, typed vouchers, 2 fiscal years of data, deferred-revenue origination, multiple users per tenant |
 | `PYTHONPATH=. uv run python -m scripts.autoseed_demo` | First-run demo loader — no-ops if any user exists or `SEED_DEMO=false` (used by installers) |
 | `PYTHONPATH=. uv run python -m scripts.extend_trial` | Restart the standalone trial clock for another 15 days (password prompted, or `--password` / `EB_EXTEND_TRIAL_PASSWORD`; Windows: `docs/Extend_Trial.bat`; macOS/Linux: `docs/Extend_Trial.sh`) |
+| `PYTHONPATH=. uv run python -m scripts.expire_trial` | QA force-expire the standalone trial clock (type `EXPIRE`, or `--yes`; Windows: `docs/Expire_Trial.bat`; macOS/Linux: `docs/Expire_Trial.sh`). Charges `~/.easy-books`, not `backend/`. A valid license still unlocks. |
+| `PYTHONPATH=. uv run python -m scripts.activate_license` | Activate a signed install license (`EB1.…` token) into `~/.easy-books`; Windows: `docs/Activate_License.bat`; macOS/Linux: `docs/Activate_License.sh`. Token minting is the private staff repo `Easy-Books-license-issuer`, not this tree. |
 | `uv run alembic upgrade head` | Apply pending migrations |
 | `uv run alembic heads` | Show current migration head |
 

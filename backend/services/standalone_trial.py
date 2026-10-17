@@ -37,7 +37,8 @@ def trial_expired_detail() -> str:
     return (
         f"The {trial_days()}-day trial on this installation has ended. "
         "This copy of Easy-Books is locked. Your source folder and books "
-        "are not deleted. Contact Easy-Books to license this install."
+        "are not deleted. Paste a license token to activate this install, "
+        "or contact Easy-Books."
     )
 
 
@@ -161,7 +162,7 @@ def _write_once(path: Path, payload: str) -> None:
 
 
 def _write_replace(path: Path, payload: str) -> None:
-    """Overwrite a stamp (used by ``extend_trial``, not by the write-once clock)."""
+    """Overwrite a stamp (used by ``extend_trial`` / ``force_expire_trial``)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     encoded = payload.encode("utf-8")
     tmp = path.with_name(path.name + ".tmp")
@@ -291,6 +292,10 @@ def demo_trial_expired() -> bool:
 
 def install_locked() -> bool:
     """True when this standalone copy must refuse all work (not just demo logins)."""
+    from services.standalone_license import is_licensed
+
+    if is_licensed():
+        return False
     return demo_trial_expired()
 
 
@@ -326,6 +331,40 @@ def extend_trial(*, days: int | None = None) -> dict[str, Any]:
     return info
 
 
+def force_expire_trial() -> dict[str, Any]:
+    """Backdate the trial clock and set expired latches (QA / force-lock).
+
+    Writes in the **books data dir** (``~/.easy-books`` on a normal standalone
+    install), never ``backend/``. Does not delete books, source, or a license
+    file. If a valid license is present the copy stays unlocked.
+    """
+    os.environ["EB_DATA_DIR"] = str(books_data_dir())
+    started = _now() - timedelta(days=trial_days() + 1)
+    start_line = _format_dt(started) + "\n"
+    expired_line = _format_dt(_now()) + "\n"
+    _write_replace(stamp_path(), start_line)
+    _write_replace(expired_marker_path(), expired_line)
+    install = _install_paths()
+    if install is not None:
+        _write_replace(install[0], start_line)
+        _write_replace(install[1], expired_line)
+    from services.standalone_license import is_licensed
+
+    licensed = is_licensed()
+    info = trial_info() or {
+        "applies": True,
+        "days": trial_days(),
+        "days_remaining": 0,
+        "started_at": _format_dt(started),
+        "ends_at": _format_dt(started + timedelta(days=trial_days())),
+        "expired": True,
+        "locked": not licensed,
+        "licensed": licensed,
+    }
+    info["forced_expire"] = True
+    return info
+
+
 def trial_info() -> dict[str, Any] | None:
     """Payload for ``GET /api/auth/oauth/providers``. ``None`` when not standalone."""
     if not demo_trial_applies():
@@ -340,6 +379,9 @@ def trial_info() -> dict[str, Any] | None:
         remaining = 0
     else:
         remaining = max(1, math.ceil((ends - now).total_seconds() / 86400))
+    from services.standalone_license import is_licensed
+
+    licensed = is_licensed()
     return {
         "applies": True,
         "days": days,
@@ -347,5 +389,6 @@ def trial_info() -> dict[str, Any] | None:
         "started_at": _format_dt(started),
         "ends_at": _format_dt(ends),
         "expired": expired,
-        "locked": expired,
+        "locked": expired and not licensed,
+        "licensed": licensed,
     }
