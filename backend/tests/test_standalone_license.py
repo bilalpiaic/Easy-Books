@@ -376,3 +376,146 @@ def test_force_expire_does_not_lock_licensed_copy(client, monkeypatch, tmp_path)
         data={"username": "owner.licensed-expire@co.test", "password": "pw12345678"},
     )
     assert login.status_code == 200, login.text
+
+
+def test_one_year_token_unlocks_until_expiry(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    _ephemeral_keypair(monkeypatch)
+    from services import standalone_license as lic
+
+    iid = lic.ensure_install_id()
+    ends = datetime.now(timezone.utc) + timedelta(days=365)
+    token = lic.issue_token(install_id=iid, email="owner@co.test", expires_at=ends)
+    info = lic.activate_token(token, emails=[])
+    assert info["licensed"] is True
+    assert info["expires_at"]
+    assert lic.is_licensed() is True
+
+
+def test_three_month_and_two_year_tokens_unlock(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    _ephemeral_keypair(monkeypatch)
+    from services import standalone_license as lic
+
+    iid = lic.ensure_install_id()
+    for days in (90, 730):
+        ends = datetime.now(timezone.utc) + timedelta(days=days)
+        token = lic.issue_token(install_id=iid, email="owner@co.test", expires_at=ends)
+        info = lic.activate_token(token, emails=[])
+        assert info["licensed"] is True
+        assert info["expires_at"]
+        assert lic.is_licensed() is True
+
+
+def test_time_limited_license_relocks_after_expiry(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    _ephemeral_keypair(monkeypatch)
+    from services import standalone_license as lic
+    from services import standalone_trial as st
+
+    issued = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    ends = datetime(2027, 1, 1, tzinfo=timezone.utc)
+    monkeypatch.setattr(lic, "_now", lambda: issued)
+    iid = lic.ensure_install_id()
+    token = lic.issue_token(
+        install_id=iid, email="owner@co.test", expires_at=ends, issued_at=issued,
+    )
+    lic.activate_token(token, emails=[])
+    st.force_expire_trial()
+    assert lic.is_licensed() is True
+    assert st.install_locked() is False
+
+    monkeypatch.setattr(lic, "_now", lambda: ends)
+    assert lic.is_licensed() is False
+    assert st.install_locked() is True
+
+
+def test_deactivate_license_removes_file_and_relocks(client, monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    _ephemeral_keypair(monkeypatch)
+    from services import standalone_license as lic
+    from services import standalone_trial as st
+
+    r = client.post("/api/auth/signup", json={
+        "email": "owner.deactivate@co.test",
+        "password": "pw12345678",
+        "full_name": "Owner",
+        "company_name": "Deactivate Co",
+    })
+    assert r.status_code == 200, r.text
+    iid = lic.ensure_install_id()
+    token = lic.issue_token(install_id=iid, email="owner.deactivate@co.test")
+    lic.activate_token(token, emails=[("owner.deactivate@co.test", "owner")])
+    st.force_expire_trial()
+    assert st.install_locked() is False
+
+    info = lic.deactivate_license()
+    assert info["removed"] is True
+    assert info["licensed"] is False
+    assert not (tmp_path / lic.LICENSE_FILE_NAME).is_file()
+    assert (tmp_path / lic.INSTALL_ID_NAME).is_file()
+    assert st.install_locked() is True
+    blocked = client.post(
+        "/api/auth/login",
+        data={"username": "owner.deactivate@co.test", "password": "pw12345678"},
+    )
+    assert blocked.status_code == 403
+
+
+def test_deactivate_license_script_yes(monkeypatch, tmp_path, capsys):
+    _standalone(monkeypatch, tmp_path)
+    _ephemeral_keypair(monkeypatch)
+    from services import standalone_license as lic
+    from scripts.deactivate_license import main
+
+    iid = lic.ensure_install_id()
+    token = lic.issue_token(install_id=iid, email="owner@co.test")
+    lic.activate_token(token, emails=[])
+    assert lic.is_licensed() is True
+    assert main(["--yes"]) == 0
+    out = capsys.readouterr().out
+    assert "License deactivated" in out
+    assert lic.is_licensed() is False
+    assert not (tmp_path / lic.LICENSE_FILE_NAME).is_file()
+
+
+def test_deactivate_when_no_license_file(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    _ephemeral_keypair(monkeypatch)
+    from services import standalone_license as lic
+
+    info = lic.deactivate_license()
+    assert info["removed"] is False
+    assert info["licensed"] is False
+    assert info["deactivated"] is True
+
+
+def test_deactivate_license_script_wrong_confirm(monkeypatch, tmp_path, capsys):
+    _standalone(monkeypatch, tmp_path)
+    _ephemeral_keypair(monkeypatch)
+    from services import standalone_license as lic
+    from scripts.deactivate_license import main
+
+    iid = lic.ensure_install_id()
+    token = lic.issue_token(install_id=iid, email="owner@co.test")
+    lic.activate_token(token, emails=[])
+    monkeypatch.setattr("builtins.input", lambda *_a, **_k: "nope")
+    assert main([]) == 1
+    err = capsys.readouterr().err
+    assert "Not deactivated" in err
+    assert lic.is_licensed() is True
+
+
+def test_deactivate_field_scripts_exist():
+    from local_config import repo_root
+
+    docs = repo_root() / "docs"
+    bat = (docs / "Deactivate_License.bat").read_text(encoding="utf-8")
+    sh = (docs / "Deactivate_License.sh").read_text(encoding="utf-8")
+    for text in (bat, sh):
+        assert "scripts.deactivate_license" in text
+        assert "DEACTIVATE" in text
+        assert "EB_DATA_DIR" in text
+        assert ".easy-books" in text
+        assert "EB_LICENSE_SIGNING_SEED" not in text
+    assert sh.startswith("#!/usr/bin/env bash")

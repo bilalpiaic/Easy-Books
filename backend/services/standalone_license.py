@@ -330,6 +330,26 @@ def activate_token(
     return license_status()
 
 
+def deactivate_license() -> dict[str, Any]:
+    """Remove the on-disk license file. Books, source, and install id stay.
+
+    After this, ``is_licensed()`` is false. If the 15-day trial has already
+    ended the copy locks again until a new token is activated.
+    """
+    path = license_path()
+    removed = False
+    try:
+        if path.is_file():
+            path.unlink()
+            removed = True
+    except OSError:
+        pass
+    status = license_status()
+    status["deactivated"] = True
+    status["removed"] = removed
+    return status
+
+
 def _read_license_file() -> dict[str, Any] | None:
     try:
         raw = license_path().read_text(encoding="utf-8")

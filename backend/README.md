@@ -29,7 +29,8 @@ For one-shot dev (backend + frontend + demo seed together), use `./dev.sh` at th
 | `PYTHONPATH=. uv run python -m scripts.autoseed_demo` | First-run demo loader — no-ops if any user exists or `SEED_DEMO=false` (used by installers) |
 | `PYTHONPATH=. uv run python -m scripts.extend_trial` | Restart the standalone trial clock for another 15 days (password prompted, or `--password` / `EB_EXTEND_TRIAL_PASSWORD`; Windows: `docs/Extend_Trial.bat`; macOS/Linux: `docs/Extend_Trial.sh`) |
 | `PYTHONPATH=. uv run python -m scripts.expire_trial` | QA force-expire the standalone trial clock (type `EXPIRE`, or `--yes`; Windows: `docs/Expire_Trial.bat`; macOS/Linux: `docs/Expire_Trial.sh`). Charges `~/.easy-books`, not `backend/`. A valid license still unlocks. |
-| `PYTHONPATH=. uv run python -m scripts.activate_license` | Activate a signed install license (`EB1.…` token) into `~/.easy-books`; Windows: `docs/Activate_License.bat`; macOS/Linux: `docs/Activate_License.sh`. Token minting is the private staff repo `Easy-Books-license-issuer`, not this tree. |
+| `PYTHONPATH=. uv run python -m scripts.activate_license` | Activate a signed install license (`EB1.…` token) into `~/.easy-books`; Windows: `docs/Activate_License.bat`; macOS/Linux: `docs/Activate_License.sh`. Token minting is the private staff repo `Easy-Books-license-issuer`, not this tree. Term (lifetime / 3 months / 1 year / 2 years) is chosen when the token is minted. |
+| `PYTHONPATH=. uv run python -m scripts.deactivate_license` | Remove `~/.easy-books/.easy-books-license` (type `DEACTIVATE`, or `--yes`; Windows: `docs/Deactivate_License.bat`; macOS/Linux: `docs/Deactivate_License.sh`). Books and source stay. |
 | `uv run alembic upgrade head` | Apply pending migrations |
 | `uv run alembic heads` | Show current migration head |
 
