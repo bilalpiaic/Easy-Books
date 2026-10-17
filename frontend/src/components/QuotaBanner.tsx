@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { AlertTriangle, X } from "lucide-react"
+import { licensePlanLabel } from "@/components/LicensePlanPicker"
 
 type QuotaDetail = {
   status: number
@@ -43,7 +44,7 @@ export default function QuotaBanner() {
           <p className="font-semibold">{title}</p>
           <p className="text-amber-900/80 mt-0.5">
             {body}
-            {info.plan ? ` · Current plan: ${info.plan}` : ""}
+            {info.plan ? ` · Current plan: ${licensePlanLabel(info.plan) || info.plan}` : ""}
             {" · "}
             <Link href="/settings/billing" className="underline font-medium">
               Billing & plan

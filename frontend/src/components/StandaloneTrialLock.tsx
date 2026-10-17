@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { apiBase } from "@/lib/api"
+import { LicensePlanPicker, type LicensePlanId } from "@/components/LicensePlanPicker"
 
 export type DemoTrial = {
   applies?: boolean
@@ -55,6 +56,7 @@ export async function fetchLicenseStatus(): Promise<LicenseStatus | null> {
 export function StandaloneTrialLock({ days = 15 }: { days?: number }) {
   const [status, setStatus] = useState<LicenseStatus | null>(null)
   const [token, setToken] = useState("")
+  const [plan, setPlan] = useState<LicensePlanId | "">("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [copied, setCopied] = useState(false)
@@ -85,14 +87,14 @@ export function StandaloneTrialLock({ days = 15 }: { days?: number }) {
   const activate = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = token.trim()
-    if (!trimmed || busy) return
+    if (!trimmed || !plan || busy) return
     setBusy(true)
     setError("")
     try {
       const r = await fetch(`${apiBase}/api/license/activate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: trimmed }),
+        body: JSON.stringify({ token: trimmed, plan }),
       })
       const body = await r.json().catch(() => ({}))
       if (!r.ok) {
@@ -147,7 +149,8 @@ export function StandaloneTrialLock({ days = 15 }: { days?: number }) {
             </div>
           )}
 
-          <form onSubmit={activate} className="mt-4 space-y-2">
+          <form onSubmit={activate} className="mt-4 space-y-3">
+            <LicensePlanPicker value={plan} onChange={setPlan} disabled={busy} />
             <label className="block text-xs uppercase tracking-wide text-[#1a1814]/50">
               License token
             </label>
@@ -161,7 +164,7 @@ export function StandaloneTrialLock({ days = 15 }: { days?: number }) {
             {error && <p className="text-sm text-red-700">{error}</p>}
             <button
               type="submit"
-              disabled={busy || !token.trim()}
+              disabled={busy || !token.trim() || !plan}
               className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-[#1a1814] text-white hover:bg-[#1a1814]/80 disabled:opacity-50"
             >
               {busy ? "Activating…" : "Activate license"}

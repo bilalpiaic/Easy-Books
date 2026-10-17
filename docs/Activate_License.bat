@@ -60,6 +60,29 @@ if not defined EB_LICENSE_TOKEN (
     exit /b 1
 )
 
+echo.
+echo Select the client category this license is for:
+echo   1) Basic
+echo   2) Pro
+echo   3) Enterprise
+echo.
+set "EB_LICENSE_PLAN="
+for /f "usebackq delims=" %%P in (`powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $t = Read-Host 'Category [1/2/3]'; if ([string]::IsNullOrEmpty($t)) { exit 2 }; [Console]::Out.Write($t)"`) do set "PLAN_CHOICE=%%P"
+if /I "%PLAN_CHOICE%"=="1" set "EB_LICENSE_PLAN=starter"
+if /I "%PLAN_CHOICE%"=="basic" set "EB_LICENSE_PLAN=starter"
+if /I "%PLAN_CHOICE%"=="starter" set "EB_LICENSE_PLAN=starter"
+if /I "%PLAN_CHOICE%"=="2" set "EB_LICENSE_PLAN=pro"
+if /I "%PLAN_CHOICE%"=="pro" set "EB_LICENSE_PLAN=pro"
+if /I "%PLAN_CHOICE%"=="3" set "EB_LICENSE_PLAN=enterprise"
+if /I "%PLAN_CHOICE%"=="enterprise" set "EB_LICENSE_PLAN=enterprise"
+if not defined EB_LICENSE_PLAN (
+    echo.
+    echo [ERROR] Select 1^) Basic, 2^) Pro, or 3^) Enterprise.
+    echo.
+    pause
+    exit /b 1
+)
+
 cd /d "%REPO_ROOT%\backend" || (
     echo [ERROR] Cannot open "%REPO_ROOT%\backend".
     pause

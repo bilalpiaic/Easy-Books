@@ -243,6 +243,7 @@ def test_billing_catalog_lists_includes_and_addon_skus(client):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["settlement"] in ("saas", "standalone")
+    assert body["plans"]["starter"]["label"] == "Basic"
     assert "inventory" in body["plans"]["starter"]["includes"]
     assert "shop_floor" not in body["plans"]["starter"]["includes"]
     assert "pra" in body["plans"]["pro"]["includes"]

@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api/license", tags=["license"])
 
 class ActivateIn(BaseModel):
     token: str = Field(min_length=8, max_length=4000)
+    plan: str = Field(min_length=3, max_length=32)
 
 
 @router.get("/status")
@@ -30,7 +31,11 @@ def get_license_status():
 def activate_license(body: ActivateIn, session: SessionDep):
     users = session.exec(select(User)).all()
     try:
-        status = activate_token(body.token, emails=emails_from_users(list(users)))
+        status = activate_token(
+            body.token,
+            emails=emails_from_users(list(users)),
+            selected_plan=body.plan,
+        )
     except LicenseError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     from services.entitlements import apply_licensed_commercial

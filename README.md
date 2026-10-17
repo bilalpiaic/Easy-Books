@@ -358,11 +358,11 @@ Then start Easy-Books again.
 
 Refresh the login page (or restart Easy-Books) to see Trial ended.
 
-**Licensed activation** (permanent unlock, still does not delete the folder or `~/.easy-books`): Easy-Books staff issue a signed `EB1.…` token from a **private staff repo** (`Easy-Books-license-issuer` — never cloned onto the client PC). The token is bound to this copy’s **install ID** (trial-ended screen / Settings → Advanced → Install license) and the owner email. On the **client PC** paste it there, or run:
+**Licensed activation** (permanent unlock, still does not delete the folder or `~/.easy-books`): Easy-Books staff issue a signed `EB1.…` token from a **private staff repo** (`Easy-Books-license-issuer` — never cloned onto the client PC). The token is bound to this copy’s **install ID**, the owner email, and **one client category** (Basic / Pro / Enterprise). On the **client PC** select that same category and paste the token (trial-ended screen or Settings → Advanced → Install license), or run:
 
-- **Windows:** `docs\Activate_License.bat`
+- **Windows:** `docs\Activate_License.bat` (prompts for token, then 1/2/3)
 - **macOS / Linux:** `bash docs/Activate_License.sh`
-- **CLI:** `cd backend && PYTHONPATH=. uv run python -m scripts.activate_license --token EB1.…`
+- **CLI:** `cd backend && PYTHONPATH=. uv run python -m scripts.activate_license --token EB1.… --plan basic`
 
 The license file is written in the books data dir (`~/.easy-books/.easy-books-license`), never `backend/`. This product tree only **verifies and activates**; it does not mint tokens. Signing up with a real email does **not** license the install. `EB_SKIP_DEMO_TRIAL=true` remains a licensed override. `dev.sh` is not a standalone install and is not limited.
 

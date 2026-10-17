@@ -111,22 +111,22 @@ Add-ons are **not** a second self-serve store. The Billing & plan tab (`/setting
 | Plan | Price | Included modules |
 |------|-------|------------------|
 | **Free** | $0 | `base` |
-| **Starter** | $15/mo | `base`, `inventory`, `pos`, `weighbridge` (shop books + scale) |
+| **Basic** (`starter`) | $15/mo | `base`, `inventory`, `pos`, `weighbridge` (shop books + scale) |
 | **Pro** | $49/mo | Starter + `purchase_store`, `production`, `hrm`, `ecommerce`, `shop_floor`, `ai_assistant`, and **all country packs** (`pra`, `uae_vat`, `sa_zatca`, `in_gst`, `eu_peppol`, `uk_mtd`, `my_invois`) |
 | **Enterprise** | $199/mo | Every `MODULE_REGISTRY` id, including industry verticals |
 
-**Priced add-ons** (Starter/Pro; Enterprise already includes industry):
+**Priced add-ons** (Basic/Pro; Enterprise already includes industry):
 
 | SKU | Price | Notes |
 |-----|-------|-------|
 | Industry vertical (`telecom`, `healthcare`, `weaving`, `spinning`, `textile_processing`) | $49/mo each | Entitle-only below Enterprise |
-| Country pack | $19/mo each | Only billed on Starter — included from Pro |
+| Country pack | $19/mo each | Only billed on Basic — included from Pro |
 
 Horizontal Pro capabilities (payroll, manufacturing, purchases, AI, PLC) are **plan upgrades**, not à-la-carte SKUs.
 
 **SaaS:** Stripe Checkout changes the plan. Extra add-ons are invoiced and flagged `module_meta[id].entitled` by Easy-Books ops (`OPS_ADMIN_EMAILS`).
 
-**Standalone / on-prem:** Stripe self-upgrade is disabled. After invoice settlement, field staff issue an `EB1` license with optional `plan` (`starter` \| `pro` \| `enterprise`) and `addons` (module ids). Activating the token unlocks the copy **and** applies those entitlements to the matching owner tenant. Source of truth: `services/entitlements.py` (`PLAN_MODULES`, `ADDON_PRICE_*`) and `GET /api/billing/catalog`.
+**Standalone / on-prem:** Stripe self-upgrade is disabled. After invoice settlement, field staff issue an `EB1` license with required `plan` (`starter` / Basic, `pro`, or `enterprise`) and optional `addons`. At activation the operator **must select that same category** (lock screen, Settings → Install license, or `Activate_License` 1/2/3). Token and selection must match. Source of truth: `services/entitlements.py` (`PLAN_MODULES`, `ADDON_PRICE_*`) and `GET /api/billing/catalog`.
 
 ---
 

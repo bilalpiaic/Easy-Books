@@ -24,6 +24,7 @@ import { LANGUAGES, type Language } from '@/i18n/config'
 import { useTranslation } from "react-i18next"
 import { useMessages } from "@/context/MessageContext"
 import { DI_ACTIVITIES, DI_PROVINCES, DI_SECTORS } from "@/lib/diConstants"
+import { LicensePlanPicker, licensePlanLabel, type LicensePlanId } from "@/components/LicensePlanPicker"
 
 interface PaymentTerm {
   id: number
@@ -3226,6 +3227,7 @@ function StandaloneLicenseSection() {
   const [status, setStatus] = useState<LicenseStatusRow | null>(null)
   const [hidden, setHidden] = useState(false)
   const [token, setToken] = useState("")
+  const [plan, setPlan] = useState<LicensePlanId | "">("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [copied, setCopied] = useState(false)
@@ -3260,13 +3262,13 @@ function StandaloneLicenseSection() {
   const activate = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = token.trim()
-    if (!trimmed || busy) return
+    if (!trimmed || !plan || busy) return
     setBusy(true)
     setError("")
     try {
       const data = await apiFetch<LicenseStatusRow>("/api/license/activate", {
         method: "POST",
-        body: JSON.stringify({ token: trimmed }),
+        body: JSON.stringify({ token: trimmed, plan }),
       })
       setStatus(data)
       setToken("")
@@ -3289,7 +3291,7 @@ function StandaloneLicenseSection() {
       {status.licensed ? (
         <p className="text-sm text-green-800">
           Licensed{status.email ? ` for ${status.email}` : ""}.
-          {status.plan ? ` Plan ${status.plan}.` : ""}
+          {status.plan ? ` Plan ${licensePlanLabel(status.plan) || status.plan}.` : ""}
           {status.addons?.length ? ` Extra add-ons: ${status.addons.join(", ")}.` : ""}
           {status.expires_at ? ` Expires ${fmtDate(String(status.expires_at))}.` : " Perpetual."}
         </p>
@@ -3323,7 +3325,8 @@ function StandaloneLicenseSection() {
           </div>
         </div>
       )}
-      <form onSubmit={activate} className="space-y-2">
+      <form onSubmit={activate} className="space-y-3">
+        <LicensePlanPicker value={plan} onChange={setPlan} disabled={busy} />
         <label className="block text-xs uppercase tracking-wide text-[var(--text-primary)]/50">
           License token
         </label>
@@ -3337,7 +3340,7 @@ function StandaloneLicenseSection() {
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
-          disabled={busy || !token.trim()}
+          disabled={busy || !token.trim() || !plan}
           className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--text-primary)] text-white hover:bg-[var(--text-primary)]/80 disabled:opacity-50"
         >
           {busy ? "Activating…" : status.licensed ? "Replace license" : "Activate license"}

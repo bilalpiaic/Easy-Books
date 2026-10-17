@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
+import { licensePlanLabel } from "@/components/LicensePlanPicker"
 
 type Usage = {
   users: number
@@ -111,7 +112,7 @@ export default function BillingPage() {
       {usage && (
         <div className="rounded-xl border border-[var(--border)] p-4 space-y-3 bg-[var(--surface)]">
           <p className="text-sm">
-            Current plan: <strong className="capitalize">{usage.plan}</strong>
+            Current plan: <strong>{licensePlanLabel(usage.plan) || usage.plan}</strong>
             {usage.subscription_status ? ` · ${usage.subscription_status}` : ""}
             {usage.is_suspended ? " · SUSPENDED" : ""}
             {standalone ? " · standalone license" : ""}
@@ -147,7 +148,8 @@ export default function BillingPage() {
           )}
           {license?.licensed && license.plan && (
             <p className="text-xs">
-              Licensed plan: <strong className="capitalize">{license.plan}</strong>
+              Licensed plan:{" "}
+              <strong>{licensePlanLabel(license.plan) || license.plan}</strong>
               {license.addons?.length ? ` · extra add-ons: ${license.addons.join(", ")}` : ""}
             </p>
           )}
@@ -169,7 +171,7 @@ export default function BillingPage() {
                 current ? "border-[#b8943f] bg-[#b8943f]/5" : "border-[var(--border)]"
               }`}
             >
-              <div className="font-medium capitalize">{card?.label || p}</div>
+              <div className="font-medium">{card?.label || licensePlanLabel(p) || p}</div>
               <div className="text-sm text-[var(--text-muted)]">
                 ${card?.price ?? "—"}/mo
               </div>
@@ -198,7 +200,11 @@ export default function BillingPage() {
                 title={standalone ? "Plan is set by the install license" : undefined}
                 className="mt-1 w-full rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:border-[#b8943f] disabled:opacity-40"
               >
-                {current ? "Current plan" : standalone ? "Licensed separately" : `Choose ${p}`}
+                {current
+                  ? "Current plan"
+                  : standalone
+                    ? "Licensed separately"
+                    : `Choose ${card?.label || licensePlanLabel(p) || p}`}
               </button>
             </div>
           )
@@ -209,7 +215,7 @@ export default function BillingPage() {
         <section className="space-y-2">
           <h2 className="text-sm font-semibold">Industry add-ons</h2>
           <p className="text-xs text-[var(--text-muted)]">
-            ${industry[0]?.price}/mo each on Starter or Pro. Included in Enterprise.
+            ${industry[0]?.price}/mo each on Basic or Pro. Included in Enterprise.
             Standalone: name the vertical on the license after invoice.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -227,13 +233,13 @@ export default function BillingPage() {
         <section className="space-y-2">
           <h2 className="text-sm font-semibold">Country packs</h2>
           <p className="text-xs text-[var(--text-muted)]">
-            ${localization[0]?.price}/mo each on Starter. Included from Pro.
+            ${localization[0]?.price}/mo each on Basic. Included from Pro.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {localization.map((sku) => (
               <div key={sku.id} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm flex justify-between gap-2">
                 <span>{sku.label}</span>
-                <span className="text-xs text-[var(--text-muted)]">${sku.price}/mo · from {sku.included_from}</span>
+                <span className="text-xs text-[var(--text-muted)]">${sku.price}/mo · from {licensePlanLabel(sku.included_from) || sku.included_from}</span>
               </div>
             ))}
           </div>

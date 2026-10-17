@@ -68,6 +68,13 @@ PLAN_SUMMARIES: dict[str, str] = {
     "enterprise": "All first-party add-ons, including industry verticals",
 }
 
+PLAN_DISPLAY_LABELS: dict[str, str] = {
+    "free": "Free",
+    "starter": "Basic",
+    "pro": "Pro",
+    "enterprise": "Enterprise",
+}
+
 # Not on free/starter/pro unless module_meta[id].entitled or plan is enterprise.
 INDUSTRY_PACKS: frozenset[str] = frozenset(
     {
@@ -291,7 +298,7 @@ def commercial_catalog() -> dict[str, Any]:
         plans[plan] = {
             **limits,
             "id": plan,
-            "label": plan.capitalize(),
+            "label": PLAN_DISPLAY_LABELS.get(plan, plan.capitalize()),
             "summary": PLAN_SUMMARIES.get(plan, ""),
             "includes": ids,
             "include_labels": [MODULE_REGISTRY[m]["label"] for m in ids if m in MODULE_REGISTRY],

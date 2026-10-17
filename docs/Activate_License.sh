@@ -64,6 +64,30 @@ if [ -z "${EB_LICENSE_TOKEN:-}" ]; then
 fi
 export EB_LICENSE_TOKEN
 
+echo
+echo "Select the client category this license is for:"
+echo "  1) Basic"
+echo "  2) Pro"
+echo "  3) Enterprise"
+if [ -t 0 ]; then
+  IFS= read -r PLAN_CHOICE || true
+else
+  IFS= read -r PLAN_CHOICE || true
+fi
+PLAN_KEY="$(printf '%s' "${PLAN_CHOICE:-}" | tr '[:upper:]' '[:lower:]')"
+case "$PLAN_KEY" in
+  1|basic|starter) EB_LICENSE_PLAN=starter ;;
+  2|pro) EB_LICENSE_PLAN=pro ;;
+  3|enterprise) EB_LICENSE_PLAN=enterprise ;;
+  *)
+    echo
+    echo "[ERROR] Select 1) Basic, 2) Pro, or 3) Enterprise."
+    echo
+    exit 1
+    ;;
+esac
+export EB_LICENSE_PLAN
+
 cd "$REPO_ROOT/backend" || {
   echo "[ERROR] Cannot open $REPO_ROOT/backend."
   exit 1

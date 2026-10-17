@@ -20,6 +20,7 @@ import {
 } from "@/lib/addonPacks"
 import { getCurrentUser } from "@/lib/auth"
 import { apiFetch } from "@/lib/api"
+import { licensePlanLabel } from "@/components/LicensePlanPicker"
 import Link from "next/link"
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -91,10 +92,7 @@ function planBadge(mod: ModuleInfo): string | null {
   const from = mod.included_from || mod.tier
   if (!from || from === "free") return null
   if (mod.addon_kind === "industry") return "Enterprise / add-on"
-  if (from === "starter") return "Starter"
-  if (from === "pro") return mod.addon_kind === "localization" ? "Pro" : "Pro"
-  if (from === "enterprise") return "Enterprise"
-  return from
+  return licensePlanLabel(from) || from
 }
 
 function blockedHint(mod: ModuleInfo): string {
@@ -102,10 +100,12 @@ function blockedHint(mod: ModuleInfo): string {
     return `Industry add-on — $${mod.addon_price}/mo or included in Enterprise. Contact Easy-Books.`
   }
   if (mod.addon_kind === "localization") {
-    return `Country pack — $${mod.addon_price}/mo on Starter, included from Pro.`
+    return `Country pack — $${mod.addon_price}/mo on Basic, included from Pro.`
   }
   const from = mod.included_from || mod.tier
-  if (from && from !== "free") return `Included in ${from}. Open Billing & plan to upgrade.`
+  if (from && from !== "free") {
+    return `Included in ${licensePlanLabel(from) || from}. Open Billing & plan to upgrade.`
+  }
   return "Not included in this plan. Contact Easy-Books."
 }
 

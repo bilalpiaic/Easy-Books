@@ -6,10 +6,11 @@ after the 15-day trial. Tokens are Ed25519-signed:
 
     EB1.<base64url(json payload)>.<base64url(signature)>
 
-Payload: ``v``, ``install_id``, ``email``, ``issued_at``, optional ``expires_at``,
-optional commercial fields ``plan`` (starter|pro|enterprise) and ``addons``
-(extra module ids beyond the plan — industry verticals, or country packs on
-Starter). Old tokens without those fields still unlock the copy.
+Payload: ``v``, ``install_id``, ``email``, ``issued_at``, required ``plan``
+(``starter`` / Basic, ``pro``, or ``enterprise``; alias ``basic`` → starter),
+optional ``expires_at``, optional ``addons`` (extra module ids beyond the
+plan). Activating a client requires selecting that same category — token
+and selection must match. Tokens with no plan do not unlock.
 The public key ships in this module so the **client install can verify**
 a token. Minting tokens is **not** part of this product tree — field staff
 use the private repo ``bilalpiaic/Easy-Books-license-issuer`` on their own
@@ -168,20 +169,50 @@ def ensure_install_id() -> str:
 
 
 _PAID_PLANS = frozenset({"starter", "pro", "enterprise"})
+_PLAN_ALIASES = {
+    "basic": "starter",
+    "starter": "starter",
+    "pro": "pro",
+    "enterprise": "enterprise",
+}
+PLAN_LABELS = {
+    "starter": "Basic",
+    "pro": "Pro",
+    "enterprise": "Enterprise",
+}
+PLAN_REQUIRED = "Select Basic, Pro, or Enterprise to activate this client."
+PLAN_MISSING_ON_TOKEN = (
+    "This license has no plan. Ask Easy-Books to reissue it as Basic, Pro, or Enterprise."
+)
 
 
-def _normalize_plan(plan: str | None) -> str | None:
+def _normalize_plan(plan: str | None, *, required: bool = False) -> str | None:
     if plan is None:
+        if required:
+            raise LicenseError(PLAN_REQUIRED, "license_plan")
         return None
     key = str(plan).strip().lower()
     if not key:
+        if required:
+            raise LicenseError(PLAN_REQUIRED, "license_plan")
         return None
-    if key not in _PAID_PLANS:
+    mapped = _PLAN_ALIASES.get(key)
+    if mapped not in _PAID_PLANS:
         raise LicenseError(
-            "License plan must be starter, pro, or enterprise.",
+            "License plan must be Basic, Pro, or Enterprise.",
             "license_plan",
         )
-    return key
+    return mapped
+
+
+def canonical_plan(plan: str | None, *, required: bool = False) -> str | None:
+    """Public alias for Basic/Pro/Enterprise → ``starter`` / ``pro`` / ``enterprise``."""
+    return _normalize_plan(plan, required=required)
+
+
+def plan_label(plan: str | None) -> str:
+    key = _PLAN_ALIASES.get((plan or "").strip().lower(), "")
+    return PLAN_LABELS.get(key or (plan or ""), plan or "")
 
 
 def _normalize_addons(addons: list[str] | None) -> list[str]:
@@ -234,10 +265,8 @@ def issue_token(
     }
     if expires_at is not None:
         payload["expires_at"] = _format_dt(expires_at)
-    paid_plan = _normalize_plan(plan)
+    payload["plan"] = _normalize_plan(plan, required=True)
     extra = _normalize_addons(addons)
-    if paid_plan:
-        payload["plan"] = paid_plan
     if extra:
         payload["addons"] = extra
     raw = _canonical_payload(payload)
@@ -274,10 +303,11 @@ def parse_token(token: str) -> dict[str, Any]:
         raise LicenseError("License is missing install_id or email.", "license_malformed")
     payload["install_id"] = iid
     payload["email"] = email
-    try:
-        payload["plan"] = _normalize_plan(payload.get("plan"))
-    except LicenseError:
+    raw_plan = payload.get("plan")
+    if raw_plan in (None, ""):
         payload["plan"] = None
+    else:
+        payload["plan"] = _normalize_plan(raw_plan)
     raw_addons = payload.get("addons")
     if isinstance(raw_addons, list):
         try:
@@ -361,9 +391,24 @@ def activate_token(
     token: str,
     *,
     emails: list[tuple[str, str]] | None = None,
+    selected_plan: str | None = None,
 ) -> dict[str, Any]:
-    """Verify, bind to this install id, and write ``.easy-books-license``."""
+    """Verify, bind to this install id, and write ``.easy-books-license``.
+
+    ``selected_plan`` is the Basic / Pro / Enterprise category chosen at
+    activation; it must match the signed token ``plan``.
+    """
     payload = parse_token(token)
+    token_plan = payload.get("plan")
+    if not token_plan:
+        raise LicenseError(PLAN_MISSING_ON_TOKEN, "license_plan")
+    chosen = _normalize_plan(selected_plan, required=True)
+    if chosen != token_plan:
+        raise LicenseError(
+            f"This license is for {PLAN_LABELS[token_plan]}. "
+            "Select that category to activate.",
+            "license_plan_mismatch",
+        )
     iid = ensure_install_id()
     if payload["install_id"] != iid:
         raise LicenseError(
