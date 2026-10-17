@@ -358,13 +358,21 @@ Then start Easy-Books again.
 
 Refresh the login page (or restart Easy-Books) to see Trial ended.
 
-**Licensed activation** (permanent unlock, still does not delete the folder or `~/.easy-books`): Easy-Books staff issue a signed `EB1.…` token from a **private staff repo** (`Easy-Books-license-issuer` — never cloned onto the client PC). The token is bound to this copy’s **install ID** (trial-ended screen / Settings → Advanced → Install license) and the owner email. On the **client PC** paste it there, or run:
+**Licensed activation** (unlock, still does not delete the folder or `~/.easy-books`): Easy-Books staff issue a signed `EB1.…` token from a **private staff repo** (`Easy-Books-license-issuer` — never cloned onto the client PC). The token is bound to this copy’s **install ID** (trial-ended screen / Settings → Advanced → Install license) and the owner email. Staff choose the term when minting (**lifetime**, **3 months**, **1 year**, or **2 years**). Duration is inside the token — the client PC does not set it. On the **client PC** paste it there, or run:
 
 - **Windows:** `docs\Activate_License.bat`
 - **macOS / Linux:** `bash docs/Activate_License.sh`
 - **CLI:** `cd backend && PYTHONPATH=. uv run python -m scripts.activate_license --token EB1.…`
 
-The license file is written in the books data dir (`~/.easy-books/.easy-books-license`), never `backend/`. This product tree only **verifies and activates**; it does not mint tokens. Signing up with a real email does **not** license the install. `EB_SKIP_DEMO_TRIAL=true` remains a licensed override. `dev.sh` is not a standalone install and is not limited.
+Settings → Advanced → Install license shows **Perpetual** or the expiry date. After `expires_at` the copy locks again (books are not deleted); paste a new token to renew.
+
+**Deactivate** (remove the license file on this PC; type `DEACTIVATE`):
+
+- **Windows:** `docs\Deactivate_License.bat`
+- **macOS / Linux:** `bash docs/Deactivate_License.sh`
+- **CLI:** `cd backend && PYTHONPATH=. uv run python -m scripts.deactivate_license` (or `--yes`)
+
+The license file is written in the books data dir (`~/.easy-books/.easy-books-license`), never `backend/`. This product tree only **verifies, activates, and deactivates**; it does not mint tokens. Signing up with a real email does **not** license the install. `EB_SKIP_DEMO_TRIAL=true` remains a licensed override. `dev.sh` is not a standalone install and is not limited.
 
 The **desktop (Electron) app** also auto-loads the 9 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
 
