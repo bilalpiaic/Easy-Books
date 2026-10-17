@@ -51,13 +51,15 @@ _CHOICE_TO_PLAN = {
 
 
 def _prompt_plan() -> str | None:
+    if not sys.stdin.isatty():
+        return None
     print("Select the client category this license is for:", flush=True)
     print("  1) Basic", flush=True)
     print("  2) Pro", flush=True)
     print("  3) Enterprise", flush=True)
     try:
         raw = input("Category [1/2/3]: ")
-    except (EOFError, KeyboardInterrupt):
+    except (EOFError, KeyboardInterrupt, OSError):
         return None
     return _CHOICE_TO_PLAN.get((raw or "").strip().lower())
 

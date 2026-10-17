@@ -353,6 +353,25 @@ def test_license_files_land_in_easy_books_not_backend(monkeypatch, tmp_path):
     assert lic.is_licensed() is True
 
 
+def test_activate_script_interactive_category(monkeypatch, tmp_path, capsys):
+    _standalone(monkeypatch, tmp_path)
+    _ephemeral_keypair(monkeypatch)
+    from services import standalone_license as lic
+    from scripts.activate_license import main
+
+    iid = lic.ensure_install_id()
+    token = _issue(lic, install_id=iid, email="owner@co.test")
+    monkeypatch.delenv("EB_LICENSE_PLAN", raising=False)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    answers = iter(["1"])
+    monkeypatch.setattr("builtins.input", lambda _prompt="": next(answers))
+    assert main(["--token", token]) == 0
+    out = capsys.readouterr().out
+    assert "License activated" in out
+    assert "Basic" in out
+    assert lic.is_licensed() is True
+
+
 def test_activate_script_writes_license(monkeypatch, tmp_path, capsys):
     _standalone(monkeypatch, tmp_path)
     _ephemeral_keypair(monkeypatch)
