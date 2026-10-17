@@ -104,6 +104,32 @@ After signup the user manages modules independently. Localization demos may also
 
 ---
 
+## Plans and pricing settlement
+
+Add-ons are **not** a second self-serve store. The Billing & plan tab (`/settings/billing`) is the catalog: which modules a paying client may install, and how extras are invoiced.
+
+| Plan | Price | Included modules |
+|------|-------|------------------|
+| **Free** | $0 | `base` |
+| **Starter** | $15/mo | `base`, `inventory`, `pos`, `weighbridge` (shop books + scale) |
+| **Pro** | $49/mo | Starter + `purchase_store`, `production`, `hrm`, `ecommerce`, `shop_floor`, `ai_assistant`, and **all country packs** (`pra`, `uae_vat`, `sa_zatca`, `in_gst`, `eu_peppol`, `uk_mtd`, `my_invois`) |
+| **Enterprise** | $199/mo | Every `MODULE_REGISTRY` id, including industry verticals |
+
+**Priced add-ons** (Starter/Pro; Enterprise already includes industry):
+
+| SKU | Price | Notes |
+|-----|-------|-------|
+| Industry vertical (`telecom`, `healthcare`, `weaving`, `spinning`, `textile_processing`) | $49/mo each | Entitle-only below Enterprise |
+| Country pack | $19/mo each | Only billed on Starter — included from Pro |
+
+Horizontal Pro capabilities (payroll, manufacturing, purchases, AI, PLC) are **plan upgrades**, not à-la-carte SKUs.
+
+**SaaS:** Stripe Checkout changes the plan. Extra add-ons are invoiced and flagged `module_meta[id].entitled` by Easy-Books ops (`OPS_ADMIN_EMAILS`).
+
+**Standalone / on-prem:** Stripe self-upgrade is disabled. After invoice settlement, field staff issue an `EB1` license with optional `plan` (`starter` \| `pro` \| `enterprise`) and `addons` (module ids). Activating the token unlocks the copy **and** applies those entitlements to the matching owner tenant. Source of truth: `services/entitlements.py` (`PLAN_MODULES`, `ADDON_PRICE_*`) and `GET /api/billing/catalog`.
+
+---
+
 ## Related
 
 - User Guide §29 — how to install

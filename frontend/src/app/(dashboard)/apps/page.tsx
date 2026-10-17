@@ -20,6 +20,7 @@ import {
 } from "@/lib/addonPacks"
 import { getCurrentUser } from "@/lib/auth"
 import { apiFetch } from "@/lib/api"
+import Link from "next/link"
 
 const ICON_MAP: Record<string, React.ElementType> = {
   BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles,
@@ -86,6 +87,28 @@ function ModuleIcon({ name, installed }: { name: string; installed?: boolean }) 
   )
 }
 
+function planBadge(mod: ModuleInfo): string | null {
+  const from = mod.included_from || mod.tier
+  if (!from || from === "free") return null
+  if (mod.addon_kind === "industry") return "Enterprise / add-on"
+  if (from === "starter") return "Starter"
+  if (from === "pro") return mod.addon_kind === "localization" ? "Pro" : "Pro"
+  if (from === "enterprise") return "Enterprise"
+  return from
+}
+
+function blockedHint(mod: ModuleInfo): string {
+  if (mod.addon_kind === "industry") {
+    return `Industry add-on — $${mod.addon_price}/mo or included in Enterprise. Contact Easy-Books.`
+  }
+  if (mod.addon_kind === "localization") {
+    return `Country pack — $${mod.addon_price}/mo on Starter, included from Pro.`
+  }
+  const from = mod.included_from || mod.tier
+  if (from && from !== "free") return `Included in ${from}. Open Billing & plan to upgrade.`
+  return "Not included in this plan. Contact Easy-Books."
+}
+
 function StatusPill({ mod }: { mod: ModuleInfo }) {
   if (mod.always) {
     return (
@@ -104,7 +127,7 @@ function StatusPill({ mod }: { mod: ModuleInfo }) {
   if (mod.installable === false) {
     return (
       <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)] bg-[var(--border)]/40 rounded px-2 py-0.5 font-medium">
-        <Lock className="w-3 h-3" /> Not in plan
+        <Lock className="w-3 h-3" /> {planBadge(mod) || "Not in plan"}
       </span>
     )
   }
@@ -141,10 +164,10 @@ function InstallControls({
       type="button"
       onClick={() => onInstall(mod.id)}
       disabled={busy || blocked}
-      title={blocked ? "Not included in this plan. Contact Easy-Books." : undefined}
+      title={blocked ? blockedHint(mod) : undefined}
       className="text-[11px] bg-[var(--primary)] text-white rounded-md px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
     >
-      {blocked ? "Not in plan" : busy ? "Installing…" : "Install"}
+      {blocked ? (planBadge(mod) || "Not in plan") : busy ? "Installing…" : "Install"}
     </button>
   )
 }
@@ -167,8 +190,11 @@ function ModuleTile({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <h3 className="font-semibold text-sm text-[var(--text-primary)]">{mod.label}</h3>
-          {mod.tier === "pro" && (
-            <span className="text-[10px] uppercase tracking-wide text-[var(--primary)] font-semibold">Pro</span>
+          {planBadge(mod) && !mod.installed && !mod.always && (
+            <span className="text-[10px] uppercase tracking-wide text-[var(--primary)] font-semibold">
+              {planBadge(mod)}
+              {mod.addon_price ? ` · $${mod.addon_price}` : ""}
+            </span>
           )}
         </div>
         <p className={`text-xs text-[var(--text-muted)] mt-0.5 ${detail ? "" : "line-clamp-1"}`}>
@@ -241,11 +267,11 @@ function PackTile({
           <button
             type="button"
             disabled={busy || blocked}
-            title={blocked ? "Not included in this plan. Contact Easy-Books." : undefined}
+            title={blocked ? "A module in this pack is not in the current plan. Open Billing & plan." : undefined}
             onClick={() => onInstall(pack.id)}
             className="text-[11px] bg-[var(--primary)] text-white rounded-md px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
           >
-            {blocked ? "Not in plan" : busy ? "Installing…" : "Install pack"}
+            {blocked ? "Needs plan" : busy ? "Installing…" : "Install pack"}
           </button>
         )}
       </div>
@@ -736,6 +762,10 @@ function AppsPageInner() {
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Add-ons</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
             {installedCount} of {modules.length} modules installed
+            {" · "}
+            <Link href="/settings/billing" className="text-[var(--primary)] hover:underline">
+              Billing & plan
+            </Link>
           </p>
         </div>
         <div

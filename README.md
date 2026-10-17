@@ -486,7 +486,7 @@ uv run alembic upgrade head
 | `UPLOAD_ROOT` | Root dir for avatars and attachments | `uploads` |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Create an admin user on first boot | — |
 | `SEED_COMPANY_NAME` | Default company name for the seeded tenant | `My Company` |
-| `STRIPE_SECRET_KEY` | Stripe secret for SaaS Checkout + invoice payment links. When unset, billing upgrades apply **offline** (plan written locally) and payment-link creation returns 400 | — |
+| `STRIPE_SECRET_KEY` | Stripe secret for SaaS Checkout + invoice payment links. When unset, **SaaS** billing upgrades apply **offline** (plan written locally) and payment-link creation returns 400. Standalone (`EB_STANDALONE`) copies refuse Checkout — plan + add-ons come from the signed install license | — |
 | `STRIPE_PRICE_STARTER` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | Stripe Price IDs for live Checkout (`POST /api/billing/checkout`). Required when `STRIPE_SECRET_KEY` is set; Checkout returns an actionable 400 naming the missing env var otherwise | — |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret for `/api/stripe/webhook` | — |
 | `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ENV` | Bank feeds (Plaid). Sync upserts `StatementLine` rows when credentials + a linked bank account are present | — |

@@ -1879,7 +1879,8 @@ export default function SettingsPage() {
       <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-3">
         <h2 className="text-lg font-bold text-[var(--text-primary)]">Billing</h2>
         <p className="text-sm text-[var(--text-primary)]/60">
-          Plan limits, usage meters, and upgrades.
+          Plan limits, included add-ons, and priced industry / country SKUs.
+          Standalone copies settle via the install license, not Stripe.
         </p>
         <Link
           href="/settings/billing"
@@ -3216,6 +3217,8 @@ type LicenseStatusRow = {
   expires_at?: string | null
   activated_at?: string | null
   data_dir?: string | null
+  plan?: string | null
+  addons?: string[]
 }
 
 function StandaloneLicenseSection() {
@@ -3286,6 +3289,8 @@ function StandaloneLicenseSection() {
       {status.licensed ? (
         <p className="text-sm text-green-800">
           Licensed{status.email ? ` for ${status.email}` : ""}.
+          {status.plan ? ` Plan ${status.plan}.` : ""}
+          {status.addons?.length ? ` Extra add-ons: ${status.addons.join(", ")}.` : ""}
           {status.expires_at ? ` Expires ${fmtDate(String(status.expires_at))}.` : " Perpetual."}
         </p>
       ) : status.skip_env ? (

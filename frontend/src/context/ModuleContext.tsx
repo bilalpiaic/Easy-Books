@@ -11,13 +11,16 @@ export interface ModuleInfo {
   icon: string
   deps: string[]
   always: boolean
-  tier: "free" | "pro" | "enterprise"
+  tier: "free" | "starter" | "pro" | "enterprise"
   nav_sections: string[]
   installed: boolean
   installed_at: string | null
   expires_at: string | null
   entitled?: boolean
   installable?: boolean
+  included_from?: "free" | "starter" | "pro" | "enterprise"
+  addon_price?: number | null
+  addon_kind?: "industry" | "localization" | null
 }
 
 interface ModuleContextValue {

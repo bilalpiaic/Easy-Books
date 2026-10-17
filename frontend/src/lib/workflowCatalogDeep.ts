@@ -492,7 +492,7 @@ const EXTRA_SCREENS: CatalogEntry[] = [
     explanation: "Single punch: employee, date, time in/out, status. Manual source — distinct from biometric import." }),
   row({ id: "screen-settings-billing", kind: "screen", title: "Settings · Billing", href: "/settings/billing",
     captureTenant: "services", segment: "System", tags: ["settings"],
-    explanation: "SaaS plan and Stripe billing for the tenant. Demo companies show the catalog of plans; production uses STRIPE keys." }),
+    explanation: "Plan meters plus the add-on catalog (Starter shop books, Pro operations + country packs, Enterprise industry verticals). SaaS uses Stripe for the plan; standalone copies encode plan + extra add-ons in the install license after invoice settlement." }),
   row({ id: "screen-settings-ops", kind: "screen", title: "Settings · Ops console", href: "/settings/ops",
     captureTenant: "services", segment: "System", tags: ["settings"],
     explanation: "Operator console for practice/host staff: tenant list, health, dead-letter tasks. Not the company Settings form." }),
