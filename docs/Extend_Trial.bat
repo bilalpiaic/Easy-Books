@@ -40,6 +40,13 @@ if not exist "%REPO_ROOT%\backend\scripts\extend_trial.py" (
 REM uv is installed to %%USERPROFILE%%\.local\bin by install-and-run.bat
 set "PATH=%USERPROFILE%\.local\bin;%USERPROFILE%\.cargo\bin;%PATH%"
 
+REM Same data dir as install-and-run.bat. Without this, Python defaults to
+REM backend\ and the running copy (%%USERPROFILE%%\.easy-books) stays locked.
+if exist "%REPO_ROOT%\.easy-books-portable" (
+    if not defined EB_DATA_DIR set "EB_DATA_DIR=%REPO_ROOT%\data"
+)
+if not defined EB_DATA_DIR set "EB_DATA_DIR=%USERPROFILE%\.easy-books"
+
 echo Enter the extend-trial password:
 echo.
 
