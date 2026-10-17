@@ -159,6 +159,69 @@ def test_license_unlocks_expired_trial(client, monkeypatch, tmp_path):
     assert signup.status_code == 200, signup.text
 
 
+def test_license_plan_and_addons_apply_to_owner(client, monkeypatch, tmp_path):
+    monkeypatch.setenv("ENFORCE_MODULE_PLANS", "true")
+    _standalone(monkeypatch, tmp_path)
+    _ephemeral_keypair(monkeypatch)
+    from services import standalone_license as lic
+
+    r = client.post("/api/auth/signup", json={
+        "email": "owner.planlic@co.test",
+        "password": "pw12345678",
+        "full_name": "Owner",
+        "company_name": "Plan Co",
+    })
+    assert r.status_code == 200, r.text
+    iid = client.get("/api/license/status").json()["install_id"]
+    token = lic.issue_token(
+        install_id=iid,
+        email="owner.planlic@co.test",
+        plan="pro",
+        addons=["healthcare"],
+    )
+    activated = client.post("/api/license/activate", json={"token": token})
+    assert activated.status_code == 200, activated.text
+    body = activated.json()
+    assert body["licensed"] is True
+    assert body["plan"] == "pro"
+    assert "healthcare" in (body.get("addons") or [])
+    assert body["commercial"]["applied"] is True
+    assert body["commercial"]["plan"] == "pro"
+
+    tok = client.post(
+        "/api/auth/login",
+        data={"username": "owner.planlic@co.test", "password": "pw12345678"},
+    )
+    assert tok.status_code == 200, tok.text
+    client.cookies.clear()
+    auth = {"Authorization": f"Bearer {tok.json()['access_token']}"}
+    usage = client.get("/api/billing/usage", headers=auth).json()
+    assert usage["plan"] == "pro"
+    assert "healthcare" in (usage.get("extra_addons") or [])
+    listed = client.get("/api/modules", headers=auth).json()
+    hrm = next(m for m in listed if m["id"] == "hrm")
+    health = next(m for m in listed if m["id"] == "healthcare")
+    spinning = next(m for m in listed if m["id"] == "spinning")
+    assert hrm["installable"] is True
+    assert health["installable"] is True
+    assert spinning["installable"] is False
+    assert client.post("/api/billing/checkout", headers=auth, json={"plan": "enterprise"}).status_code == 403
+
+
+def test_issue_token_rejects_unknown_addon(monkeypatch, tmp_path):
+    _standalone(monkeypatch, tmp_path)
+    _ephemeral_keypair(monkeypatch)
+    from services import standalone_license as lic
+    from services.standalone_license import LicenseError
+
+    iid = lic.ensure_install_id()
+    try:
+        lic.issue_token(install_id=iid, email="owner@co.test", plan="starter", addons=["not-a-module"])
+        assert False, "expected LicenseError"
+    except LicenseError as exc:
+        assert exc.code == "license_addons"
+
+
 def test_activate_rejects_other_email_while_locked(client, monkeypatch, tmp_path):
     _standalone(monkeypatch, tmp_path)
     _ephemeral_keypair(monkeypatch)

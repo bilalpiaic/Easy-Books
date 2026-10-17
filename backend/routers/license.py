@@ -30,6 +30,11 @@ def get_license_status():
 def activate_license(body: ActivateIn, session: SessionDep):
     users = session.exec(select(User)).all()
     try:
-        return activate_token(body.token, emails=emails_from_users(list(users)))
+        status = activate_token(body.token, emails=emails_from_users(list(users)))
     except LicenseError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    from services.entitlements import apply_licensed_commercial
+
+    commercial = apply_licensed_commercial(session)
+    session.commit()
+    return {**status, "commercial": commercial}

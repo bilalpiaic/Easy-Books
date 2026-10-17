@@ -70,8 +70,34 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  Email:       {status.get('email')}", flush=True)
     print(f"  Data dir:    {status.get('data_dir')}", flush=True)
     print(f"  License at:  {license_path()}", flush=True)
+    if status.get("plan"):
+        print(f"  Plan:        {status.get('plan')}", flush=True)
+    extras = status.get("addons") or []
+    if extras:
+        print(f"  Add-ons:     {', '.join(extras)}", flush=True)
     if status.get("expires_at"):
         print(f"  Expires:     {status.get('expires_at')}", flush=True)
+
+    try:
+        from sqlmodel import Session
+
+        from db import engine
+        from services.entitlements import apply_licensed_commercial
+
+        with Session(engine) as session:
+            commercial = apply_licensed_commercial(session)
+            session.commit()
+        if commercial.get("applied"):
+            print(
+                f"  Applied to tenant {commercial.get('tenant_id')} "
+                f"({commercial.get('plan')}).",
+                flush=True,
+            )
+        elif commercial.get("reason") == "no_plan":
+            print("  No plan on this token — copy unlocked, add-ons unchanged.", flush=True)
+    except Exception as exc:
+        print(f"  Plan apply skipped ({type(exc).__name__}: {exc}). Restart Easy-Books.", flush=True)
+
     print("Restart Easy-Books for the license to take effect.", flush=True)
     return 0
 

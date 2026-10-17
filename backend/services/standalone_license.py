@@ -6,7 +6,10 @@ after the 15-day trial. Tokens are Ed25519-signed:
 
     EB1.<base64url(json payload)>.<base64url(signature)>
 
-Payload: ``v``, ``install_id``, ``email``, ``issued_at``, optional ``expires_at``.
+Payload: ``v``, ``install_id``, ``email``, ``issued_at``, optional ``expires_at``,
+optional commercial fields ``plan`` (starter|pro|enterprise) and ``addons``
+(extra module ids beyond the plan — industry verticals, or country packs on
+Starter). Old tokens without those fields still unlock the copy.
 The public key ships in this module so the **client install can verify**
 a token. Minting tokens is **not** part of this product tree — field staff
 use the private repo ``bilalpiaic/Easy-Books-license-issuer`` on their own
@@ -164,6 +167,41 @@ def ensure_install_id() -> str:
     return read_install_id() or new_id
 
 
+_PAID_PLANS = frozenset({"starter", "pro", "enterprise"})
+
+
+def _normalize_plan(plan: str | None) -> str | None:
+    if plan is None:
+        return None
+    key = str(plan).strip().lower()
+    if not key:
+        return None
+    if key not in _PAID_PLANS:
+        raise LicenseError(
+            "License plan must be starter, pro, or enterprise.",
+            "license_plan",
+        )
+    return key
+
+
+def _normalize_addons(addons: list[str] | None) -> list[str]:
+    if not addons:
+        return []
+    from db import MODULE_REGISTRY
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in addons:
+        mid = str(raw or "").strip()
+        if not mid or mid in seen:
+            continue
+        if mid not in MODULE_REGISTRY:
+            raise LicenseError(f"Unknown add-on {mid!r} in license.", "license_addons")
+        seen.add(mid)
+        out.append(mid)
+    return out
+
+
 def issue_token(
     *,
     install_id: str,
@@ -171,6 +209,8 @@ def issue_token(
     seed_hex: str | None = None,
     expires_at: datetime | None = None,
     issued_at: datetime | None = None,
+    plan: str | None = None,
+    addons: list[str] | None = None,
 ) -> str:
     """Staff issuer: sign a license token. Requires the private seed."""
     seed = (seed_hex or signing_seed_hex() or "").strip()
@@ -194,6 +234,12 @@ def issue_token(
     }
     if expires_at is not None:
         payload["expires_at"] = _format_dt(expires_at)
+    paid_plan = _normalize_plan(plan)
+    extra = _normalize_addons(addons)
+    if paid_plan:
+        payload["plan"] = paid_plan
+    if extra:
+        payload["addons"] = extra
     raw = _canonical_payload(payload)
     sig = _private_key(seed).sign(raw)
     return f"{TOKEN_PREFIX}.{_b64url_encode(raw)}.{_b64url_encode(sig)}"
@@ -228,6 +274,18 @@ def parse_token(token: str) -> dict[str, Any]:
         raise LicenseError("License is missing install_id or email.", "license_malformed")
     payload["install_id"] = iid
     payload["email"] = email
+    try:
+        payload["plan"] = _normalize_plan(payload.get("plan"))
+    except LicenseError:
+        payload["plan"] = None
+    raw_addons = payload.get("addons")
+    if isinstance(raw_addons, list):
+        try:
+            payload["addons"] = _normalize_addons([str(x) for x in raw_addons])
+        except LicenseError:
+            payload["addons"] = []
+    else:
+        payload["addons"] = []
     return payload
 
 
@@ -325,6 +383,8 @@ def activate_token(
         "email": payload["email"],
         "issued_at": payload.get("issued_at"),
         "expires_at": payload.get("expires_at"),
+        "plan": payload.get("plan"),
+        "addons": payload.get("addons") or [],
     }
     _write_replace(license_path(), json.dumps(record, indent=2) + "\n")
     return license_status()
@@ -385,6 +445,20 @@ def license_status() -> dict[str, Any]:
         "issued_at": (payload or {}).get("issued_at") if licensed else None,
         "expires_at": (payload or {}).get("expires_at") if licensed else None,
         "activated_at": (data or {}).get("activated_at") if licensed else None,
+        "plan": (payload or {}).get("plan") if licensed else None,
+        "addons": ((payload or {}).get("addons") or []) if licensed else [],
         "data_dir": str(books_data_dir()),
         "trial": trial_info(),
+    }
+
+
+def licensed_commercial() -> dict[str, Any]:
+    """Plan + extra add-ons + email from the on-disk license, or empty."""
+    if not is_licensed():
+        return {"plan": None, "addons": [], "email": None}
+    status = license_status()
+    return {
+        "plan": status.get("plan"),
+        "addons": list(status.get("addons") or []),
+        "email": status.get("email"),
     }

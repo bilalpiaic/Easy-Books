@@ -14,6 +14,7 @@ from services.entitlements import (
     can_install,
     is_allowed,
     is_entitled,
+    min_plan_for,
     plan_allows,
     set_entitled,
 )
@@ -71,9 +72,12 @@ def test_plan_tables_cover_registry():
     t = Tenant(name="x", plan="enterprise")
     for mid in MODULE_REGISTRY:
         assert plan_allows(t, mid)
+        assert MODULE_REGISTRY[mid].get("tier", "free") == min_plan_for(mid)
 
 
 def test_plan_allows_free_and_pro():
+    from services.entitlements import LOCALIZATION_PACKS
+
     free = Tenant(name="f", plan="free")
     assert plan_allows(free, "base")
     assert not plan_allows(free, "inventory")
@@ -84,12 +88,21 @@ def test_plan_allows_free_and_pro():
     assert plan_allows(pro, "ai_assistant")
     assert plan_allows(pro, "weighbridge")
     assert plan_allows(pro, "shop_floor")
+    assert plan_allows(pro, "pra")
     assert not plan_allows(pro, "spinning")
     assert not plan_allows(pro, "healthcare")
     starter = Tenant(name="s", plan="starter")
     assert plan_allows(starter, "weighbridge")
-    assert plan_allows(starter, "shop_floor")
+    assert plan_allows(starter, "pos")
+    assert not plan_allows(starter, "shop_floor")
+    assert not plan_allows(starter, "pra")
     assert not plan_allows(starter, "spinning")
+    assert "pra" not in INDUSTRY_PACKS
+    assert "pra" in LOCALIZATION_PACKS
+    assert min_plan_for("inventory") == "starter"
+    assert min_plan_for("shop_floor") == "pro"
+    assert min_plan_for("pra") == "pro"
+    assert min_plan_for("spinning") == "enterprise"
 
 
 def test_entitle_flag_overrides_plan(enforce_plans):
@@ -207,8 +220,48 @@ def test_pro_plan_installs_hrm_not_industry(client, enforce_plans):
     assert hrm.status_code == 200, hrm.text
     wb = client.post("/api/modules/weighbridge/install", headers=auth)
     assert wb.status_code == 200, wb.text
+    pra = client.post("/api/modules/pra/install", headers=auth)
+    assert pra.status_code == 200, pra.text
     spinning = client.post("/api/modules/spinning/install", headers=auth)
     assert spinning.status_code == 403
+
+
+def test_starter_plan_blocks_shop_floor_and_localization(client, enforce_plans):
+    _tid, auth = _signup(client, "starter-plan@test.com")
+    checkout = client.post("/api/billing/checkout", headers=auth, json={"plan": "starter"})
+    assert checkout.status_code == 200, checkout.text
+    pos = client.post("/api/modules/pos/install", headers=auth)
+    assert pos.status_code == 200, pos.text
+    plc = client.post("/api/modules/shop_floor/install", headers=auth)
+    assert plc.status_code == 403
+    pra = client.post("/api/modules/pra/install", headers=auth)
+    assert pra.status_code == 403
+
+
+def test_billing_catalog_lists_includes_and_addon_skus(client):
+    r = client.get("/api/billing/catalog")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["settlement"] in ("saas", "standalone")
+    assert "inventory" in body["plans"]["starter"]["includes"]
+    assert "shop_floor" not in body["plans"]["starter"]["includes"]
+    assert "pra" in body["plans"]["pro"]["includes"]
+    assert "spinning" not in body["plans"]["pro"]["includes"]
+    ids = {row["id"] for row in body["addons"]}
+    assert "spinning" in ids and "pra" in ids
+    spinning = next(row for row in body["addons"] if row["id"] == "spinning")
+    assert spinning["kind"] == "industry"
+    assert spinning["price"] == 49
+    pra = next(row for row in body["addons"] if row["id"] == "pra")
+    assert pra["kind"] == "localization"
+    assert pra["included_from"] == "pro"
+
+
+def test_standalone_checkout_is_blocked(client, admin_headers, monkeypatch):
+    monkeypatch.setenv("EB_STANDALONE", "true")
+    r = client.post("/api/billing/checkout", headers=admin_headers, json={"plan": "pro"})
+    assert r.status_code == 403, r.text
+    assert "license" in r.json()["detail"].lower()
 
 
 def test_empty_ops_emails_fail_closed(client, monkeypatch, enforce_plans):

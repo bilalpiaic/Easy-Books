@@ -18,7 +18,7 @@ from sqlmodel import Session
 
 from db import get_session, MODULE_REGISTRY
 from routers.common import CurrentUserDep
-from services.entitlements import PLAN_DENIED, can_install, is_allowed
+from services.entitlements import PLAN_DENIED, can_install, is_allowed, module_commercial
 
 router = APIRouter(tags=["modules"])
 
@@ -151,6 +151,7 @@ def list_modules(current_user: CurrentUserDep, session: SessionDep):
             "expires_at":   mod_meta.get("expires_at"),
             "entitled":     is_allowed(tenant, mod_id),
             "installable":  can_install(tenant, mod_id),
+            **module_commercial(mod_id),
         })
 
     # Stable order: Core first, then alphabetical within category

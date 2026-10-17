@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from models import Tenant
+from services.entitlements import STANDALONE_CHECKOUT_DENIED, commercial_catalog, settlement_mode
 from services.saas import PLAN_LIMITS, apply_plan_defaults, usage_snapshot
 from services.security_policy import is_production
 from .common import AdminUserDep, CurrentUserDep, SessionDep
@@ -31,13 +32,23 @@ def get_usage(session: SessionDep, user: CurrentUserDep):
 
 @router.get("/plans")
 def list_plans():
-    return PLAN_LIMITS
+    """Plan limits plus included-module lists (backward-compatible keys)."""
+    catalog = commercial_catalog()
+    return catalog["plans"]
+
+
+@router.get("/catalog")
+def billing_catalog():
+    """Plans, included add-ons, priced SKUs, and settlement mode (saas vs standalone)."""
+    return commercial_catalog()
 
 
 @router.post("/checkout")
 def create_checkout(body: CheckoutBody, session: SessionDep, user: AdminUserDep):
     if body.plan not in PLAN_LIMITS or body.plan == "free":
         raise HTTPException(400, "Choose a paid plan: starter, pro, or enterprise")
+    if settlement_mode() == "standalone":
+        raise HTTPException(403, STANDALONE_CHECKOUT_DENIED)
     tenant = session.get(Tenant, user.tenant_id)
     if not tenant:
         raise HTTPException(404)

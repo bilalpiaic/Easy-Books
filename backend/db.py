@@ -575,7 +575,9 @@ def _coa_for(business_model: str):
 #   deps        Module IDs that must be installed first
 #   always      If True, the module cannot be uninstalled (locked)
 #   default     If True, installed on every new tenant regardless of business_model
-#   tier        "free" | "pro" | "enterprise" — reserved for future billing
+#   tier        "free" | "starter" | "pro" | "enterprise" — min plan that includes
+#               the module (Add-ons / Billing catalog). Industry verticals are
+#               enterprise; country packs are pro; shop books are starter.
 #   nav_sections Sidebar sections this module adds (informational; frontend drives the actual filter)
 MODULE_REGISTRY: dict[str, dict] = {
     "base": {
@@ -597,7 +599,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "starter",
         "nav_sections": ["Inventory"],
     },
     "production": {
@@ -608,7 +610,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["inventory"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "pro",
         "nav_sections": ["Manufacturing"],
     },
     "hrm": {
@@ -619,7 +621,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "pro",
         "nav_sections": ["Payroll"],
     },
     "telecom": {
@@ -630,7 +632,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["inventory"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "enterprise",
         "nav_sections": ["Telecom"],
     },
     "pra": {
@@ -641,7 +643,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "pro",
         "nav_sections": ["PRA"],
     },
     "uae_vat": {
@@ -652,7 +654,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "pro",
         "nav_sections": ["UAE"],
     },
     "sa_zatca": {
@@ -663,7 +665,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base"],
         "always":      False,
         "default":     False,
-        "tier":        "addon",
+        "tier":        "pro",
         "nav_sections": ["ZATCA"],
     },
     "in_gst": {
@@ -674,7 +676,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "pro",
         "nav_sections": ["Reports"],
     },
     "eu_peppol": {
@@ -685,7 +687,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base"],
         "always":      False,
         "default":     False,
-        "tier":        "addon",
+        "tier":        "pro",
         "nav_sections": ["Peppol"],
     },
     "uk_mtd": {
@@ -696,7 +698,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base"],
         "always":      False,
         "default":     False,
-        "tier":        "addon",
+        "tier":        "pro",
         "nav_sections": ["UK MTD"],
     },
     "my_invois": {
@@ -707,7 +709,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base"],
         "always":      False,
         "default":     False,
-        "tier":        "addon",
+        "tier":        "pro",
         "nav_sections": ["MyInvois"],
     },
     "healthcare": {
@@ -718,7 +720,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base", "hrm", "inventory"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "enterprise",
         "nav_sections": ["Healthcare"],
     },
     "ai_assistant": {
@@ -740,7 +742,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["inventory"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "pro",
         "nav_sections": ["Purchases"],
     },
     "pos": {
@@ -751,7 +753,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["inventory"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "starter",
         "nav_sections": ["POS"],
     },
     "ecommerce": {
@@ -762,7 +764,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["inventory"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "pro",
         "nav_sections": ["eCommerce"],
     },
     "weaving": {
@@ -773,7 +775,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base", "inventory", "weighbridge"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "enterprise",
         "nav_sections": ["Weaving"],
     },
     "spinning": {
@@ -784,7 +786,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base", "inventory", "purchase_store", "weighbridge"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "enterprise",
         "nav_sections": ["Spinning"],
     },
     "weighbridge": {
@@ -795,7 +797,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "starter",
         "nav_sections": ["Weighbridge"],
     },
     "shop_floor": {
@@ -806,7 +808,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "pro",
         "nav_sections": ["Overview"],
     },
     "textile_processing": {
@@ -817,7 +819,7 @@ MODULE_REGISTRY: dict[str, dict] = {
         "deps":        ["base", "inventory", "purchase_store", "weighbridge"],
         "always":      False,
         "default":     False,
-        "tier":        "free",
+        "tier":        "enterprise",
         "nav_sections": ["Processing"],
     },
 }

@@ -151,11 +151,20 @@ def check_storage_quota(session: Session, tenant_id: int, extra_bytes: int = 0) 
 
 
 def usage_snapshot(session: Session, tenant: Tenant) -> dict:
+    from services.entitlements import (
+        extra_addon_ids,
+        included_module_ids,
+        settlement_mode,
+    )
+    from db import MODULE_REGISTRY
+
     users = session.exec(
         select(func.count(User.id)).where(User.tenant_id == tenant.id)
     ).one()
     docs = documents_this_month(session, tenant.id)
     storage = storage_used_bytes(session, tenant.id)
+    includes = included_module_ids(tenant.plan or "free")
+    extras = extra_addon_ids(tenant)
     return {
         "users": int(users or 0),
         "documents_this_month": docs,
@@ -167,6 +176,11 @@ def usage_snapshot(session: Session, tenant: Tenant) -> dict:
             "storage_quota_mb": tenant.storage_quota_mb,
             "max_ai_per_hour": plan_ai_limit(tenant.plan),
         },
+        "included_modules": includes,
+        "include_labels": [MODULE_REGISTRY[m]["label"] for m in includes if m in MODULE_REGISTRY],
+        "extra_addons": extras,
+        "extra_addon_labels": [MODULE_REGISTRY[m]["label"] for m in extras if m in MODULE_REGISTRY],
+        "settlement": settlement_mode(),
         "is_suspended": tenant.is_suspended,
         "subscription_status": tenant.subscription_status,
     }
