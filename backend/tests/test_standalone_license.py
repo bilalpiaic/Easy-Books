@@ -342,3 +342,37 @@ def test_skip_env_still_unlocks_without_license_file(monkeypatch, tmp_path):
 
     assert demo_trial_expired() is False
     assert install_locked() is False
+
+
+def test_force_expire_does_not_lock_licensed_copy(client, monkeypatch, tmp_path):
+    """QA expire still writes latches; a valid license keeps the copy unlocked."""
+    _standalone(monkeypatch, tmp_path)
+    _ephemeral_keypair(monkeypatch)
+    from services import standalone_license as lic
+    from services import standalone_trial as st
+
+    r = client.post("/api/auth/signup", json={
+        "email": "owner.licensed-expire@co.test",
+        "password": "pw12345678",
+        "full_name": "Owner",
+        "company_name": "Licensed Expire Co",
+    })
+    assert r.status_code == 200, r.text
+    iid = lic.ensure_install_id()
+    token = lic.issue_token(install_id=iid, email="owner.licensed-expire@co.test")
+    info = lic.activate_token(token, emails=[("owner.licensed-expire@co.test", "owner")])
+    assert info["licensed"] is True
+
+    expired = st.force_expire_trial()
+    assert expired["expired"] is True
+    assert expired["licensed"] is True
+    assert expired["locked"] is False
+    assert st.demo_trial_expired() is True
+    assert st.install_locked() is False
+    assert (tmp_path / st.EXPIRED_NAME).is_file()
+
+    login = client.post(
+        "/api/auth/login",
+        data={"username": "owner.licensed-expire@co.test", "password": "pw12345678"},
+    )
+    assert login.status_code == 200, login.text

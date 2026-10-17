@@ -116,7 +116,7 @@ npm install && node server.js    # runs on root package.json
 | Context | Behaviour |
 |---------|-----------|
 | Dev / cloud (`dev.sh`) | Auto-created on first run; auto-populated with 50+ records per tenant each time `dev.sh` runs |
-| Standalone *script* installers (`install-and-run.*`) | **Auto-load** the 9 fully-populated demo companies on first install (`SEED_DEMO=true` default, ~20–30 s one-time). Set `SEED_DEMO=false` for a clean install with no demo data. Mechanism: after `alembic upgrade head`, the installer runs `scripts.autoseed_demo` (guarded — any user already present → skip; also skips when `SEED_DEMO=false`). Updating an existing install is **migrate-only** — no demo data is added. **The copy locks 15 days after first launch** (`EB_STANDALONE`; clocks `$EB_DATA_DIR/.demo-trial-started` and checkout `.easy-books-trial`). Source folder and books are not deleted. Unlock: signed license in `$EB_DATA_DIR/.easy-books-license` (`docs/Activate_License.*` / lock-screen paste) or `EB_SKIP_DEMO_TRIAL=true`. Signup with a real email does not auto-license. |
+| Standalone *script* installers (`install-and-run.*`) | **Auto-load** the 9 fully-populated demo companies on first install (`SEED_DEMO=true` default, ~20–30 s one-time). Set `SEED_DEMO=false` for a clean install with no demo data. Mechanism: after `alembic upgrade head`, the installer runs `scripts.autoseed_demo` (guarded — any user already present → skip; also skips when `SEED_DEMO=false`). Updating an existing install is **migrate-only** — no demo data is added. **The copy locks 15 days after first launch** (`EB_STANDALONE`; clocks `$EB_DATA_DIR/.demo-trial-started` and checkout `.easy-books-trial`). Source folder and books are not deleted. Unlock: signed license in `$EB_DATA_DIR/.easy-books-license` (`docs/Activate_License.*` / lock-screen paste) or `EB_SKIP_DEMO_TRIAL=true`. Signup with a real email does not auto-license. QA force-lock: `docs/Expire_Trial.bat|.sh` (type `EXPIRE`). |
 | Desktop (Electron) | **Also auto-loads** the 9 demo companies on first install (`SEED_DEMO=true` default; `run_packaged.py` runs the guarded auto-seed before serving; the Electron shell shows a "Starting up… first-time setup may take ~30 seconds" splash during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install. Updating an existing install is **migrate-only** — no demo data is added. Same 15-day install lock as the script installers. |
 
 Demo data is also loadable/removable at any time via **Settings → Sample / Demo Data** regardless of install type.
@@ -297,6 +297,8 @@ EB_SKIP_DEMO_TRIAL=        # default false; true unlocks a licensed standalone i
 #   bash docs/Extend_Trial.sh (macOS/Linux)  or
 #   cd backend && PYTHONPATH=. uv run python -m scripts.extend_trial  (then restart)
 # Hash: scripts/extend_trial.py DEFAULT_PASSWORD_SHA256; override EB_EXTEND_TRIAL_PASSWORD_SHA256
+# QA force-lock: docs/Expire_Trial.bat|.sh (type EXPIRE) or
+#   cd backend && PYTHONPATH=. uv run python -m scripts.expire_trial --yes
 # Licensed activation: signed EB1 token in ~/.easy-books/.easy-books-license
 #   (install id ~/.easy-books/.install-id). This tree only verifies/activates
 #   (docs/Activate_License.bat|.sh). Field staff mint tokens from the private

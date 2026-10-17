@@ -350,6 +350,14 @@ Standalone and desktop installs start a **15-day trial** on first launch (`EB_ST
 
 Then start Easy-Books again.
 
+**QA — force-expire the trial** (staff/dev testing the lock screen; type `EXPIRE` to confirm). Charges `~/.easy-books`, never `backend/`. Does not delete books or source. A valid license file still keeps the copy unlocked:
+
+- **Windows:** double-click `docs\Expire_Trial.bat`.
+- **macOS / Linux:** `bash docs/Expire_Trial.sh`.
+- **CLI:** `cd backend && PYTHONPATH=. uv run python -m scripts.expire_trial` (prompts, or `--yes`).
+
+Refresh the login page (or restart Easy-Books) to see Trial ended.
+
 **Licensed activation** (permanent unlock, still does not delete the folder or `~/.easy-books`): Easy-Books staff issue a signed `EB1.…` token from a **private staff repo** (`Easy-Books-license-issuer` — never cloned onto the client PC). The token is bound to this copy’s **install ID** (trial-ended screen / Settings → Advanced → Install license) and the owner email. On the **client PC** paste it there, or run:
 
 - **Windows:** `docs\Activate_License.bat`
